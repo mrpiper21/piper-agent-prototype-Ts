@@ -16,10 +16,22 @@ export class MacOSDriver {
   async discoverPrinters(): Promise<PrinterInfo[]> {
     try {
       const command = 'lpstat -p';
-      const { stdout } = await this.executeCommand(command);
+      const { stdout, stderr } = await this.executeCommand(command);
+      
+      // Handle "No destinations added" gracefully
+      if (stderr.includes('No destinations added') || !stdout.trim()) {
+        logger.info('No printers configured on macOS system');
+        return [];
+      }
       
       return this.parseMacOSPrinterList(stdout);
-    } catch (error) {
+    } catch (error: any) {
+      // Check if it's just "no printers" error
+      if (error.stderr?.includes('No destinations added')) {
+        logger.info('No printers configured on macOS system');
+        return [];
+      }
+      
       logger.error('macOS printer discovery failed:', error);
       throw error;
     }
@@ -31,7 +43,13 @@ export class MacOSDriver {
   async getDefaultPrinter(): Promise<string | null> {
     try {
       const command = 'lpstat -d';
-      const { stdout } = await this.executeCommand(command);
+      const { stdout, stderr } = await this.executeCommand(command);
+      
+      // Handle "No destinations added" gracefully
+      if (stderr.includes('No destinations added') || stderr.includes('no system default destination')) {
+        logger.info('No default printer set on macOS system');
+        return null;
+      }
       
       // Parse output like "system default destination: HP_LaserJet"
       const match = stdout.match(/system default destination:\s*(.+)/i);
@@ -40,7 +58,14 @@ export class MacOSDriver {
       }
       
       return null;
-    } catch (error) {
+    } catch (error: any) {
+      // Gracefully handle "no default printer" scenarios
+      if (error.stderr?.includes('No destinations added') || 
+          error.stderr?.includes('no system default destination')) {
+        logger.info('No default printer set on macOS system');
+        return null;
+      }
+      
       logger.error('Failed to get default printer on macOS:', error);
       return null;
     }
@@ -52,7 +77,7 @@ export class MacOSDriver {
   async getCapabilities(printerName: string): Promise<PrinterCapabilities | null> {
     try {
       // Get printer options using lpoptions
-      const command = `lpoptions -p ${printerName} -l`;
+      const command = `lpoptions -p "${printerName}" -l`;
       const { stdout } = await this.executeCommand(command);
       
       return this.parseMacOSCapabilities(stdout);
@@ -185,6 +210,11 @@ export class MacOSDriver {
       
       return { stdout, stderr };
     } catch (error: any) {
+      // Don't log "No destinations added" as error - it's a valid state
+      if (error.stderr?.includes('No destinations added')) {
+        return { stdout: '', stderr: error.stderr };
+      }
+      
       logger.error(`macOS command execution failed: ${command}`, error);
       throw error;
     }
@@ -203,7 +233,7 @@ export class MacOSDriver {
     }>;
   }> {
     try {
-      const command = `lpq -P ${printerName}`;
+      const command = `lpq -P "${printerName}"`;
       const { stdout } = await this.executeCommand(command);
       
       return this.parseMacOSPrintQueue(stdout);
@@ -267,7 +297,7 @@ export class MacOSDriver {
    */
   async cancelPrintJob(printerName: string, jobId: string): Promise<boolean> {
     try {
-      const command = `cancel -P ${printerName} ${jobId}`;
+      const command = `cancel -P "${printerName}" ${jobId}`;
       await this.executeCommand(command);
       
       logger.info(`Print job ${jobId} cancelled on printer ${printerName}`);
@@ -283,7 +313,7 @@ export class MacOSDriver {
    */
   async enablePrinter(printerName: string): Promise<boolean> {
     try {
-      const command = `cupsenable ${printerName}`;
+      const command = `cupsenable "${printerName}"`;
       await this.executeCommand(command);
       
       logger.info(`Printer ${printerName} enabled`);
@@ -299,7 +329,7 @@ export class MacOSDriver {
    */
   async disablePrinter(printerName: string): Promise<boolean> {
     try {
-      const command = `cupsdisable ${printerName}`;
+      const command = `cupsdisable "${printerName}"`;
       await this.executeCommand(command);
       
       logger.info(`Printer ${printerName} disabled`);
@@ -315,7 +345,7 @@ export class MacOSDriver {
    */
   async getPrinterInfo(printerName: string): Promise<any> {
     try {
-      const command = `lpstat -p ${printerName} -l`;
+      const command = `lpstat -p "${printerName}" -l`;
       const { stdout } = await this.executeCommand(command);
       
       return this.parseMacOSPrinterInfo(stdout);
