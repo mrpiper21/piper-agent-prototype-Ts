@@ -95,7 +95,27 @@ export class OSCommands {
     } = {}
   ): Promise<void> {
     try {
-      const command = this.buildPrintCommand(printerName, filePath, options);
+      let command = this.buildPrintCommand(printerName, filePath, options);
+      const {
+        copies = 1,
+        colorMode = 'color',
+        orientation = 'portrait',
+        duplex = false,
+      } = options;
+
+      if (process.platform === 'darwin') {
+        // macOS - Use CUPS lp command
+        const opts = [
+          `-d "${printerName}"`,  // ✅ Use -d not -P
+          `-n ${copies}`,
+          orientation === 'landscape' ? '-o landscape' : '-o portrait',
+          colorMode === 'grayscale' ? '-o ColorModel=Gray' : '',
+          duplex ? '-o sides=two-sided-long-edge' : '',
+        ].filter(Boolean).join(' ');
+    
+        command = `lp ${opts} "${filePath}"`;
+      }
+      
       
       logger.debug(`Executing print command: ${command}`);
       
@@ -170,7 +190,7 @@ export class OSCommands {
         
       case 'darwin':
       case 'linux':
-        return `lp ${args.join(' ')} "${filePath}"`;
+        return `lp ${printerName} "${filePath}"`;
         
       default:
         throw new PrinterError(`Unsupported platform: ${this.platformName}`);

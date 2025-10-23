@@ -33,6 +33,8 @@ async function main(): Promise<void> {
     // Start the agent
     await agent.start();
 
+    // await agent.testPrint();
+
   } catch (error) {
     errorHandler.handleError(error as Error, 'main');
     process.exit(1);

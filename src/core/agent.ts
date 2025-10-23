@@ -8,6 +8,7 @@ import { ConfigManager } from './config/ConfigManager.js';
 import { PrinterManager } from './printer/PrinterManager.js';
 import { JobProcessor } from './job/JobProcessor.js';
 import { CloudClient } from '../utils/cloud/CloundClient.js';
+import path from 'path';
 // import { SecurityManager } from './security/SecurityManager.js';
 
 interface AgentState {
@@ -17,6 +18,8 @@ interface AgentState {
   printers: PrinterInfo[];
   uptime: number;
 }
+
+
 
 export class Agent {
   public isRunning: boolean;
@@ -90,6 +93,42 @@ export class Agent {
   /**
    * Start the agent - discover printers and begin polling
    */
+
+  /**
+ * Test print functionality
+ */
+async testPrint(): Promise<void> {
+  try {
+    if (!this.printerManager) {
+      throw new Error('Printer manager not initialized');
+    }
+
+    const printers = this.agentState.printers;
+    
+    if (printers.length === 0) {
+      logger.error('No printers available for test print');
+      return;
+    }
+
+    const printerName = printers[0].printerName;
+    const pdfPath = path.join(process.cwd(), 'src/testfiles/Deed Of Assignment (Mr Ayi Mensah).pdf');
+
+    logger.info(`\n🧪 Test Print`);
+    logger.info(`   Printer: ${printerName}`);
+    logger.info(`   File: ${pdfPath}\n`);
+
+    await this.printerManager.printFile(printerName, pdfPath, {
+      copies: 1,
+      colorMode: 'color',
+      orientation: 'portrait'
+    });
+
+    logger.info('✅ Test print completed!\n');
+
+  } catch (error) {
+    logger.error('Test print failed:', error);
+  }
+}
   async start(): Promise<void> {
     try {
       this.isRunning = true;

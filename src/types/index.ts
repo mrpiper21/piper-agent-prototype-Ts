@@ -34,9 +34,10 @@ export interface PrinterCapabilities {
 }
 
 export interface PrintJob {
-  jobId: string;
+  id?: string
+  printJobId: string;
   fileName: string;
-  fileUrl: string;
+  filePath?: string;
   fileType: string;
   printerName: string;
   copies: number;

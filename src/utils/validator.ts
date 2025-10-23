@@ -95,16 +95,18 @@ export function validatePrinter(printer: PrinterInfo): ValidationResult {
 export function validateJobObject(job: PrintJob): ValidationResult {
   const errors: string[] = [];
 
-  if (!job.jobId) errors.push('Missing jobId');
+  console.log("validating  ------", job)
+
+  if (!job.id) errors.push('Missing jobId');
   if (!job.fileName) errors.push('Missing fileName');
-  if (!job.fileUrl) errors.push('Missing fileUrl');
+  if (!job?.filePath) errors.push('Missing fileUrl');
   if (!job.printerName) errors.push('Missing printerName');
   if (typeof job.copies !== 'number' || job.copies < 1)
     errors.push('Invalid copies');
-  if (!['color', 'grayscale', 'black-white'].includes(job.colorMode))
-    errors.push('Invalid colorMode');
-  if (!['portrait', 'landscape'].includes(job.orientation))
-    errors.push('Invalid orientation');
+  // if (!['color', 'grayscale', 'black-white'].includes(job.colorMode))
+  //   errors.push('Invalid colorMode');
+  // if (!['portrait', 'landscape'].includes(job.orientation))
+  //   errors.push('Invalid orientation');
 
   return {
     valid: errors.length === 0,

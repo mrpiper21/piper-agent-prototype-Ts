@@ -106,12 +106,12 @@ export class JobQueue {
         maxRetries: 3,
       };
 
-      this.jobs.set(job.jobId, queueItem);
+      this.jobs.set(job.printJobId, queueItem);
       await this.saveQueue();
       
-      logger.debug(`Job ${job.jobId} added to queue with priority ${priority}`);
+      logger.debug(`Job ${job.printJobId} added to queue with priority ${priority}`);
     } catch (error) {
-      logger.error(`Failed to add job ${job.jobId} to queue:`, error);
+      logger.error(`Failed to add job ${job.printJobId} to queue:`, error);
       throw error;
     }
   }
@@ -121,7 +121,7 @@ export class JobQueue {
    */
   async getPendingJobs(): Promise<JobQueueItem[]> {
     const pendingJobs = Array.from(this.jobs.values())
-      .filter(item => !this.processingJobs.has(item.job.jobId))
+      .filter(item => !this.processingJobs.has(item.job.printJobId))
       .sort((a, b) => b.priority - a.priority || a.addedAt.getTime() - b.addedAt.getTime());
     
     return pendingJobs;

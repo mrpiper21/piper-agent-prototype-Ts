@@ -40,19 +40,32 @@ export class JobProcessor {
    */
   async processJob(job: PrintJob): Promise<void> {
     const startTime = Date.now();
+
+    console.log("Processing job:", job);
     
     try {
-      logger.info(`Processing job ${job.jobId}: ${job.fileName}`);
+      logger.info(`Processing job ${job?.id}: ${job.fileName}`);
       
       // Validate job
       const validation = validateJobObject(job);
+
+      console.log("Validation errors:", validation.errors);
+      console.log("Is valid:", validation.valid);
+      
       if (!validation.valid) {
         throw new ValidationError(`Invalid job data: ${validation.errors.join(', ')}`);
       }
 
+      // Map printer name to available printer
+      const printerName = this.mapPrinterName(job.printerName);
+      console.log(`Mapped printer: ${job.printerName} -> ${printerName}`);
+
       // Check if printer exists
-      if (!this.printerManager.hasPrinter(job.printerName)) {
-        throw new PrinterError(`Printer not found: ${job.printerName}`);
+      if (!this.printerManager.hasPrinter(printerName)) {
+        const availablePrinters = this.printerManager.getPrinters();
+        throw new PrinterError(
+          `Printer "${printerName}" not found. Available printers: ${availablePrinters.map(p => p?.displayName).join(', ')}`
+        );
       }
 
       // Check if file type is supported
@@ -60,44 +73,57 @@ export class JobProcessor {
         throw new ValidationError(`Unsupported file type: ${job.fileName}`);
       }
 
-      // Update job status to downloading
-      await this.statusReporter.updateJobStatus(job.jobId, 'downloading');
+      // Update job status to printing (skip downloading since file is local)
+      await this.statusReporter.updateJobStatus(job.id as string, 'printing');
 
-      // Download file
-      const downloadPath = await this.downloadJobFile(job);
-      logger.info(`File downloaded: ${downloadPath}`);
-
-      // Update job status to printing
-      await this.statusReporter.updateJobStatus(job.jobId, 'printing');
-
-      // Print the file
-      await this.printJobFile(job, downloadPath);
-      logger.info(`Print job completed: ${job.jobId}`);
+      // Print the file directly (no download needed in local mode)
+      await this.printJobFile(job, job.filePath as string);
+      logger.info(`Print job completed: ${job.id}`);
 
       // Update job status to completed
-      await this.statusReporter.updateJobStatus(job.jobId, 'completed');
-
-      // Clean up downloaded file
-      await this.cleanupJobFile(downloadPath);
+      await this.statusReporter.updateJobStatus(job.id as string, 'completed');
 
       const duration = Date.now() - startTime;
-      logger.performance(`Job ${job.jobId} processed`, duration);
+      logger.performance(`Job ${job.id} processed`, duration);
 
     } catch (error) {
-      logger.error(`Job ${job.jobId} failed:`, error);
+      logger.error(`Job ${job.id} failed:`, error);
       
       // Update job status to failed
       await this.statusReporter.updateJobStatus(
-        job.jobId,
+        job.id as string,
         'failed',
         error instanceof Error ? error.message : 'Unknown error'
       );
 
-      // Clean up any downloaded files
-      await this.cleanupJobFile(job.jobId);
-
       throw error;
     }
+  }
+
+  private mapPrinterName(requestedPrinter: string): string {
+    const availablePrinters = this.printerManager.getPrinters();
+    
+    // If "default" is requested, use the first available printer
+    if (requestedPrinter === 'default' && availablePrinters.length > 0) {
+      return availablePrinters[0].displayName as string;
+    }
+    
+    // Check if the requested printer exists
+    const printerExists = availablePrinters.some(printer => 
+      printer.displayName === requestedPrinter
+    );
+    
+    if (printerExists) {
+      return requestedPrinter;
+    }
+    
+    // If printer doesn't exist but we have available printers, use the first one
+    if (availablePrinters.length > 0) {
+      console.log(`Printer "${requestedPrinter}" not found, using "${availablePrinters[0].displayName}" instead`);
+      return availablePrinters[0]?.displayName as string;
+    }
+    
+    throw new PrinterError('No printers available');
   }
 
   /**
@@ -106,14 +132,14 @@ export class JobProcessor {
   private async downloadJobFile(job: PrintJob): Promise<string> {
     try {
       const downloadDir = platform.getDownloadsDirectory();
-      const fileName = `${job.jobId}_${job.fileName}`;
+      const fileName = `${job.printJobId}_${job.fileName}`;
       const downloadPath = platform.joinPath(downloadDir, fileName);
 
-      await this.fileDownloader.downloadFile(job.fileUrl, downloadPath);
+      await this.fileDownloader.downloadFile(job?.filePath as string, downloadPath);
       
       return downloadPath;
     } catch (error) {
-      logger.error(`Failed to download file for job ${job.jobId}:`, error);
+      logger.error(`Failed to download file for job ${job.printJobId}:`, error);
       throw error;
     }
   }
@@ -124,17 +150,19 @@ export class JobProcessor {
   private async printJobFile(job: PrintJob, filePath: string): Promise<void> {
     try {
       const printOptions = {
-        copies: job.copies,
-        colorMode: job.colorMode,
-        orientation: job.orientation,
-        paperSize: job.paperSize,
-        duplex: job.duplex,
+        copies: job.copies || 1,
+        colorMode: job.colorMode || 'black-white',
+        orientation: job.orientation || 'portrait',
+        paperSize: job.paperSize || 'letter',
+        duplex: job.duplex || false,
       };
+
+      console.log("printing job --------- ", printOptions)
 
       await this.printerManager.printFile(job.printerName, filePath, printOptions);
       
     } catch (error) {
-      logger.error(`Failed to print file for job ${job.jobId}:`, error);
+      logger.error(`Failed to print file for job ${job.printJobId}:`, error);
       throw error;
     }
   }
@@ -161,9 +189,9 @@ export class JobProcessor {
   async queueJob(job: PrintJob): Promise<void> {
     try {
       await this.jobQueue.addJob(job);
-      logger.info(`Job ${job.jobId} added to queue`);
+      logger.info(`Job ${job.printJobId} added to queue`);
     } catch (error) {
-      logger.error(`Failed to queue job ${job.jobId}:`, error);
+      logger.error(`Failed to queue job ${job.printJobId}:`, error);
       throw error;
     }
   }
@@ -185,12 +213,12 @@ export class JobProcessor {
       for (const queuedJob of jobs) {
         try {
           await this.processJob(queuedJob.job);
-          await this.jobQueue.removeJob(queuedJob.job.jobId);
+          await this.jobQueue.removeJob(queuedJob.job.printJobId);
         } catch (error) {
-          logger.error(`Failed to process queued job ${queuedJob.job.jobId}:`, error);
+          logger.error(`Failed to process queued job ${queuedJob.job.printJobId}:`, error);
           
           // Increment retry count
-          await this.jobQueue.incrementRetryCount(queuedJob.job.jobId);
+          await this.jobQueue.incrementRetryCount(queuedJob.job.printJobId);
         }
       }
     } catch (error) {

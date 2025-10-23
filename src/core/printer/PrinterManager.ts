@@ -8,6 +8,54 @@ import { DiscoveryService } from './DiscoveryService.js';
 import { OSCommands } from './OSCommands.js';
 import { validatePrinterName } from '../../utils/validator.js';
 
+
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+async function testPrint() {
+  try {
+    logger.info('🖨️  Testing print functionality...\n');
+
+    const manager = new PrinterManager();
+    
+    // Discover printers
+    const printers = await manager.discoverPrinters();
+    
+    if (printers.length === 0) {
+      logger.error('No printers found!');
+      return;
+    }
+
+    // Get the printer name (use the first one or your specific printer)
+    const printerName = printers[0].printerName;
+    logger.info(`Using printer: ${printerName}\n`);
+
+    // Path to your PDF file
+    const pdfPath = path.join(__dirname, 'src/testfiles/Deed Of Assignment (Mr Ayi Mensah).pdf');
+    
+    logger.info(`Printing file: ${pdfPath}\n`);
+
+    // Print the file
+    await manager.printFile(printerName, pdfPath, {
+      copies: 1,
+      colorMode: 'color',
+      orientation: 'portrait',
+      duplex: false
+    });
+
+    logger.info('✅ Print job sent successfully!');
+
+  } catch (error) {
+    logger.error('❌ Print failed:', error);
+  }
+}
+
+testPrint();
+
 export class PrinterManager {
   private discoveryService: DiscoveryService;
   private osCommands: OSCommands;
