@@ -1,5 +1,6 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, app } from 'electron';
 import path from 'path';
+import { logger } from '../utils/logger';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -17,17 +18,36 @@ export function setupWindows(): BrowserWindow {
     autoHideMenuBar: false,
   });
 
-  // Load the index.html
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5173');
+  // 🔥 FIX: Use app.isPackaged instead of process.env
+  if (app.isPackaged) {
+    // Production build - fixed path
+    const indexPath = path.join(__dirname, '../renderer/index.html');
+    logger.info(`Loading production file from: ${indexPath}`);
+    mainWindow.loadFile(indexPath);
+
+    // Temporarily open DevTools to debug (remove after it works)
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../../renderer/dist/index.html'));
+    // Development mode
+    logger.info('Loading development server: http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.webContents.openDevTools();
   }
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
+    logger.info('Window ready to show');
     mainWindow?.show();
+  });
+
+  // Log loading events
+  mainWindow.webContents.on('did-finish-load', () => {
+    logger.info('Page finished loading successfully');
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    logger.error(`Failed to load page: ${errorCode} - ${errorDescription}`);
+    logger.error(`Attempted URL: ${validatedURL}`);
   });
 
   mainWindow.on('closed', () => {

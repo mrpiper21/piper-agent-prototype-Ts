@@ -27,10 +27,12 @@ let mainWindow: BrowserWindow | null = null;
 
 app.whenReady().then(() => {
   logger.info('Application starting...');
-  
+  logger.info(`Running in ${app.isPackaged ? 'production' : 'development'} mode`);
+  logger.info(`__dirname: ${__dirname}`);
+
   // Initialize services after app is ready
   dbService.init();
-  
+
   mainWindow = setupWindows();
 });
 

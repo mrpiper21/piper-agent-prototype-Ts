@@ -2,7 +2,7 @@
   "name": "printmyfile-agent",
   "version": "1.0.0",
   "description": "PrintMyFile SaaS Local Print Agent",
-  "main": "out/main/index.js",
+  "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -84,17 +84,14 @@
       "output": "release/${version}"
     },
     "files": [
-      "dist/**/*",
+      "out/**/*",
       "node_modules/**/*",
       "package.json"
     ],
     "win": {
       "target": [
         "portable"
-      ],
-      "forceCodeSigning": false,
-      "verifyUpdateCodeSignature": false
-    },
-    "forceCodeSigning": false
+      ]
+    }
   }
 }

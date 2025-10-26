@@ -15,34 +15,6 @@ const require$$8 = require("crypto");
 const require$$1$1 = require("tty");
 const zlib = require("zlib");
 const events$1 = require("events");
-let mainWindow = null;
-function setupWindows() {
-  mainWindow = new electron.BrowserWindow({
-    width: 1200,
-    height: 800,
-    webPreferences: {
-      preload: path$d.join(__dirname, "../preload/index.js"),
-      contextIsolation: true,
-      nodeIntegration: false
-    },
-    show: false,
-    // Don't show until ready
-    autoHideMenuBar: false
-  });
-  if (process.env.NODE_ENV === "development") {
-    mainWindow.loadURL("http://localhost:5173");
-    mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(path$d.join(__dirname, "../../renderer/dist/index.html"));
-  }
-  mainWindow.once("ready-to-show", () => {
-    mainWindow?.show();
-  });
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
-  return mainWindow;
-}
 let Logger$1 = class Logger {
   constructor() {
     this.logFile = path$d.join(electron.app.getPath("userData"), "app.log");
@@ -63,6 +35,46 @@ let Logger$1 = class Logger {
   }
 };
 const logger$1 = new Logger$1();
+let mainWindow = null;
+function setupWindows() {
+  mainWindow = new electron.BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      preload: path$d.join(__dirname, "../preload/index.js"),
+      contextIsolation: true,
+      nodeIntegration: false
+    },
+    show: false,
+    // Don't show until ready
+    autoHideMenuBar: false
+  });
+  if (electron.app.isPackaged) {
+    const indexPath = path$d.join(__dirname, "../renderer/index.html");
+    logger$1.info(`Loading production file from: ${indexPath}`);
+    mainWindow.loadFile(indexPath);
+    mainWindow.webContents.openDevTools();
+  } else {
+    logger$1.info("Loading development server: http://localhost:5173");
+    mainWindow.loadURL("http://localhost:5173");
+    mainWindow.webContents.openDevTools();
+  }
+  mainWindow.once("ready-to-show", () => {
+    logger$1.info("Window ready to show");
+    mainWindow?.show();
+  });
+  mainWindow.webContents.on("did-finish-load", () => {
+    logger$1.info("Page finished loading successfully");
+  });
+  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL) => {
+    logger$1.error(`Failed to load page: ${errorCode} - ${errorDescription}`);
+    logger$1.error(`Attempted URL: ${validatedURL}`);
+  });
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+  return mainWindow;
+}
 class DatabaseService {
   constructor() {
     this.data = {
@@ -21646,6 +21658,8 @@ if (process.env.NODE_ENV === "development") {
 setupIpcHandlers();
 electron.app.whenReady().then(() => {
   logger$1.info("Application starting...");
+  logger$1.info(`Running in ${electron.app.isPackaged ? "production" : "development"} mode`);
+  logger$1.info(`__dirname: ${__dirname}`);
   dbService.init();
   setupWindows();
 });

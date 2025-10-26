@@ -1,0 +1,14 @@
+directories:
+  output: release/${version}
+  buildResources: build
+appId: com.printmyfile.agent
+productName: PrintMyFile Agent
+files:
+  - filter:
+      - out/**/*
+      - node_modules/**/*
+      - package.json
+win:
+  target:
+    - portable
+electronVersion: 28.3.3
