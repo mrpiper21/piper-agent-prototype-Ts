@@ -4,6 +4,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  role: 'admin' | 'clerk';
+  permissions: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -72,6 +74,7 @@ export interface IpcApi {
   files: {
     save: (path: string, content: string) => Promise<void>;
     read: (path: string) => Promise<string>;
+    upload: (filePath: string) => Promise<{ fileId: string; fileName: string; fileSize: number }>;
   };
   agent: {
     start: () => Promise<void>;
@@ -82,6 +85,29 @@ export interface IpcApi {
     printFile: (printerName: string, filePath: string, options?: PrintOptions) => Promise<void>;
     testPrint: (printerName: string, filePath: string) => Promise<void>;
     isRunning: () => Promise<boolean>;
+  };
+  logs: {
+    getLogs: (agentId?: string) => Promise<any[]>;
+    getLogsByDateRange: (startDate: string, endDate: string) => Promise<any[]>;
+  };
+  jobs: {
+    getAll: () => Promise<any[]>;
+    getById: (id: string) => Promise<any>;
+    create: (job: any) => Promise<any>;
+    update: (id: string, updates: any) => Promise<any>;
+    submitToPrinter: (jobId: string, agentId: string) => Promise<void>;
+  };
+  agents: {
+    getAll: () => Promise<any[]>;
+    getById: (id: string) => Promise<any>;
+    updateStatus: (id: string, status: string) => Promise<any>;
+  };
+  analytics: {
+    getData: (dateRange?: { start: string; end: string }) => Promise<any>;
+    getComparison: () => Promise<any>;
+  };
+  health: {
+    check: () => Promise<any>;
   };
 }
 

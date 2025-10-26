@@ -3,18 +3,28 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useAuthStore } from '../features/auth';
 import LoadingScreen from '../shared/components/LoadingScreen';
 
-const Dashboard = lazy(() => import('../features/dashboard/Dashboard'));
-const Users = lazy(() => import('../features/users/pages/UsersPage'));
+const AdminDashboard = lazy(() => import('../features/admin/AdminDashboard'));
+const ClerkDashboard = lazy(() => import('../features/clerk/ClerkDashboard'));
 const Login = lazy(() => import('../features/auth/pages/LoginPage'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return <>{children}</>;
+}
+
+function RoleBasedRoute() {
+  const user = useAuthStore((state) => state.user);
+
+  if (user?.role === 'admin') {
+    return <AdminDashboard />;
+  }
+
+  return <ClerkDashboard />;
 }
 
 export default function App() {
@@ -27,15 +37,7 @@ export default function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <Dashboard />
-              // </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute>
-                <Users />
+                <RoleBasedRoute />
               </ProtectedRoute>
             }
           />

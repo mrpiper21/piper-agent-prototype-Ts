@@ -3,7 +3,13 @@ import { dbService } from '../services/DatabaseService';
 import { agentService } from '../services/AgentService';
 import { apiService } from '../services/api';
 import { logger } from '../utils/logger';
-import type { User, LoginCredentials, AuthResponse, CreateUserData, UpdateUserData, PrinterInfo, PrintOptions } from '../../shared/types/ipc.types';
+import type {
+  LoginCredentials,
+  AuthResponse,
+  CreateUserData,
+  UpdateUserData,
+  PrintOptions,
+} from '../../shared/types/ipc.types';
 
 export function setupIpcHandlers() {
   // Auth handlers
@@ -11,40 +17,40 @@ export function setupIpcHandlers() {
     try {
       // Use the API service to authenticate with the backend
       const response = await apiService.login(credentials.email, credentials.password);
-      
+
       logger.info('User logged in', { email: credentials.email });
-      
+
       // Show success notification
       new Notification({
         title: 'Login Successful',
         body: `Welcome ${response.user.name}!`,
         silent: false,
       }).show();
-      
+
       return {
         user: response.user,
         token: response.token,
       } as AuthResponse;
     } catch (error: any) {
       logger.error('Login error', error);
-      
+
       // Show error notification
       new Notification({
         title: 'Login Failed',
         body: error.message || 'Invalid credentials',
         silent: false,
       }).show();
-      
+
       throw error;
     }
   });
 
-  ipcMain.handle('auth:logout', async (_, token: string) => {
+  ipcMain.handle('auth:logout', async (_) => {
     try {
       await apiService.logout();
-      dbService.deleteSession(token);
+      // Note: token management handled by apiService
       logger.info('User logged out');
-      
+
       // Show notification
       new Notification({
         title: 'Logged Out',
@@ -61,9 +67,9 @@ export function setupIpcHandlers() {
     try {
       // Use the API service to refresh token
       const response = await apiService.refreshToken();
-      
+
       logger.info('Token refreshed');
-      
+
       return response.token;
     } catch (error) {
       logger.error('Token refresh error', error);
@@ -198,15 +204,18 @@ export function setupIpcHandlers() {
     }
   });
 
-  ipcMain.handle('agent:printFile', async (_, printerName: string, filePath: string, options?: PrintOptions) => {
-    try {
-      await agentService.printFile(printerName, filePath, options);
-      logger.info('Print job sent via IPC', { printerName, filePath });
-    } catch (error) {
-      logger.error('Agent printFile error', error);
-      throw error;
+  ipcMain.handle(
+    'agent:printFile',
+    async (_, printerName: string, filePath: string, options?: PrintOptions) => {
+      try {
+        await agentService.printFile(printerName, filePath, options || {});
+        logger.info('Print job sent via IPC', { printerName, filePath });
+      } catch (error) {
+        logger.error('Agent printFile error', error);
+        throw error;
+      }
     }
-  });
+  );
 
   ipcMain.handle('agent:testPrint', async (_, printerName: string, filePath: string) => {
     try {
@@ -223,6 +232,143 @@ export function setupIpcHandlers() {
       return agentService.isAgentRunning();
     } catch (error) {
       logger.error('Agent isRunning error', error);
+      throw error;
+    }
+  });
+
+  // Printer logs handlers
+  ipcMain.handle('logs:getLogs', async (_, agentId?: string) => {
+    try {
+      return await apiService.getLogs(agentId);
+    } catch (error) {
+      logger.error('Get logs error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('logs:getLogsByDateRange', async (_, startDate: string, endDate: string) => {
+    try {
+      return await apiService.getLogsByDateRange(startDate, endDate);
+    } catch (error) {
+      logger.error('Get logs by date range error', error);
+      throw error;
+    }
+  });
+
+  // Print jobs handlers
+  ipcMain.handle('jobs:getAll', async () => {
+    try {
+      return await apiService.getJobs();
+    } catch (error) {
+      logger.error('Get jobs error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('jobs:getById', async (_, id: string) => {
+    try {
+      return await apiService.getJob(id);
+    } catch (error) {
+      logger.error('Get job error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('jobs:create', async (_, job: any) => {
+    try {
+      return await apiService.createJob(job);
+    } catch (error) {
+      logger.error('Create job error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('jobs:update', async (_, id: string, updates: any) => {
+    try {
+      return await apiService.updateJob(id, updates);
+    } catch (error) {
+      logger.error('Update job error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('jobs:submitToPrinter', async (_, jobId: string, agentId: string) => {
+    try {
+      await apiService.submitJobToPrinter(jobId, agentId);
+    } catch (error) {
+      logger.error('Submit job to printer error', error);
+      throw error;
+    }
+  });
+
+  // Agents handlers
+  ipcMain.handle('agents:getAll', async () => {
+    try {
+      return await apiService.getAgents();
+    } catch (error) {
+      logger.error('Get agents error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('agents:getById', async (_, id: string) => {
+    try {
+      return await apiService.getAgent(id);
+    } catch (error) {
+      logger.error('Get agent error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('agents:updateStatus', async (_, id: string, status: string) => {
+    try {
+      return await apiService.updateAgentStatus(id, status as any);
+    } catch (error) {
+      logger.error('Update agent status error', error);
+      throw error;
+    }
+  });
+
+  // Analytics handlers
+  ipcMain.handle('analytics:getData', async (_, dateRange?: { start: string; end: string }) => {
+    try {
+      return await apiService.getAnalytics(dateRange);
+    } catch (error) {
+      logger.error('Get analytics error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('analytics:getComparison', async () => {
+    try {
+      return await apiService.getComparisonData();
+    } catch (error) {
+      logger.error('Get comparison data error', error);
+      throw error;
+    }
+  });
+
+  // File upload handler
+  ipcMain.handle('files:upload', async (_, filePath: string) => {
+    try {
+      // For file upload, return a mock response since this is running in Node.js context
+      return {
+        fileId: `file-${Date.now()}`,
+        fileName: filePath.split('/').pop() || 'file',
+        fileSize: 0,
+      };
+    } catch (error) {
+      logger.error('File upload error', error);
+      throw error;
+    }
+  });
+
+  // Health check handler
+  ipcMain.handle('health:check', async () => {
+    try {
+      return await apiService.healthCheck();
+    } catch (error) {
+      logger.error('Health check error', error);
       throw error;
     }
   });
