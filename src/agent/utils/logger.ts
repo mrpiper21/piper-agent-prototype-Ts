@@ -4,7 +4,7 @@
 
 import fs from 'fs-extra';
 import path from 'path';
-import { DEFAULT_CONFIG } from '@/types/index.js';
+import { DEFAULT_CONFIG } from '../types/index.js';
 
 export enum LogLevel {
   DEBUG = 0,

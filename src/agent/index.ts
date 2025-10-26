@@ -1,36 +1,22 @@
-// ============================================================================
-// MAIN ENTRY POINT - PrintMyFile Agent
-// ============================================================================
-
 import dotenv from 'dotenv';
 import { logger } from './utils/logger.js';
 import { Agent } from './core/agent.js';
 import { errorHandler } from './utils/errors.js';
-
-
-// Load environment variables
 dotenv.config();
 
 console.log('🔍 Environment loaded');
 console.log('AGENT_ID:', process.env.AGENT_ID);
 
-/**
- * Main function to start the agent
- */
 async function main(): Promise<void> {
   try {
     logger.info('🚀 Starting PrintMyFile Agent...\n');
 
-    // Create and initialize agent
     const agent = new Agent();
     
-    // Initialize agent components
     agent.initialize();
 
-    // Set up graceful shutdown handlers
     setupGracefulShutdown(agent);
 
-    // Start the agent
     await agent.start();
 
     // await agent.testPrint();

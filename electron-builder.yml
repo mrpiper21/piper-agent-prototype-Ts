@@ -1,0 +1,30 @@
+appId: com.electron.app
+productName: Electron React App
+copyright: Copyright © 2024
+
+files:
+  - dist/**
+  - node_modules/**
+  - package.json
+
+directories:
+  output: release
+
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+
+linux:
+  target:
+    - target: deb
+      arch:
+        - x64

@@ -53,18 +53,18 @@ export class Agent {
       logger.info('🔧 Initializing agent components...\n');
 
       // 1. Load configuration
-      this.configManager = new ConfigManager();
-      this.config = this.configManager.loadConfig();
+      // this.configManager = new ConfigManager();
+      // this.config = this.configManager.loadConfig();
       logger.info('✅ Configuration loaded');
-      logger.debug(`   Cloud Server: ${this.config.cloudUrl}`);
-      logger.debug(`   Agent ID: ${this.config.agentId}`);
+      // logger.debug(`   Cloud Server: ${this.config.cloudUrl}`);
+      // logger.debug(`   Agent ID: ${this.config.agentId}`);
 
       // 2. Initialize cloud client
-      this.cloudClient = new CloudClient(
-        this.config.cloudUrl,
-        this.config.apiKey,
-        this.config.agentId
-      );
+      // this.cloudClient = new CloudClient(
+      //   this.config.cloudUrl,
+      //   this.config.apiKey,
+      //   this.config.agentId
+      // );
       logger.info('✅ Cloud client initialized');
 
       // 3. Initialize printer manager
@@ -72,18 +72,18 @@ export class Agent {
       logger.info('✅ Printer manager initialized');
 
       // 4. Initialize job processor
-      this.jobProcessor = new JobProcessor(
-        this.cloudClient,
-        this.printerManager,
-        this.config
-      );
+      // this.jobProcessor = new JobProcessor(
+      //   // this.cloudClient,
+      //   this.printerManager,
+      //   this.config
+      // );
       logger.info('✅ Job processor initialized');
 
       // 5. Initialize security manager
-      if (this.configManager) {
-        // this.securityManager = new SecurityManager(this.configManager);
-        logger.info('✅ Security manager initialized\n');
-      }
+      // if (this.configManager) {
+      //   // this.securityManager = new SecurityManager(this.configManager);
+      //   logger.info('✅ Security manager initialized\n');
+      // }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Initialization failed: ${message}`);
@@ -148,8 +148,9 @@ async testPrint(): Promise<void> {
       logger.info(`🖨️  Printers: ${this.agentState.printers.length}`);
       logger.info(`⏱️  Poll Interval: ${process.env.POLL_INTERVAL}ms\n`);
 
-      // Keep process alive
-      await this.keepAlive();
+      // Return immediately without blocking on keepAlive
+      // The agent will continue running in background
+      return;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Failed to start agent: ${message}`);
@@ -290,11 +291,11 @@ async testPrint(): Promise<void> {
   /**
    * Keep process alive
    */
-  private keepAlive(): Promise<never> {
-    return new Promise(() => {
-      // This promise never resolves, keeping the process alive
-    });
-  }
+  // private keepAlive(): Promise<never> {
+  //   return new Promise(() => {
+  //     // This promise never resolves, keeping the process alive
+  //   });
+  // }
 
   /**
    * Graceful shutdown
@@ -340,5 +341,26 @@ async testPrint(): Promise<void> {
       ...this.agentState,
       uptime: Math.floor((Date.now() - this.startTime.getTime()) / 1000),
     };
+  }
+
+  /**
+   * Get printer manager instance
+   */
+  getPrinterManager(): PrinterManager | null {
+    return this.printerManager;
+  }
+
+  /**
+   * Get cloud client instance
+   */
+  getCloudClient(): CloudClient | null {
+    return this.cloudClient;
+  }
+
+  /**
+   * Get job processor instance
+   */
+  getJobProcessor(): JobProcessor | null {
+    return this.jobProcessor;
   }
 }

@@ -1,6 +1,6 @@
 
 
-import { ValidationResult, PrinterInfo, PrintJob } from '@/types/index.js';
+import { ValidationResult, PrinterInfo, PrintJob } from '../types/index.js';
 
 /**
  * Validate required environment variables

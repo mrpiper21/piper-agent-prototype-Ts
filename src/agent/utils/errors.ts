@@ -2,7 +2,7 @@
 // ERROR UTILITIES - Custom error classes and error handling
 // ============================================================================
 
-import { AgentError, PrinterError, CloudError, SecurityError, ValidationError } from '@/types/index.js';
+import { AgentError, PrinterError, CloudError, SecurityError, ValidationError } from '../types/index.js';
 import { logger } from './logger.js';
 
 export class ErrorHandler {

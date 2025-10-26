@@ -4,7 +4,7 @@
 
 import os from 'os';
 import path from 'path';
-import { PlatformInfo, SUPPORTED_PLATFORMS } from '@/types/index.js';
+import { PlatformInfo, SUPPORTED_PLATFORMS } from '../types/index.js';
 import {exec} from 'child_process'
 
 export class PlatformUtils {
