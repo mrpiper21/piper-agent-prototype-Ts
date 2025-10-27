@@ -2,11 +2,22 @@ import { useAuthStore } from '../auth/store/authStore';
 import { useTheme } from '../../context/ThemeContext';
 import React, { useState } from 'react';
 import { electronAPI } from '../../lib';
+import {
+  AiOutlineDashboard,
+  AiOutlineUser,
+  AiOutlinePrinter,
+  AiOutlineBarChart,
+  AiOutlineMoon,
+  AiOutlineSun,
+} from 'react-icons/ai';
+import { HiOutlineLogout } from 'react-icons/hi';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'agents' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'agents' | 'analytics'>(
+    'overview'
+  );
 
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
 
@@ -15,48 +26,62 @@ export default function AdminDashboard() {
       {/* Sidebar */}
       <div style={{ ...styles.sidebar, ...themeStyles.sidebar }}>
         <div style={styles.sidebarHeader}>
-          <h2 style={{ color: themeStyles.text, margin: 0 }}>⚙️ Admin Panel</h2>
+          <h2
+            style={{
+              color: themeStyles.text,
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <AiOutlineDashboard /> Admin Panel
+          </h2>
         </div>
         <nav style={styles.nav}>
-          <button 
+          <button
             onClick={() => setActiveTab('overview')}
-            style={{ 
-              ...styles.navItem, 
+            style={{
+              ...styles.navItem,
               ...(activeTab === 'overview' ? themeStyles.activeNav : {}),
-              color: activeTab === 'overview' ? '#ffffff' : themeStyles.text
+              color: activeTab === 'overview' ? '#ffffff' : themeStyles.text,
             }}
           >
-            📊 Overview
+            <AiOutlineDashboard style={{ marginRight: '8px' }} />
+            Overview
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('users')}
-            style={{ 
-              ...styles.navItem, 
+            style={{
+              ...styles.navItem,
               ...(activeTab === 'users' ? themeStyles.activeNav : {}),
-              color: activeTab === 'users' ? '#ffffff' : themeStyles.text
+              color: activeTab === 'users' ? '#ffffff' : themeStyles.text,
             }}
           >
-            👥 Users
+            <AiOutlineUser style={{ marginRight: '8px' }} />
+            Users
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('agents')}
-            style={{ 
-              ...styles.navItem, 
+            style={{
+              ...styles.navItem,
               ...(activeTab === 'agents' ? themeStyles.activeNav : {}),
-              color: activeTab === 'agents' ? '#ffffff' : themeStyles.text
+              color: activeTab === 'agents' ? '#ffffff' : themeStyles.text,
             }}
           >
-            🖨️ Agents
+            <AiOutlinePrinter style={{ marginRight: '8px' }} />
+            Agents
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('analytics')}
-            style={{ 
-              ...styles.navItem, 
+            style={{
+              ...styles.navItem,
               ...(activeTab === 'analytics' ? themeStyles.activeNav : {}),
-              color: activeTab === 'analytics' ? '#ffffff' : themeStyles.text
+              color: activeTab === 'analytics' ? '#ffffff' : themeStyles.text,
             }}
           >
-            📈 Analytics
+            <AiOutlineBarChart style={{ marginRight: '8px' }} />
+            Analytics
           </button>
         </nav>
       </div>
@@ -67,10 +92,14 @@ export default function AdminDashboard() {
         <div style={styles.header}>
           <div style={styles.userInfo}>
             <button onClick={toggleTheme} style={{ ...styles.iconButton, ...themeStyles.button }}>
-              {theme === 'light' ? '🌙' : '☀️'}
+              {theme === 'light' ? <AiOutlineMoon /> : <AiOutlineSun />}
             </button>
             <span style={{ color: themeStyles.text }}>{user?.name || 'Admin'}</span>
-            <button onClick={logout} style={{ ...styles.logoutButton, ...themeStyles.dangerButton }}>
+            <button
+              onClick={logout}
+              style={{ ...styles.logoutButton, ...themeStyles.dangerButton }}
+            >
+              <HiOutlineLogout style={{ marginRight: '4px' }} />
               Logout
             </button>
           </div>
@@ -103,9 +132,9 @@ function OverviewTab({ themeStyles }: { themeStyles: any }) {
       const [analytics, agents, jobs] = await Promise.all([
         electronAPI.analytics.getData(),
         electronAPI.agents.getAll(),
-        electronAPI.jobs.getAll()
+        electronAPI.jobs.getAll(),
       ]);
-      
+
       setOverviewData({
         analytics,
         agents,
@@ -113,7 +142,7 @@ function OverviewTab({ themeStyles }: { themeStyles: any }) {
         totalUsers: 0,
         activePrinters: agents.filter((a: any) => a.status === 'online').length,
         jobsToday: jobs.length,
-        successRate: analytics?.successRate || 0
+        successRate: analytics?.successRate || 0,
       });
     } catch (error) {
       console.error('Failed to load overview data:', error);
@@ -169,9 +198,7 @@ function UsersTab({ themeStyles }: { themeStyles: any }) {
   return (
     <div style={{ ...styles.card, ...themeStyles.card }}>
       <h2 style={{ color: themeStyles.text }}>User Management</h2>
-      <button style={{ ...styles.actionButton, ...themeStyles.primaryButton }}>
-        Add New User
-      </button>
+      <button style={{ ...styles.actionButton, ...themeStyles.primaryButton }}>Add New User</button>
       <p style={{ color: themeStyles.textSecondary, marginTop: '20px' }}>User list will go here</p>
     </div>
   );
@@ -245,11 +272,16 @@ function AgentsTab({ themeStyles }: { themeStyles: any }) {
       <div style={{ ...styles.statusCard, ...themeStyles.card }}>
         <div>
           <p style={{ color: themeStyles.textSecondary }}>Agent Status</p>
-          <p style={{ ...styles.statusBadge, color: agentStatus === 'Running' ? themeStyles.success : themeStyles.error }}>
+          <p
+            style={{
+              ...styles.statusBadge,
+              color: agentStatus === 'Running' ? themeStyles.success : themeStyles.error,
+            }}
+          >
             {agentStatus}
           </p>
         </div>
-        <button 
+        <button
           onClick={handleToggle}
           disabled={isLoading}
           style={{ ...styles.actionButton, ...themeStyles.primaryButton }}
@@ -257,7 +289,7 @@ function AgentsTab({ themeStyles }: { themeStyles: any }) {
           {isLoading ? 'Loading...' : agentStatus === 'Running' ? 'Stop Agent' : 'Start Agent'}
         </button>
       </div>
-      
+
       {/* Printers */}
       <div style={{ marginTop: '20px' }}>
         <h3 style={{ color: themeStyles.text }}>Available Printers</h3>
@@ -265,7 +297,9 @@ function AgentsTab({ themeStyles }: { themeStyles: any }) {
           {printers.map((printer, i) => (
             <div key={i} style={{ ...styles.printerCard, ...themeStyles.card }}>
               <div>
-                <p style={{ color: themeStyles.text, fontWeight: 'bold' }}>{printer.displayName || printer.printerName}</p>
+                <p style={{ color: themeStyles.text, fontWeight: 'bold' }}>
+                  {printer.displayName || printer.printerName}
+                </p>
                 <p style={{ color: themeStyles.textSecondary, fontSize: '12px' }}>
                   {printer.status}
                 </p>
@@ -288,12 +322,14 @@ function AgentsTab({ themeStyles }: { themeStyles: any }) {
                     {agent.location || 'No location'} • {agent.machineId}
                   </p>
                 </div>
-                <span style={{ 
-                  color: agent.status === 'online' ? themeStyles.success : themeStyles.error,
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  fontSize: '12px'
-                }}>
+                <span
+                  style={{
+                    color: agent.status === 'online' ? themeStyles.success : themeStyles.error,
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    fontSize: '12px',
+                  }}
+                >
                   {agent.status}
                 </span>
               </div>
@@ -312,7 +348,7 @@ function AnalyticsTab({ themeStyles }: { themeStyles: any }) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
     start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0]
+    end: new Date().toISOString().split('T')[0],
   });
 
   React.useEffect(() => {
@@ -352,7 +388,7 @@ function AnalyticsTab({ themeStyles }: { themeStyles: any }) {
   };
 
   const getAnonymousLogs = () => {
-    return printerLogs.filter(log => log.metadata?.isAnonymous || !log.jobId);
+    return printerLogs.filter((log) => log.metadata?.isAnonymous || !log.jobId);
   };
 
   if (isLoading && !analytics) {
@@ -386,18 +422,30 @@ function AnalyticsTab({ themeStyles }: { themeStyles: any }) {
 
       {/* Analytics Overview */}
       {analytics && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '20px',
+          }}
+        >
           <div style={{ ...styles.card, ...themeStyles.card }}>
             <h3 style={{ color: themeStyles.textSecondary }}>Total Jobs</h3>
-            <p style={{ ...styles.statValue, color: themeStyles.accent }}>{analytics.totalJobs || 0}</p>
+            <p style={{ ...styles.statValue, color: themeStyles.accent }}>
+              {analytics.totalJobs || 0}
+            </p>
           </div>
           <div style={{ ...styles.card, ...themeStyles.card }}>
             <h3 style={{ color: themeStyles.textSecondary }}>Completed</h3>
-            <p style={{ ...styles.statValue, color: themeStyles.success }}>{analytics.completedJobs || 0}</p>
+            <p style={{ ...styles.statValue, color: themeStyles.success }}>
+              {analytics.completedJobs || 0}
+            </p>
           </div>
           <div style={{ ...styles.card, ...themeStyles.card }}>
             <h3 style={{ color: themeStyles.textSecondary }}>Failed</h3>
-            <p style={{ ...styles.statValue, color: themeStyles.error }}>{analytics.failedJobs || 0}</p>
+            <p style={{ ...styles.statValue, color: themeStyles.error }}>
+              {analytics.failedJobs || 0}
+            </p>
           </div>
           <div style={{ ...styles.card, ...themeStyles.card }}>
             <h3 style={{ color: themeStyles.textSecondary }}>Success Rate</h3>
@@ -432,10 +480,12 @@ function AnalyticsTab({ themeStyles }: { themeStyles: any }) {
                       <p style={{ color: themeStyles.textSecondary }}>
                         Actual: {disc.actualPages} pages
                       </p>
-                      <p style={{ 
-                        color: disc.difference > 0 ? themeStyles.warning : themeStyles.success,
-                        fontWeight: 'bold'
-                      }}>
+                      <p
+                        style={{
+                          color: disc.difference > 0 ? themeStyles.warning : themeStyles.success,
+                          fontWeight: 'bold',
+                        }}
+                      >
                         Difference: {disc.difference} pages
                       </p>
                     </div>
@@ -451,7 +501,7 @@ function AnalyticsTab({ themeStyles }: { themeStyles: any }) {
       <div style={{ ...styles.card, ...themeStyles.card }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ color: themeStyles.text }}>Printer Logs (Anonymous Printing)</h2>
-          <button 
+          <button
             onClick={loadPrinterLogs}
             style={{ ...styles.actionButton, ...themeStyles.primaryButton }}
           >
@@ -479,12 +529,15 @@ function AnalyticsTab({ themeStyles }: { themeStyles: any }) {
                       {log.event} • {log.message}
                     </p>
                   </div>
-                  <span style={{
-                    color: log.event === 'complete' ? themeStyles.success : themeStyles.textSecondary,
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
-                    fontSize: '12px'
-                  }}>
+                  <span
+                    style={{
+                      color:
+                        log.event === 'complete' ? themeStyles.success : themeStyles.textSecondary,
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      fontSize: '12px',
+                    }}
+                  >
                     {log.event}
                   </span>
                 </div>
@@ -528,6 +581,8 @@ const styles = {
     fontSize: '14px',
     background: 'transparent',
     transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
   },
   main: {
     flex: 1,
@@ -554,12 +609,17 @@ const styles = {
     fontSize: '20px',
     transition: 'all 0.2s ease',
     border: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutButton: {
     padding: '8px 16px',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
   },
   content: {
     flex: 1,

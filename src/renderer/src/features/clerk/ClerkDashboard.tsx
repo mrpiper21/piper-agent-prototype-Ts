@@ -2,6 +2,14 @@ import { useAuthStore } from '../auth/store/authStore';
 import { useTheme } from '../../context/ThemeContext';
 import React, { useState } from 'react';
 import { electronAPI } from '../../lib';
+import {
+  AiOutlinePrinter,
+  AiOutlineFileAdd,
+  AiOutlineReload,
+  AiOutlineMoon,
+  AiOutlineSun,
+} from 'react-icons/ai';
+import { HiOutlineLogout } from 'react-icons/hi';
 
 export default function ClerkDashboard() {
   const { user, logout } = useAuthStore();
@@ -15,38 +23,51 @@ export default function ClerkDashboard() {
       {/* Sidebar */}
       <div style={{ ...styles.sidebar, ...themeStyles.sidebar }}>
         <div style={styles.sidebarHeader}>
-          <h2 style={{ color: themeStyles.text, margin: 0 }}>🖨️ Print Station</h2>
+          <h2
+            style={{
+              color: themeStyles.text,
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <AiOutlinePrinter /> Print Station
+          </h2>
         </div>
         <nav style={styles.nav}>
-          <button 
+          <button
             onClick={() => setActiveTab('jobs')}
-            style={{ 
-              ...styles.navItem, 
+            style={{
+              ...styles.navItem,
               ...(activeTab === 'jobs' ? themeStyles.activeNav : {}),
-              color: activeTab === 'jobs' ? '#ffffff' : themeStyles.text
+              color: activeTab === 'jobs' ? '#ffffff' : themeStyles.text,
             }}
           >
-            📋 Print Jobs
+            <AiOutlineFileAdd style={{ marginRight: '8px' }} />
+            Print Jobs
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('print')}
-            style={{ 
-              ...styles.navItem, 
+            style={{
+              ...styles.navItem,
               ...(activeTab === 'print' ? themeStyles.activeNav : {}),
-              color: activeTab === 'print' ? '#ffffff' : themeStyles.text
+              color: activeTab === 'print' ? '#ffffff' : themeStyles.text,
             }}
           >
-            ➕ Submit Print
+            <AiOutlineFileAdd style={{ marginRight: '8px' }} />
+            Submit Print
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('status')}
-            style={{ 
-              ...styles.navItem, 
+            style={{
+              ...styles.navItem,
               ...(activeTab === 'status' ? themeStyles.activeNav : {}),
-              color: activeTab === 'status' ? '#ffffff' : themeStyles.text
+              color: activeTab === 'status' ? '#ffffff' : themeStyles.text,
             }}
           >
-            🖨️ Printer Status
+            <AiOutlinePrinter style={{ marginRight: '8px' }} />
+            Printer Status
           </button>
         </nav>
       </div>
@@ -57,10 +78,14 @@ export default function ClerkDashboard() {
         <div style={styles.header}>
           <div style={styles.userInfo}>
             <button onClick={toggleTheme} style={{ ...styles.iconButton, ...themeStyles.button }}>
-              {theme === 'light' ? '🌙' : '☀️'}
+              {theme === 'light' ? <AiOutlineMoon /> : <AiOutlineSun />}
             </button>
             <span style={{ color: themeStyles.text }}>{user?.name || 'Clerk'}</span>
-            <button onClick={logout} style={{ ...styles.logoutButton, ...themeStyles.dangerButton }}>
+            <button
+              onClick={logout}
+              style={{ ...styles.logoutButton, ...themeStyles.dangerButton }}
+            >
+              <HiOutlineLogout style={{ marginRight: '4px' }} />
               Logout
             </button>
           </div>
@@ -110,7 +135,7 @@ function JobsTab({ themeStyles }: { themeStyles: any }) {
     <div style={{ ...styles.card, ...themeStyles.card }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ color: themeStyles.text }}>Recent Print Jobs</h2>
-        <button 
+        <button
           onClick={loadJobs}
           disabled={isLoading}
           style={{ ...styles.actionButton, ...themeStyles.primaryButton }}
@@ -122,20 +147,26 @@ function JobsTab({ themeStyles }: { themeStyles: any }) {
         {jobs.length === 0 ? (
           <p style={{ color: themeStyles.textSecondary }}>No jobs found</p>
         ) : (
-          jobs.map(job => (
-            <div key={job.id || job._id || job.printJobId} style={{ ...styles.jobItem, ...themeStyles.card }}>
+          jobs.map((job) => (
+            <div
+              key={job.id || job._id || job.printJobId}
+              style={{ ...styles.jobItem, ...themeStyles.card }}
+            >
               <div>
                 <p style={{ color: themeStyles.text, fontWeight: 'bold' }}>{job.fileName}</p>
                 <p style={{ color: themeStyles.textSecondary, fontSize: '12px' }}>
-                  {job.printerName} • {new Date(job.submittedAt || job.submittedAt).toLocaleString()}
+                  {job.printerName} •{' '}
+                  {new Date(job.submittedAt || job.submittedAt).toLocaleString()}
                 </p>
               </div>
-              <span style={{ 
-                color: getStatusColor(job.status), 
-                fontWeight: 'bold',
-                textTransform: 'uppercase',
-                fontSize: '12px'
-              }}>
+              <span
+                style={{
+                  color: getStatusColor(job.status),
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  fontSize: '12px',
+                }}
+              >
                 {job.status}
               </span>
             </div>
@@ -195,7 +226,7 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
     try {
       // First, upload the file
       const uploadResult = await electronAPI.files.upload(selectedFile);
-      
+
       // Create the print job
       const jobData = {
         printJobId: `job-${Date.now()}`,
@@ -209,15 +240,18 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
           copies,
           colorMode,
           orientation,
-        }
+        },
       };
 
       const createdJob = await electronAPI.jobs.create(jobData);
-      
+
       // Submit to agent for printing
       const agents = await electronAPI.agents.getAll();
       if (agents.length > 0) {
-        await electronAPI.jobs.submitToPrinter(createdJob.id || createdJob._id, agents[0].id || agents[0]._id);
+        await electronAPI.jobs.submitToPrinter(
+          createdJob.id || createdJob._id,
+          agents[0].id || agents[0]._id
+        );
       }
 
       // Reset form
@@ -225,7 +259,7 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
       setCopies(1);
       setColorMode('color');
       setOrientation('portrait');
-      
+
       alert('Print job submitted successfully!');
     } catch (error) {
       console.error('Failed to submit print job:', error);
@@ -240,19 +274,26 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
       <h2 style={{ color: themeStyles.text }}>Submit New Print Job</h2>
       <div style={styles.form}>
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ color: themeStyles.text, display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+          <label
+            style={{
+              color: themeStyles.text,
+              display: 'block',
+              marginBottom: '8px',
+              fontWeight: 'bold',
+            }}
+          >
             Select File
           </label>
-          <button 
+          <button
             onClick={handleFileSelect}
-            style={{ 
-              ...styles.fileButton, 
+            style={{
+              ...styles.fileButton,
               ...themeStyles.primaryButton,
               width: '100%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '10px'
+              gap: '10px',
             }}
           >
             📄 {selectedFile ? selectedFile.split('/').pop() : 'Choose File'}
@@ -260,17 +301,24 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
         </div>
 
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ color: themeStyles.text, display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+          <label
+            style={{
+              color: themeStyles.text,
+              display: 'block',
+              marginBottom: '8px',
+              fontWeight: 'bold',
+            }}
+          >
             Select Printer
           </label>
-          <select 
+          <select
             value={printer}
             onChange={(e) => setPrinter(e.target.value)}
-            style={{ 
-              ...styles.input, 
+            style={{
+              ...styles.input,
               ...themeStyles.input,
               width: '100%',
-              padding: '10px'
+              padding: '10px',
             }}
           >
             <option value="">Select a printer</option>
@@ -283,7 +331,14 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
         </div>
 
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ color: themeStyles.text, display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+          <label
+            style={{
+              color: themeStyles.text,
+              display: 'block',
+              marginBottom: '8px',
+              fontWeight: 'bold',
+            }}
+          >
             Copies
           </label>
           <input
@@ -292,28 +347,42 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
             onChange={(e) => setCopies(parseInt(e.target.value) || 1)}
             min={1}
             max={100}
-            style={{ 
-              ...styles.input, 
+            style={{
+              ...styles.input,
               ...themeStyles.input,
               width: '100%',
-              padding: '10px'
+              padding: '10px',
             }}
           />
         </div>
 
-        <div style={{ marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <div
+          style={{
+            marginBottom: '20px',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '10px',
+          }}
+        >
           <div>
-            <label style={{ color: themeStyles.text, display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+            <label
+              style={{
+                color: themeStyles.text,
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: 'bold',
+              }}
+            >
               Color Mode
             </label>
             <select
               value={colorMode}
               onChange={(e) => setColorMode(e.target.value as any)}
-              style={{ 
-                ...styles.input, 
+              style={{
+                ...styles.input,
                 ...themeStyles.input,
                 width: '100%',
-                padding: '10px'
+                padding: '10px',
               }}
             >
               <option value="color">Color</option>
@@ -323,17 +392,24 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
           </div>
 
           <div>
-            <label style={{ color: themeStyles.text, display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+            <label
+              style={{
+                color: themeStyles.text,
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: 'bold',
+              }}
+            >
               Orientation
             </label>
             <select
               value={orientation}
               onChange={(e) => setOrientation(e.target.value as any)}
-              style={{ 
-                ...styles.input, 
+              style={{
+                ...styles.input,
                 ...themeStyles.input,
                 width: '100%',
-                padding: '10px'
+                padding: '10px',
               }}
             >
               <option value="portrait">Portrait</option>
@@ -342,15 +418,15 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
           </div>
         </div>
 
-        <button 
+        <button
           onClick={handleSubmit}
           disabled={!selectedFile || !printer || isSubmitting}
-          style={{ 
-            ...styles.actionButton, 
+          style={{
+            ...styles.actionButton,
             ...themeStyles.primaryButton,
             width: '100%',
             padding: '12px',
-            opacity: (!selectedFile || !printer || isSubmitting) ? 0.5 : 1
+            opacity: !selectedFile || !printer || isSubmitting ? 0.5 : 1,
           }}
         >
           {isSubmitting ? 'Submitting...' : 'Submit Print Job'}
@@ -393,7 +469,7 @@ function StatusTab({ themeStyles }: { themeStyles: any }) {
       <div style={{ ...styles.card, ...themeStyles.card }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ color: themeStyles.text }}>Available Printers</h2>
-          <button 
+          <button
             onClick={loadPrinters}
             disabled={isLoading}
             style={{ ...styles.actionButton, ...themeStyles.primaryButton }}
@@ -415,12 +491,14 @@ function StatusTab({ themeStyles }: { themeStyles: any }) {
                     {p.location || 'No location'} • {p.status}
                   </p>
                 </div>
-                <span style={{ 
-                  color: getStatusColor(p.status), 
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase',
-                  fontSize: '12px'
-                }}>
+                <span
+                  style={{
+                    color: getStatusColor(p.status),
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    fontSize: '12px',
+                  }}
+                >
                   {p.status}
                 </span>
               </div>
@@ -463,6 +541,8 @@ const styles = {
     fontSize: '14px',
     background: 'transparent',
     transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
   },
   main: {
     flex: 1,
@@ -489,12 +569,17 @@ const styles = {
     fontSize: '20px',
     transition: 'all 0.2s ease',
     border: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutButton: {
     padding: '8px 16px',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
   },
   content: {
     flex: 1,

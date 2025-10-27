@@ -1,6 +1,9 @@
-import { Agent } from '../../agent/core/agent.js';
+import { Agent } from '../agent/core/agent.js';
 import { logger } from '../utils/logger.js';
-import type { AgentStatus as IpcAgentStatus, PrinterInfo as IpcPrinterInfo } from '../../shared/types/ipc.types.js';
+import type {
+  AgentStatus as IpcAgentStatus,
+  PrinterInfo as IpcPrinterInfo,
+} from '../../shared/types/ipc.types.js';
 import fs from 'fs-extra';
 
 class AgentService {
@@ -118,19 +121,19 @@ class AgentService {
 
     // Check if printer exists
     const printers = printerManager.getPrinters();
-    const printer = printers.find(p => p.printerName === printerName);
+    const printer = printers.find((p) => p.printerName === printerName);
     if (!printer && printers.length > 0) {
       // If no specific printer, use first available
       await printerManager.printFile(printers[0].printerName, filePath, {
         copies: 1,
         colorMode: 'color',
-        orientation: 'portrait'
+        orientation: 'portrait',
       });
     } else if (printer) {
       await printerManager.printFile(printerName, filePath, {
         copies: 1,
         colorMode: 'color',
-        orientation: 'portrait'
+        orientation: 'portrait',
       });
     } else {
       throw new Error('No printers available');
@@ -189,4 +192,3 @@ class AgentService {
 }
 
 export const agentService = new AgentService();
-

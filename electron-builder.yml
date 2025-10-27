@@ -3,12 +3,18 @@ productName: Electron React App
 copyright: Copyright © 2024
 
 files:
-  - dist/**
+  - out/**
+  - "!out/**/*.map" # Exclude source maps
   - node_modules/**
   - package.json
 
+# Force unpack preload script (required for preload scripts with native dependencies)
+asar:
+  unpack: "**/preload/**"
+
 directories:
   output: release
+  buildResources: build
 
 win:
   target:

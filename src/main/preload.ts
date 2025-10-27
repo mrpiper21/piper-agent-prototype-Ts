@@ -17,6 +17,7 @@ const electronAPI: IpcApi = {
   files: {
     save: (path, content) => ipcRenderer.invoke('files:save', path, content),
     read: (path) => ipcRenderer.invoke('files:read', path),
+    upload: (filePath) => ipcRenderer.invoke('files:upload', filePath),
   },
   agent: {
     start: () => ipcRenderer.invoke('agent:start'),
@@ -24,9 +25,38 @@ const electronAPI: IpcApi = {
     getStatus: () => ipcRenderer.invoke('agent:getStatus'),
     getPrinters: () => ipcRenderer.invoke('agent:getPrinters'),
     discoverPrinters: () => ipcRenderer.invoke('agent:discoverPrinters'),
-    printFile: (printerName, filePath, options) => ipcRenderer.invoke('agent:printFile', printerName, filePath, options),
-    testPrint: (printerName, filePath) => ipcRenderer.invoke('agent:testPrint', printerName, filePath),
+    printFile: (printerName, filePath, options) =>
+      ipcRenderer.invoke('agent:printFile', printerName, filePath, options),
+    testPrint: (printerName, filePath) =>
+      ipcRenderer.invoke('agent:testPrint', printerName, filePath),
     isRunning: () => ipcRenderer.invoke('agent:isRunning'),
+  },
+  logs: {
+    getLogs: (agentId?: string) => ipcRenderer.invoke('logs:getLogs', agentId),
+    getLogsByDateRange: (startDate: string, endDate: string) =>
+      ipcRenderer.invoke('logs:getLogsByDateRange', startDate, endDate),
+  },
+  jobs: {
+    getAll: () => ipcRenderer.invoke('jobs:getAll'),
+    getById: (id: string) => ipcRenderer.invoke('jobs:getById', id),
+    create: (job: any) => ipcRenderer.invoke('jobs:create', job),
+    update: (id: string, updates: any) => ipcRenderer.invoke('jobs:update', id, updates),
+    submitToPrinter: (jobId: string, agentId: string) =>
+      ipcRenderer.invoke('jobs:submitToPrinter', jobId, agentId),
+  },
+  agents: {
+    getAll: () => ipcRenderer.invoke('agents:getAll'),
+    getById: (id: string) => ipcRenderer.invoke('agents:getById', id),
+    updateStatus: (id: string, status: string) =>
+      ipcRenderer.invoke('agents:updateStatus', id, status),
+  },
+  analytics: {
+    getData: (dateRange?: { start: string; end: string }) =>
+      ipcRenderer.invoke('analytics:getData', dateRange),
+    getComparison: () => ipcRenderer.invoke('analytics:getComparison'),
+  },
+  health: {
+    check: () => ipcRenderer.invoke('health:check'),
   },
 };
 
