@@ -20,9 +20,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function RoleBasedRoute() {
   const user = useAuthStore((state) => state.user);
 
-  if (user?.role === 'admin') {
-    return <AdminDashboard />;
-  }
+  // if (user?.role === 'admin') {
+  //   return <AdminDashboard />;
+  // }
 
   return <ClerkDashboard />;
 }
@@ -30,19 +30,19 @@ function RoleBasedRoute() {
 export default function App() {
   return (
     <Router>
-      <Suspense fallback={<LoadingScreen />}>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <RoleBasedRoute />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </Suspense>
+      {/* <Suspense fallback={<LoadingScreen />}> */}
+      <Routes>
+        {/* <Route path="/login" element={<Login />} /> */}
+        <Route
+          path="/"
+          element={
+            // <ProtectedRoute>
+            <RoleBasedRoute />
+            // </ProtectedRoute>
+          }
+        />
+      </Routes>
+      {/* </Suspense> */}
     </Router>
   );
 }

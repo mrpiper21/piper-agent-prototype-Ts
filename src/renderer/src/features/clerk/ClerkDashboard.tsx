@@ -270,167 +270,172 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
   };
 
   return (
-    <div style={{ ...styles.card, ...themeStyles.card }}>
-      <h2 style={{ color: themeStyles.text }}>Submit New Print Job</h2>
-      <div style={styles.form}>
-        <div style={{ marginBottom: '20px' }}>
-          <label
+    <div style={{ flexDirection: 'row', display: 'flex', gap: 4 }}>
+      <div style={{ ...styles.card, ...themeStyles.card }}>
+        <h2 style={{ color: themeStyles.text }}>Submit New Print Job</h2>
+        <div style={styles.form}>
+          <div style={{ marginBottom: '20px' }}>
+            <label
+              style={{
+                color: themeStyles.text,
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: 'bold',
+              }}
+            >
+              Select File
+            </label>
+            <button
+              onClick={handleFileSelect}
+              style={{
+                ...styles.fileButton,
+                ...themeStyles.primaryButton,
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+              }}
+            >
+              📄 {selectedFile ? selectedFile.split('/').pop() : 'Choose File'}
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label
+              style={{
+                color: themeStyles.text,
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: 'bold',
+              }}
+            >
+              Select Printer
+            </label>
+            <select
+              value={printer}
+              onChange={(e) => setPrinter(e.target.value)}
+              style={{
+                ...styles.input,
+                ...themeStyles.input,
+                width: '100%',
+                padding: '10px',
+              }}
+            >
+              <option value="">Select a printer</option>
+              {printers.map((p, i) => (
+                <option key={i} value={p.printerName}>
+                  {p.displayName || p.printerName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label
+              style={{
+                color: themeStyles.text,
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: 'bold',
+              }}
+            >
+              Copies
+            </label>
+            <input
+              type="number"
+              value={copies}
+              onChange={(e) => setCopies(parseInt(e.target.value) || 1)}
+              min={1}
+              max={100}
+              style={{
+                ...styles.input,
+                ...themeStyles.input,
+                width: '100%',
+                padding: '10px',
+              }}
+            />
+          </div>
+
+          <div
             style={{
-              color: themeStyles.text,
-              display: 'block',
-              marginBottom: '8px',
-              fontWeight: 'bold',
-            }}
-          >
-            Select File
-          </label>
-          <button
-            onClick={handleFileSelect}
-            style={{
-              ...styles.fileButton,
-              ...themeStyles.primaryButton,
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              marginBottom: '20px',
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
               gap: '10px',
             }}
           >
-            📄 {selectedFile ? selectedFile.split('/').pop() : 'Choose File'}
+            <div>
+              <label
+                style={{
+                  color: themeStyles.text,
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: 'bold',
+                }}
+              >
+                Color Mode
+              </label>
+              <select
+                value={colorMode}
+                onChange={(e) => setColorMode(e.target.value as any)}
+                style={{
+                  ...styles.input,
+                  ...themeStyles.input,
+                  width: '100%',
+                  padding: '10px',
+                }}
+              >
+                <option value="color">Color</option>
+                <option value="grayscale">Grayscale</option>
+                <option value="black-white">Black & White</option>
+              </select>
+            </div>
+
+            <div>
+              <label
+                style={{
+                  color: themeStyles.text,
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: 'bold',
+                }}
+              >
+                Orientation
+              </label>
+              <select
+                value={orientation}
+                onChange={(e) => setOrientation(e.target.value as any)}
+                style={{
+                  ...styles.input,
+                  ...themeStyles.input,
+                  width: '100%',
+                  padding: '10px',
+                }}
+              >
+                <option value="portrait">Portrait</option>
+                <option value="landscape">Landscape</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSubmit}
+            disabled={!selectedFile || !printer || isSubmitting}
+            style={{
+              ...styles.actionButton,
+              ...themeStyles.primaryButton,
+              width: '100%',
+              padding: '12px',
+              opacity: !selectedFile || !printer || isSubmitting ? 0.5 : 1,
+            }}
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit Print Job'}
           </button>
         </div>
-
-        <div style={{ marginBottom: '20px' }}>
-          <label
-            style={{
-              color: themeStyles.text,
-              display: 'block',
-              marginBottom: '8px',
-              fontWeight: 'bold',
-            }}
-          >
-            Select Printer
-          </label>
-          <select
-            value={printer}
-            onChange={(e) => setPrinter(e.target.value)}
-            style={{
-              ...styles.input,
-              ...themeStyles.input,
-              width: '100%',
-              padding: '10px',
-            }}
-          >
-            <option value="">Select a printer</option>
-            {printers.map((p, i) => (
-              <option key={i} value={p.printerName}>
-                {p.displayName || p.printerName}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ marginBottom: '20px' }}>
-          <label
-            style={{
-              color: themeStyles.text,
-              display: 'block',
-              marginBottom: '8px',
-              fontWeight: 'bold',
-            }}
-          >
-            Copies
-          </label>
-          <input
-            type="number"
-            value={copies}
-            onChange={(e) => setCopies(parseInt(e.target.value) || 1)}
-            min={1}
-            max={100}
-            style={{
-              ...styles.input,
-              ...themeStyles.input,
-              width: '100%',
-              padding: '10px',
-            }}
-          />
-        </div>
-
-        <div
-          style={{
-            marginBottom: '20px',
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '10px',
-          }}
-        >
-          <div>
-            <label
-              style={{
-                color: themeStyles.text,
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: 'bold',
-              }}
-            >
-              Color Mode
-            </label>
-            <select
-              value={colorMode}
-              onChange={(e) => setColorMode(e.target.value as any)}
-              style={{
-                ...styles.input,
-                ...themeStyles.input,
-                width: '100%',
-                padding: '10px',
-              }}
-            >
-              <option value="color">Color</option>
-              <option value="grayscale">Grayscale</option>
-              <option value="black-white">Black & White</option>
-            </select>
-          </div>
-
-          <div>
-            <label
-              style={{
-                color: themeStyles.text,
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: 'bold',
-              }}
-            >
-              Orientation
-            </label>
-            <select
-              value={orientation}
-              onChange={(e) => setOrientation(e.target.value as any)}
-              style={{
-                ...styles.input,
-                ...themeStyles.input,
-                width: '100%',
-                padding: '10px',
-              }}
-            >
-              <option value="portrait">Portrait</option>
-              <option value="landscape">Landscape</option>
-            </select>
-          </div>
-        </div>
-
-        <button
-          onClick={handleSubmit}
-          disabled={!selectedFile || !printer || isSubmitting}
-          style={{
-            ...styles.actionButton,
-            ...themeStyles.primaryButton,
-            width: '100%',
-            padding: '12px',
-            opacity: !selectedFile || !printer || isSubmitting ? 0.5 : 1,
-          }}
-        >
-          {isSubmitting ? 'Submitting...' : 'Submit Print Job'}
-        </button>
+      </div>
+      <div style={{ width: '50%', backgroundColor: 'red' }}>
+        <p>Hello</p>
       </div>
     </div>
   );
@@ -589,6 +594,7 @@ const styles = {
   card: {
     padding: '24px',
     borderRadius: '8px',
+    width: '100%',
   },
   jobsList: {
     display: 'flex',
