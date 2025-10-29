@@ -3,9 +3,6 @@ import { useTheme } from '../../context/ThemeContext';
 import React, { useState } from 'react';
 import { electronAPI } from '../../lib';
 import {
-  AiOutlinePrinter,
-  AiOutlineFileAdd,
-  AiOutlineReload,
   AiOutlineMoon,
   AiOutlineSun,
 } from 'react-icons/ai';
@@ -20,64 +17,11 @@ export default function ClerkDashboard() {
 
   return (
     <div style={styles.wrapper}>
-      {/* Sidebar */}
-      <div style={{ ...styles.sidebar, ...themeStyles.sidebar }}>
-        <div style={styles.sidebarHeader}>
-          <h2
-            style={{
-              color: themeStyles.text,
-              margin: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <AiOutlinePrinter /> Print Station
-          </h2>
-        </div>
-        <nav style={styles.nav}>
-          <button
-            onClick={() => setActiveTab('jobs')}
-            style={{
-              ...styles.navItem,
-              ...(activeTab === 'jobs' ? themeStyles.activeNav : {}),
-              color: activeTab === 'jobs' ? '#ffffff' : themeStyles.text,
-            }}
-          >
-            <AiOutlineFileAdd style={{ marginRight: '8px' }} />
-            Print Jobs
-          </button>
-          <button
-            onClick={() => setActiveTab('print')}
-            style={{
-              ...styles.navItem,
-              ...(activeTab === 'print' ? themeStyles.activeNav : {}),
-              color: activeTab === 'print' ? '#ffffff' : themeStyles.text,
-            }}
-          >
-            <AiOutlineFileAdd style={{ marginRight: '8px' }} />
-            Submit Print
-          </button>
-          <button
-            onClick={() => setActiveTab('status')}
-            style={{
-              ...styles.navItem,
-              ...(activeTab === 'status' ? themeStyles.activeNav : {}),
-              color: activeTab === 'status' ? '#ffffff' : themeStyles.text,
-            }}
-          >
-            <AiOutlinePrinter style={{ marginRight: '8px' }} />
-            Printer Status
-          </button>
-        </nav>
-      </div>
-
-      {/* Main Content */}
       <div style={styles.main}>
         {/* Header */}
-        <div style={styles.header}>
+        <div style={{ ...styles.header, ...themeStyles.header }}>
           <div style={styles.userInfo}>
-            <button onClick={toggleTheme} style={{ ...styles.iconButton, ...themeStyles.button }}>
+            <button onClick={toggleTheme} style={{ ...styles.iconButton, ...themeStyles.iconButton }}>
               {theme === 'light' ? <AiOutlineMoon /> : <AiOutlineSun />}
             </button>
             <span style={{ color: themeStyles.text }}>{user?.name || 'Clerk'}</span>
@@ -108,8 +52,8 @@ function JobsTab({ themeStyles }: { themeStyles: any }) {
 
   React.useEffect(() => {
     loadJobs();
-    const interval = setInterval(loadJobs, 3000);
-    return () => clearInterval(interval);
+    // const interval = setInterval(loadJobs, 3000);
+    // return () => clearInterval(interval);
   }, []);
 
   const loadJobs = async () => {
@@ -133,8 +77,8 @@ function JobsTab({ themeStyles }: { themeStyles: any }) {
 
   return (
     <div style={{ ...styles.card, ...themeStyles.card }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ color: themeStyles.text }}>Recent Print Jobs</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ color: '#fbbf24', fontWeight: '700' }}>Recent Print Jobs</h2>
         <button
           onClick={loadJobs}
           disabled={isLoading}
@@ -270,9 +214,8 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
   };
 
   return (
-    <div style={{ flexDirection: 'row', display: 'flex', gap: 4 }}>
-      <div style={{ ...styles.card, ...themeStyles.card }}>
-        <h2 style={{ color: themeStyles.text }}>Submit New Print Job</h2>
+    <div style={{ ...styles.card, ...themeStyles.card }}>
+        <h2 style={{ color: '#fbbf24', marginBottom: '24px', fontWeight: '700' }}>Submit New Print Job</h2>
         <div style={styles.form}>
           <div style={{ marginBottom: '20px' }}>
             <label
@@ -361,7 +304,7 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
             style={{
               marginBottom: '20px',
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: '10px',
             }}
           >
@@ -434,10 +377,6 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
           </button>
         </div>
       </div>
-      <div style={{ width: '50%', backgroundColor: 'red' }}>
-        <p>Hello</p>
-      </div>
-    </div>
   );
 }
 
@@ -470,10 +409,10 @@ function StatusTab({ themeStyles }: { themeStyles: any }) {
   };
 
   return (
-    <div>
+      <div>
       <div style={{ ...styles.card, ...themeStyles.card }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ color: themeStyles.text }}>Available Printers</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ color: '#fbbf24', fontWeight: '700' }}>Available Printers</h2>
           <button
             onClick={loadPrinters}
             disabled={isLoading}
@@ -520,12 +459,17 @@ const styles = {
     display: 'flex',
     height: '100vh',
     overflow: 'hidden',
+    overflowX: 'hidden' as const,
+    width: '100vw',
   },
   sidebar: {
     width: '250px',
+    minWidth: '200px',
     display: 'flex',
     flexDirection: 'column' as const,
     borderRight: '1px solid',
+    overflowY: 'auto' as const,
+    overflowX: 'hidden' as const,
   },
   sidebarHeader: {
     padding: '20px',
@@ -548,12 +492,15 @@ const styles = {
     transition: 'all 0.2s ease',
     display: 'flex',
     alignItems: 'center',
+    fontWeight: '500',
   },
   main: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column' as const,
-    overflow: 'auto',
+    overflow: 'hidden',
+    overflowX: 'hidden' as const,
+    minWidth: 0,
   },
   header: {
     display: 'flex',
@@ -561,6 +508,7 @@ const styles = {
     alignItems: 'center',
     padding: '20px',
     borderBottom: '1px solid',
+    borderColor: 'inherit',
   },
   userInfo: {
     display: 'flex',
@@ -569,7 +517,7 @@ const styles = {
   },
   iconButton: {
     padding: '8px 12px',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '20px',
     transition: 'all 0.2s ease',
@@ -581,19 +529,21 @@ const styles = {
   logoutButton: {
     padding: '8px 16px',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
+    fontWeight: '500',
   },
   content: {
     flex: 1,
     padding: '20px',
     overflow: 'auto',
+    overflowX: 'hidden' as const,
   },
   card: {
     padding: '24px',
-    borderRadius: '8px',
+    borderRadius: '12px',
     width: '100%',
   },
   jobsList: {
@@ -608,6 +558,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    transition: 'all 0.2s ease',
   },
   printersList: {
     display: 'flex',
@@ -621,61 +572,68 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    transition: 'all 0.2s ease',
   },
   form: {
     marginTop: '20px',
   },
   input: {
-    borderRadius: '4px',
+    borderRadius: '6px',
     fontSize: '14px',
   },
   fileButton: {
     padding: '12px',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '14px',
+    fontWeight: '500',
   },
   actionButton: {
     padding: '10px 20px',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '14px',
     transition: 'all 0.2s ease',
+    fontWeight: '600',
   },
 };
 
 const lightStyles = {
-  container: { background: '#f5f7fa' },
-  text: '#1a2d4f',
-  textSecondary: '#4a5a7a',
-  accent: '#1e4d72',
-  success: '#10b981',
+  container: { background: '#ffffff' },
+  text: '#000000',
+  textSecondary: '#4a4a4a',
+  accent: '#fbbf24',
+  success: '#22c55e',
   warning: '#f59e0b',
   error: '#ef4444',
-  sidebar: { background: '#ffffff', borderColor: '#cbd5e0' },
-  card: { background: '#ffffff', border: '1px solid #cbd5e0' },
-  button: { background: '#ffffff', color: '#1a2d4f', border: '1px solid #cbd5e0' },
-  input: { background: '#ffffff', color: '#1a2d4f', border: '1px solid #cbd5e0' },
-  primaryButton: { background: '#1e4d72', color: '#ffffff' },
+  sidebar: { background: '#f8f9fa', borderColor: '#e1e1e1' },
+  card: { background: '#ffffff', border: '1px solid #e1e1e1', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)' },
+  button: { background: '#ffffff', color: '#000000', border: '1px solid #e1e1e1' },
+  iconButton: { background: '#ffffff', color: '#000000', border: '1px solid #e1e1e1' },
+  header: { background: '#ffffff', borderColor: '#e1e1e1' },
+  input: { background: '#ffffff', color: '#000000', border: '1px solid #e1e1e1' },
+  primaryButton: { background: '#fbbf24', color: '#000000' },
   dangerButton: { background: '#ef4444', color: '#ffffff' },
-  activeNav: { background: '#1e4d72' },
+  activeNav: { background: '#fbbf24' },
 };
 
 const darkStyles = {
-  container: { background: '#1e293b' },
-  text: '#e2e8f0',
-  textSecondary: '#94a3b8',
-  accent: '#60a5fa',
-  success: '#34d399',
-  warning: '#fbbf24',
-  error: '#f87171',
-  sidebar: { background: '#0f172a', borderColor: '#334155' },
-  card: { background: '#0f172a', border: '1px solid #334155' },
-  button: { background: '#0f172a', color: '#e2e8f0', border: '1px solid #334155' },
-  input: { background: '#0f172a', color: '#e2e8f0', border: '1px solid #334155' },
-  primaryButton: { background: '#60a5fa', color: '#0f172a' },
-  dangerButton: { background: '#f87171', color: '#0f172a' },
-  activeNav: { background: '#60a5fa' },
+  container: { background: '#1a1a1a' },
+  text: '#f5f5f5',
+  textSecondary: '#d4d4d4',
+  accent: '#fbbf24',
+  success: '#22c55e',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  sidebar: { background: '#262626', borderColor: '#404040' },
+  card: { background: '#262626', border: '1px solid #404040', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)' },
+  button: { background: '#333333', color: '#f5f5f5', border: '1px solid #404040' },
+  iconButton: { background: '#333333', color: '#f5f5f5', border: '1px solid #404040' },
+  header: { background: '#1a1a1a', borderColor: '#404040' },
+  input: { background: '#333333', color: '#f5f5f5', border: '1px solid #404040' },
+  primaryButton: { background: '#fbbf24', color: '#000000' },
+  dangerButton: { background: '#ef4444', color: '#ffffff' },
+  activeNav: { background: '#fbbf24' },
 };

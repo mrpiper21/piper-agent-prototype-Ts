@@ -1,0 +1,98 @@
+export const lightStyles = {
+  container: { background: '#ffffff' },
+  text: '#000000',
+  textSecondary: '#4a4a4a',
+  accent: '#fbbf24',
+  success: '#22c55e',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  sidebar: { background: '#f8f9fa', borderColor: '#e1e1e1' },
+  card: { background: '#ffffff', border: '1px solid #e1e1e1' },
+  button: { background: '#ffffff', color: '#000000', border: '1px solid #e1e1e1' },
+  iconButton: { background: '#ffffff', color: '#000000', border: '1px solid #e1e1e1' },
+  header: { background: '#ffffff', borderColor: '#e1e1e1' },
+  input: { background: '#ffffff', color: '#000000', border: '1px solid #e1e1e1' },
+  primaryButton: { background: '#fbbf24', color: '#000000' },
+  dangerButton: { background: '#ef4444', color: '#ffffff' },
+  activeNav: { background: '#fbbf24' },
+};
+
+export const darkStyles = {
+  container: { background: '#1a1a1a' },
+  text: '#f5f5f5',
+  textSecondary: '#d4d4d4',
+  accent: '#fbbf24',
+  success: '#22c55e',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  sidebar: { background: '#262626', borderColor: '#404040' },
+  card: { background: '#262626', border: '1px solid #404040' },
+  button: { background: '#333333', color: '#f5f5f5', border: '1px solid #404040' },
+  iconButton: { background: '#333333', color: '#f5f5f5', border: '1px solid #404040' },
+  header: { background: '#1a1a1a', borderColor: '#404040' },
+  input: { background: '#333333', color: '#f5f5f5', border: '1px solid #404040' },
+  primaryButton: { background: '#fbbf24', color: '#000000' },
+  dangerButton: { background: '#ef4444', color: '#ffffff' },
+  activeNav: { background: '#fbbf24' },
+};
+
+export const sharedStyles = {
+  card: {
+    padding: '24px',
+    borderRadius: '12px',
+  },
+  jobsList: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '12px',
+    marginTop: '20px',
+  },
+  jobItem: {
+    padding: '16px',
+    borderRadius: '8px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    transition: 'all 0.2s ease',
+    cursor: 'pointer',
+  },
+  printersList: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '12px',
+    marginTop: '20px',
+  },
+  printerCard: {
+    padding: '16px',
+    borderRadius: '8px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    transition: 'all 0.2s ease',
+  },
+  form: {
+    marginTop: '20px',
+  },
+  input: {
+    borderRadius: '6px',
+    fontSize: '14px',
+  },
+  fileButton: {
+    padding: '12px',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+  },
+  actionButton: {
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    transition: 'all 0.2s ease',
+    fontWeight: '600',
+  },
+};
+

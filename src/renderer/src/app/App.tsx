@@ -3,9 +3,11 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '../features/auth';
 import LoadingScreen from '../shared/components/LoadingScreen';
 
-const AdminDashboard = lazy(() => import('../features/admin/AdminDashboard'));
-const ClerkDashboard = lazy(() => import('../features/clerk/ClerkDashboard'));
-const Login = lazy(() => import('../features/auth/pages/LoginPage'));
+const ClerkLayout = lazy(() => import('../features/clerk/layouts/ClerkLayout'));
+const DashboardPage = lazy(() => import('../features/clerk/pages/DashboardPage'));
+const JobsPage = lazy(() => import('../features/clerk/pages/JobsPage'));
+const SubmitPage = lazy(() => import('../features/clerk/pages/SubmitPage'));
+const StatusPage = lazy(() => import('../features/clerk/pages/StatusPage'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -18,31 +20,33 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function RoleBasedRoute() {
-  const user = useAuthStore((state) => state.user);
+  // const user = useAuthStore((state) => state.user);
 
   // if (user?.role === 'admin') {
   //   return <AdminDashboard />;
   // }
 
-  return <ClerkDashboard />;
+  return <Navigate to="/clerk/dashboard" replace />;
 }
 
 export default function App() {
   return (
     <Router>
-      {/* <Suspense fallback={<LoadingScreen />}> */}
-      <Routes>
-        {/* <Route path="/login" element={<Login />} /> */}
-        <Route
-          path="/"
-          element={
-            // <ProtectedRoute>
-            <RoleBasedRoute />
-            // </ProtectedRoute>
-          }
-        />
-      </Routes>
-      {/* </Suspense> */}
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
+          {/* <Route path="/login" element={<Login />} /> */}
+          <Route path="/" element={<RoleBasedRoute />} />
+          <Route
+            path="/clerk"
+            element={<ProtectedRoute><ClerkLayout /></ProtectedRoute>}
+          >
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="jobs" element={<JobsPage />} />
+            <Route path="submit" element={<SubmitPage />} />
+            <Route path="status" element={<StatusPage />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </Router>
   );
 }
