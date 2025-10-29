@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage, useAuthStore } from '../features/auth';
 import LoadingScreen from '../shared/components/LoadingScreen';
+import { OfflineBanner } from '../shared/components';
 
 const ClerkLayout = lazy(() => import('../features/clerk/layouts/ClerkLayout'));
 const DashboardPage = lazy(() => import('../features/clerk/pages/DashboardPage'));
@@ -32,23 +33,26 @@ function RoleBasedRoute() {
 
 export default function App() {
   return (
-    <Router>
-      <Suspense fallback={<LoadingScreen />}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<RoleBasedRoute />} />
-          <Route
-            path="/clerk"
-            element={<ProtectedRoute><ClerkLayout /></ProtectedRoute>}
-          >
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="jobs" element={<JobsPage />} />
-            <Route path="submit" element={<SubmitPage />} />
-            <Route path="status" element={<StatusPage />} />
-            <Route path="profile" element={<ProfilePage />} />
-          </Route>
-        </Routes>
-      </Suspense>
-    </Router>
+    <>
+      <OfflineBanner />
+      <Router>
+        <Suspense fallback={<LoadingScreen />}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<RoleBasedRoute />} />
+            <Route
+              path="/clerk"
+              element={<ProtectedRoute><ClerkLayout /></ProtectedRoute>}
+            >
+              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="jobs" element={<JobsPage />} />
+              <Route path="submit" element={<SubmitPage />} />
+              <Route path="status" element={<StatusPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+            </Route>
+          </Routes>
+        </Suspense>
+      </Router>
+    </>
   );
 }
