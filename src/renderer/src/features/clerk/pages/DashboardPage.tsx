@@ -114,11 +114,12 @@ export default function DashboardPage() {
   return (
     <div style={{ 
       padding: '24px', 
-      height: '100%', 
-      display: 'flex', 
+      // height: '100%', 
       flexDirection: 'column', 
       gap: '24px',
-      overflow: 'auto'
+      overflow: 'auto',
+      display: 'grid',
+      flexWrap: 'wrap'
     }}>
       {/* Header */}
       <div style={{ 
@@ -241,9 +242,6 @@ export default function DashboardPage() {
           ...themeStyles.card, 
           display: 'flex', 
           flexDirection: 'column',
-          boxShadow: theme === 'dark' 
-            ? '0 4px 20px rgba(0, 0, 0, 0.4)' 
-            : '0 2px 12px rgba(0, 0, 0, 0.06)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
             <div style={{
@@ -548,23 +546,14 @@ function StatCard({ icon, title, value, color, themeStyles, description, theme =
     <div style={{ 
       ...sharedStyles.card, 
       ...themeStyles.card,
-      boxShadow: theme === 'dark' 
-        ? '0 4px 20px rgba(0, 0, 0, 0.4)' 
-        : '0 2px 12px rgba(0, 0, 0, 0.06)',
       transition: 'all 0.2s ease',
       cursor: 'pointer',
     }}
     onMouseEnter={(e: any) => {
       e.currentTarget.style.transform = 'translateY(-2px)';
-      e.currentTarget.style.boxShadow = theme === 'dark' 
-        ? '0 6px 24px rgba(0, 0, 0, 0.5)' 
-        : '0 4px 16px rgba(0, 0, 0, 0.08)';
     }}
     onMouseLeave={(e: any) => {
       e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.boxShadow = theme === 'dark' 
-        ? '0 4px 20px rgba(0, 0, 0, 0.4)' 
-        : '0 2px 12px rgba(0, 0, 0, 0.06)';
     }}
     >
       <div style={{ 
