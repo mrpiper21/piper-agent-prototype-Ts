@@ -150,26 +150,6 @@ select:focus {
   outline-offset: 2px;
 }
 
-/* Professional scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--accent-primary);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-secondary);
-}
-
-/* Professional selection styling */
 ::selection {
   background: var(--accent-primary);
   color: var(--black-primary);
