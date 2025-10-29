@@ -13,7 +13,7 @@ import {
 } from 'react-icons/ai';
 import { HiOutlineLogout } from 'react-icons/hi';
 import { lightStyles, darkStyles } from '../shared/clerkStyles';
-
+import { FaUserTie } from 'react-icons/fa';
 export default function ClerkLayout() {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
@@ -105,6 +105,18 @@ export default function ClerkLayout() {
           >
             <AiOutlinePrinter style={{ marginRight: '8px' }} />
             Printer Status
+          </NavLink>
+          <NavLink
+            to="/clerk/profile"
+            style={({ isActive }) => ({
+              ...styles.navItem,
+              ...(isActive ? themeStyles.activeNav : {}),
+              color: isActive ? '#000000' : themeStyles.text,
+              fontWeight: isActive ? '700' : '500',
+            })}
+          >
+            <FaUserTie style={{ marginRight: '8px' }} />
+            Profile
           </NavLink>
         </nav>
       </div>

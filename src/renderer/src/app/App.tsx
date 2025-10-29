@@ -1,6 +1,6 @@
 import { Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from '../features/auth';
+import { LoginPage, useAuthStore } from '../features/auth';
 import LoadingScreen from '../shared/components/LoadingScreen';
 
 const ClerkLayout = lazy(() => import('../features/clerk/layouts/ClerkLayout'));
@@ -8,6 +8,7 @@ const DashboardPage = lazy(() => import('../features/clerk/pages/DashboardPage')
 const JobsPage = lazy(() => import('../features/clerk/pages/JobsPage'));
 const SubmitPage = lazy(() => import('../features/clerk/pages/SubmitPage'));
 const StatusPage = lazy(() => import('../features/clerk/pages/StatusPage'));
+const ProfilePage = lazy(() => import('../features/clerk/pages/ProfilePage'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -34,7 +35,7 @@ export default function App() {
     <Router>
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
-          {/* <Route path="/login" element={<Login />} /> */}
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<RoleBasedRoute />} />
           <Route
             path="/clerk"
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="jobs" element={<JobsPage />} />
             <Route path="submit" element={<SubmitPage />} />
             <Route path="status" element={<StatusPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
         </Routes>
       </Suspense>
