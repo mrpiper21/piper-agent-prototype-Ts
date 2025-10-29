@@ -506,7 +506,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'end',
     alignItems: 'center',
-    padding: '20px',
+    padding: '16px',
     borderBottom: '1px solid',
     borderColor: 'inherit',
   },

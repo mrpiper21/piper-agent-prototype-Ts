@@ -187,7 +187,7 @@ export default function DashboardPage() {
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
         gap: '20px',
-        flexShrink: 0 
+        flexShrink: 0,
       }}>
         <StatCard
           icon={<AiOutlineFile />}
@@ -312,9 +312,6 @@ export default function DashboardPage() {
           ...themeStyles.card, 
           display: 'flex', 
           flexDirection: 'column',
-          boxShadow: theme === 'dark' 
-            ? '0 4px 20px rgba(0, 0, 0, 0.4)' 
-            : '0 2px 12px rgba(0, 0, 0, 0.06)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
             <div style={{
@@ -420,9 +417,6 @@ export default function DashboardPage() {
           ...sharedStyles.card, 
           ...themeStyles.card,
           flexShrink: 0,
-          boxShadow: theme === 'dark' 
-            ? '0 4px 20px rgba(0, 0, 0, 0.4)' 
-            : '0 2px 12px rgba(0, 0, 0, 0.06)'
         }}>
           <div style={{ 
             display: 'flex', 
