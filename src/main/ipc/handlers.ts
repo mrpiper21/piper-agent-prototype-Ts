@@ -2,6 +2,7 @@ import { ipcMain, Notification } from 'electron';
 import { dbService } from '../services/DatabaseService';
 import { agentService } from '../services/AgentService';
 import { apiService } from '../services/api';
+import { updateService } from '../services/UpdateService';
 import { logger } from '../utils/logger';
 import type {
   LoginCredentials,
@@ -399,6 +400,21 @@ export function setupIpcHandlers() {
       logger.error('Health check error', error);
       throw error;
     }
+  });
+
+  // Update handlers
+  ipcMain.handle('update:check', async () => {
+    try {
+      await updateService.checkForUpdates();
+      return { success: true };
+    } catch (error) {
+      logger.error('Update check error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('update:getVersion', async () => {
+    return { version: updateService.getCurrentVersion() };
   });
 
   logger.info('IPC handlers registered');

@@ -4,6 +4,7 @@ import { setupWindows } from './windows/MainWindow';
 import { setupIpcHandlers } from './ipc/handlers';
 import { logger } from './utils/logger';
 import { dbService } from './services/DatabaseService';
+import { updateService } from './services/UpdateService';
 
 // Enable live reload for dev
 if (process.env.NODE_ENV === 'development') {
@@ -35,6 +36,17 @@ app.whenReady().then(() => {
     dbService.init();
 
     mainWindow = setupWindows();
+
+    // Start auto-update checks (only in production)
+    if (app.isPackaged) {
+      // Check for updates 5 minutes after app starts (give time for app to load)
+      setTimeout(() => {
+        updateService.checkForUpdates();
+      }, 5 * 60 * 1000);
+      
+      // Then check periodically (every 6 hours)
+      updateService.startPeriodicUpdateChecks(360);
+    }
   } catch (error) {
     logger.error('Failed to initialize application:', error);
     // Show error dialog

@@ -86,6 +86,11 @@
   "build": {
     "appId": "com.printmyfile.agent",
     "productName": "PrintMyFile Agent",
+    "publish": {
+      "provider": "github",
+      "owner": "yourusername",
+      "repo": "piper-agent"
+    },
     "directories": {
       "output": "release/${version}"
     },
@@ -97,7 +102,26 @@
     "win": {
       "target": [
         "portable"
+      ],
+      "publisherName": "PrintMyFile"
+    },
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        "dmg",
+        "zip"
       ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   }
 }
