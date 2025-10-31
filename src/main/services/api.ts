@@ -340,6 +340,34 @@ class ApiService {
     return response.data.data;
   }
 
+  // Dashboard
+  async getDashboardStats(date?: string): Promise<{
+    todaysJobs: number;
+    completedJobs: number;
+    pendingJobs: number;
+    failedJobs: number;
+    totalJobs: number;
+  }> {
+    const params = date ? { date } : {};
+    const response = await this.axiosInstance.get('/dashboard/stats', { params });
+    return response.data.data;
+  }
+
+  async getWeeklyActivity(): Promise<Array<{
+    date: string;
+    count: number;
+  }>> {
+    const response = await this.axiosInstance.get('/dashboard/weekly');
+    return response.data.data;
+  }
+
+  async getJobsByDate(date: string): Promise<PrintJob[]> {
+    const response = await this.axiosInstance.get('/dashboard/jobs-by-date', {
+      params: { date },
+    });
+    return response.data.data;
+  }
+
   // Health check
   async healthCheck(): Promise<{
     success: boolean;

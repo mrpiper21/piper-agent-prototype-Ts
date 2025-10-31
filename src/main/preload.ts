@@ -55,6 +55,11 @@ const electronAPI: IpcApi = {
       ipcRenderer.invoke('analytics:getData', dateRange),
     getComparison: () => ipcRenderer.invoke('analytics:getComparison'),
   },
+  dashboard: {
+    getStats: (date?: string) => ipcRenderer.invoke('dashboard:getStats', date),
+    getWeeklyActivity: () => ipcRenderer.invoke('dashboard:getWeeklyActivity'),
+    getJobsByDate: (date: string) => ipcRenderer.invoke('dashboard:getJobsByDate', date),
+  },
   health: {
     check: () => ipcRenderer.invoke('health:check'),
   },

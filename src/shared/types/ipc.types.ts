@@ -106,6 +106,20 @@ export interface IpcApi {
     getData: (dateRange?: { start: string; end: string }) => Promise<any>;
     getComparison: () => Promise<any>;
   };
+  dashboard: {
+    getStats: (date?: string) => Promise<{
+      todaysJobs: number;
+      completedJobs: number;
+      pendingJobs: number;
+      failedJobs: number;
+      totalJobs: number;
+    }>;
+    getWeeklyActivity: () => Promise<Array<{
+      date: string;
+      count: number;
+    }>>;
+    getJobsByDate: (date: string) => Promise<any[]>;
+  };
   health: {
     check: () => Promise<any>;
   };

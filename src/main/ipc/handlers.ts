@@ -363,6 +363,34 @@ export function setupIpcHandlers() {
     }
   });
 
+  // Dashboard handlers
+  ipcMain.handle('dashboard:getStats', async (_, date?: string) => {
+    try {
+      return await apiService.getDashboardStats(date);
+    } catch (error) {
+      logger.error('Get dashboard stats error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('dashboard:getWeeklyActivity', async () => {
+    try {
+      return await apiService.getWeeklyActivity();
+    } catch (error) {
+      logger.error('Get weekly activity error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('dashboard:getJobsByDate', async (_, date: string) => {
+    try {
+      return await apiService.getJobsByDate(date);
+    } catch (error) {
+      logger.error('Get jobs by date error', error);
+      throw error;
+    }
+  });
+
   // Health check handler
   ipcMain.handle('health:check', async () => {
     try {

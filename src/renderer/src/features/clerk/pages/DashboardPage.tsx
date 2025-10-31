@@ -7,8 +7,11 @@ import {
   AiOutlineCheckCircle, 
   AiOutlineClockCircle,
   AiOutlineCloseCircle,
-  AiOutlineThunderbolt
+  AiOutlineThunderbolt,
+  AiOutlineLeft,
+  AiOutlineRight
 } from 'react-icons/ai';
+import { useDashboardStats, useWeeklyActivity, useJobsByDate } from '../../users/api/dashboardApi';
 
 interface DashboardStats {
   todaysJobs: number;
@@ -18,77 +21,29 @@ interface DashboardStats {
   totalJobs: number;
 }
 
-// Dummy data for now
-const generateDummyData = (): any[] => {
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  
-  const jobs = [];
-  
-  // Generate today's jobs
-  for (let i = 0; i < 8; i++) {
-    jobs.push({
-      id: `job-today-${i}`,
-      fileName: `Document_${i + 1}.pdf`,
-      status: ['completed', 'pending', 'processing', 'failed'][Math.floor(Math.random() * 4)],
-      createdAt: new Date(startOfDay.getTime() + (i * 120000)), // Every 2 minutes
-      printerName: ['Printer A', 'Printer B', 'Printer C'][Math.floor(Math.random() * 3)],
-      location: ['Office', 'Warehouse', 'Reception'][Math.floor(Math.random() * 3)],
-      submittedBy: `User ${Math.floor(Math.random() * 5) + 1}`,
-    });
-  }
-  
-  // Generate historical jobs
-  for (let i = 0; i < 15; i++) {
-    const daysAgo = Math.floor(Math.random() * 30);
-    jobs.push({
-      id: `job-hist-${i}`,
-      fileName: `File_${i + 1}.pdf`,
-      status: ['completed', 'completed', 'completed', 'failed'][Math.floor(Math.random() * 4)],
-      createdAt: new Date(startOfDay.getTime() - (daysAgo * 86400000) + (i * 3600000)),
-      printerName: ['Printer A', 'Printer B'][Math.floor(Math.random() * 2)],
-      location: ['Office', 'Warehouse'][Math.floor(Math.random() * 2)],
-      submittedBy: `User ${Math.floor(Math.random() * 5) + 1}`,
-    });
-  }
-  
-  return jobs;
-};
-
 export default function DashboardPage() {
   const { theme } = useTheme();
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [calendarOffset, setCalendarOffset] = useState<number>(0); // 0 = current period, -1 = past, +1 = future
   
-  
-  const jobs = useMemo(() => generateDummyData(), []);
+  // Fetch dashboard data from APIs
+  const { data: statsData, isLoading: statsLoading } = useDashboardStats(selectedDate);
+  const { data: weeklyData, isLoading: weeklyLoading } = useWeeklyActivity();
+  const { data: jobsByDate, isLoading: jobsLoading } = useJobsByDate(selectedDate);
   
   const stats: DashboardStats = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
-    
-    const todaysJobs = jobs.filter(job => {
-      const jobDate = new Date(job.createdAt);
-      return jobDate >= today && jobDate <= endOfDay;
-    });
-    
-    const filteredJobs = selectedDate 
-      ? jobs.filter(job => {
-          const jobDate = new Date(job.createdAt).toISOString().split('T')[0];
-          return jobDate === selectedDate;
-        })
-      : jobs;
-    
-    return {
-      todaysJobs: todaysJobs.length,
-      completedJobs: filteredJobs.filter(j => j.status === 'completed').length,
-      pendingJobs: filteredJobs.filter(j => j.status === 'pending' || j.status === 'processing').length,
-      failedJobs: filteredJobs.filter(j => j.status === 'failed').length,
-      totalJobs: filteredJobs.length,
-    };
-  }, [jobs, selectedDate]);
+    if (!statsData) {
+      return {
+        todaysJobs: 0,
+        completedJobs: 0,
+        pendingJobs: 0,
+        failedJobs: 0,
+        totalJobs: 0,
+      };
+    }
+    return statsData;
+  }, [statsData]);
   
   const chartData = useMemo(() => {
     return {
@@ -99,17 +54,54 @@ export default function DashboardPage() {
     };
   }, [stats]);
   
-  // Generate dates for the calendar view
+  // Generate dates for the calendar view (28 days = 4 weeks) and map weekly activity data
   const calendarDates = useMemo(() => {
     const dates = [];
     const today = new Date();
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
+    const offsetDays = calendarOffset * 28; // Each offset represents 28 days (4 weeks)
+    
+    // Calculate the end date of the period (most recent date in the view)
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() - offsetDays);
+    
+    // Generate 28 dates going backwards from end date (oldest to newest)
+    // This ensures contiguous periods with no gaps
+    for (let i = 27; i >= 0; i--) {
+      const date = new Date(endDate);
+      date.setDate(endDate.getDate() - i);
       dates.push(date);
     }
+    
     return dates;
-  }, []);
+  }, [calendarOffset]);
+  
+  // Get the date range for the calendar header
+  const calendarDateRange = useMemo(() => {
+    if (calendarDates.length === 0) return '';
+    const firstDate = calendarDates[0];
+    const lastDate = calendarDates[calendarDates.length - 1];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // If the range includes today, show "Today" or date range
+    if (firstDate.toISOString().split('T')[0] <= todayStr && 
+        lastDate.toISOString().split('T')[0] >= todayStr) {
+      return `Week of ${firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    }
+    return `${firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  }, [calendarDates]);
+  
+  // Map weekly activity to a date -> count lookup
+  const weeklyCountMap = useMemo(() => {
+    if (!weeklyData) return new Map<string, number>();
+    const map = new Map<string, number>();
+    weeklyData.forEach((item: { date: string; count: number }) => {
+      map.set(item.date, item.count);
+    });
+    return map;
+  }, [weeklyData]);
+  
+  const isLoading = statsLoading || weeklyLoading || jobsLoading;
   
   return (
     <div style={{ 
@@ -146,7 +138,11 @@ export default function DashboardPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
-            onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+            onClick={() => {
+              const today = new Date().toISOString().split('T')[0];
+              setSelectedDate(today);
+              setCalendarOffset(0);
+            }}
             style={{
               padding: '10px 20px',
               borderRadius: '8px',
@@ -184,12 +180,22 @@ export default function DashboardPage() {
       </div>
       
       {/* Stats Grid */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-        gap: '20px',
-        flexShrink: 0,
-      }}>
+      {isLoading && !statsData ? (
+        <div style={{ 
+          ...sharedStyles.card, 
+          ...themeStyles.card,
+          textAlign: 'center',
+          padding: '40px'
+        }}>
+          <p style={{ color: themeStyles.textSecondary }}>Loading dashboard stats...</p>
+        </div>
+      ) : (
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+          gap: '20px',
+          flexShrink: 0,
+        }}>
         <StatCard
           icon={<AiOutlineFile />}
           title="Today's Jobs"
@@ -197,7 +203,6 @@ export default function DashboardPage() {
           color={themeStyles.accent}
           themeStyles={themeStyles}
           description="Active jobs today"
-          theme={theme}
         />
         <StatCard
           icon={<AiOutlineCheckCircle />}
@@ -206,7 +211,6 @@ export default function DashboardPage() {
           color={themeStyles.success}
           themeStyles={themeStyles}
           description="Successfully printed"
-          theme={theme}
         />
         <StatCard
           icon={<AiOutlineClockCircle />}
@@ -215,7 +219,6 @@ export default function DashboardPage() {
           color={themeStyles.warning}
           themeStyles={themeStyles}
           description="Awaiting processing"
-          theme={theme}
         />
         <StatCard
           icon={<AiOutlineCloseCircle />}
@@ -224,9 +227,9 @@ export default function DashboardPage() {
           color={themeStyles.error}
           themeStyles={themeStyles}
           description="Unsuccessful jobs"
-          theme={theme}
         />
-      </div>
+        </div>
+      )}
       
       {/* Charts and Calendar */}
       <div style={{ 
@@ -311,39 +314,120 @@ export default function DashboardPage() {
           display: 'flex', 
           flexDirection: 'column',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: `${themeStyles.primaryButton.background}20`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-            }}>
-              📅
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                background: `${themeStyles.primaryButton.background}20`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px',
+              }}>
+                📅
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ color: themeStyles.text, margin: 0, fontWeight: '700', fontSize: '18px' }}>
+                  Activity Calendar
+                </h3>
+                <p style={{ color: themeStyles.textSecondary, margin: 0, fontSize: '12px' }}>
+                  {calendarDateRange || 'Job count by date'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 style={{ color: themeStyles.text, margin: 0, fontWeight: '700', fontSize: '18px' }}>
-                Weekly Activity
-              </h3>
-              <p style={{ color: themeStyles.textSecondary, margin: 0, fontSize: '12px' }}>
-                Job count by date
-              </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => setCalendarOffset(prev => prev + 1)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: `1px solid ${themeStyles.card.border}`,
+                  background: themeStyles.input.background,
+                  color: themeStyles.text,
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = themeStyles.card.background;
+                  e.currentTarget.style.transform = 'translateX(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = themeStyles.input.background;
+                  e.currentTarget.style.transform = 'translateX(0)';
+                }}
+                title="Go to previous period"
+              >
+                <AiOutlineLeft />
+              </button>
+              <button
+                onClick={() => setCalendarOffset(0)}
+                disabled={calendarOffset === 0}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: `1px solid ${themeStyles.card.border}`,
+                  background: calendarOffset === 0 ? themeStyles.card.background : themeStyles.primaryButton.background,
+                  color: calendarOffset === 0 ? themeStyles.textSecondary : themeStyles.primaryButton.color,
+                  cursor: calendarOffset === 0 ? 'not-allowed' : 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease',
+                  opacity: calendarOffset === 0 ? 0.6 : 1,
+                }}
+                title="Jump to today"
+              >
+                Today
+              </button>
+              <button
+                onClick={() => setCalendarOffset(prev => prev - 1)}
+                disabled={calendarOffset === 0}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: `1px solid ${themeStyles.card.border}`,
+                  background: themeStyles.input.background,
+                  color: calendarOffset === 0 ? themeStyles.textSecondary : themeStyles.text,
+                  cursor: calendarOffset === 0 ? 'not-allowed' : 'pointer',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease',
+                  opacity: calendarOffset === 0 ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (calendarOffset !== 0) {
+                    e.currentTarget.style.background = themeStyles.card.background;
+                    e.currentTarget.style.transform = 'translateX(2px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = themeStyles.input.background;
+                  e.currentTarget.style.transform = 'translateX(0)';
+                }}
+                title="Go to next period"
+              >
+                <AiOutlineRight />
+              </button>
             </div>
           </div>
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', 
+            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', 
             gap: '12px'
           }}>
             {calendarDates.map((date, index) => {
               const dateStr = date.toISOString().split('T')[0];
-              const dayJobs = jobs.filter(job => {
-                const jobDate = new Date(job.createdAt).toISOString().split('T')[0];
-                return jobDate === dateStr;
-              });
+              const dayJobCount = weeklyCountMap.get(dateStr) || 0;
               const isToday = dateStr === new Date().toISOString().split('T')[0];
               const isSelected = dateStr === selectedDate;
               
@@ -389,7 +473,7 @@ export default function DashboardPage() {
                   <span style={{ fontSize: '24px', fontWeight: 'bold' }}>
                     {date.getDate()}
                   </span>
-                  {dayJobs.length > 0 && (
+                  {dayJobCount > 0 && (
                     <span style={{
                       background: isSelected ? '#000000' : themeStyles.primaryButton.background,
                       color: isSelected ? themeStyles.primaryButton.background : '#000000',
@@ -399,7 +483,7 @@ export default function DashboardPage() {
                       fontWeight: 'bold',
                       marginTop: '4px',
                     }}>
-                      {dayJobs.length}
+                      {dayJobCount}
                     </span>
                   )}
                 </button>
@@ -442,7 +526,7 @@ export default function DashboardPage() {
                 margin: 0,
                 fontSize: '13px'
               }}>
-                {jobs.filter(job => new Date(job.createdAt).toISOString().split('T')[0] === selectedDate).length} jobs found
+                {jobsByDate?.length || 0} jobs found
               </p>
             </div>
             <button
@@ -466,9 +550,16 @@ export default function DashboardPage() {
             </button>
           </div>
           <div style={sharedStyles.jobsList}>
-            {jobs
-              .filter(job => new Date(job.createdAt).toISOString().split('T')[0] === selectedDate)
-              .map((job) => (
+            {isLoading ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '60px 20px',
+                color: themeStyles.textSecondary 
+              }}>
+                <p style={{ fontSize: '16px' }}>Loading jobs...</p>
+              </div>
+            ) : jobsByDate && jobsByDate.length > 0 ? (
+              jobsByDate.map((job: any) => (
                 <div
                   key={job.id}
                   style={{
@@ -480,14 +571,14 @@ export default function DashboardPage() {
                 >
                   <div style={{ flex: 1 }}>
                     <p style={{ color: themeStyles.text, fontWeight: '600', marginBottom: '6px', fontSize: '15px' }}>
-                      {job.fileName}
+                      {job.fileName || job.name || 'Unnamed Job'}
                     </p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                       <span style={{ color: themeStyles.textSecondary, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        🖨️ {job.printerName}
+                        🖨️ {job.printerName || job.printer || 'N/A'}
                       </span>
                       <span style={{ color: themeStyles.textSecondary, fontSize: '12px' }}>
-                        🕒 {new Date(job.createdAt).toLocaleTimeString()}
+                        🕒 {job.createdAt ? new Date(job.createdAt).toLocaleTimeString() : 'N/A'}
                       </span>
                       <span style={{ color: themeStyles.textSecondary, fontSize: '12px' }}>
                         📍 {job.location || 'N/A'}
@@ -509,11 +600,11 @@ export default function DashboardPage() {
                       letterSpacing: '0.5px',
                     }}
                   >
-                    {job.status}
+                    {job.status || 'pending'}
                   </span>
                 </div>
-              ))}
-            {jobs.filter(job => new Date(job.createdAt).toISOString().split('T')[0] === selectedDate).length === 0 && (
+              ))
+            ) : (
               <div style={{ 
                 textAlign: 'center', 
                 padding: '60px 20px',
@@ -538,10 +629,9 @@ interface StatCardProps {
   color: string;
   themeStyles: any;
   description?: string;
-  theme?: string;
 }
 
-function StatCard({ icon, title, value, color, themeStyles, description, theme = 'light' }: StatCardProps) {
+function StatCard({ icon, title, value, color, themeStyles, description }: StatCardProps) {
   return (
     <div style={{ 
       ...sharedStyles.card, 
