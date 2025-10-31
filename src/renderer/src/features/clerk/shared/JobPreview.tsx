@@ -75,7 +75,7 @@ export function JobPreview({ job, onClose }: JobPreviewProps) {
 
       {/* Scrollable Content */}
       <div style={{ flex: 1, overflow: 'auto'}}>
-        <FilePreview fileName={job.fileName} fileUrl={job.fileStackUrl} />
+        <FilePreview fileName={job.fileName} fileUrl={job?.cloudinaryUrl} />
         <JobDetails job={job} />
       </div>
     </div>

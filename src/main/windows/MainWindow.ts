@@ -53,9 +53,11 @@ export function setupWindows(): BrowserWindow {
     // Open DevTools to see any errors
     mainWindow.webContents.openDevTools();
   } else {
-    // Development mode
-    logger.info('Loading development server: http://localhost:5173');
-    mainWindow.loadURL('http://localhost:5173');
+    // Development mode - load from Vite dev server
+    // electron-vite runs the dev server on port 5173 by default
+    const viteDevServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+    logger.info(`Loading development server: ${viteDevServerUrl}`);
+    mainWindow.loadURL(viteDevServerUrl);
     mainWindow.webContents.openDevTools();
   }
 

@@ -97,6 +97,44 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
       </div>
     );
   }
+
+  if (fileType === 'document' && fileUrl) {
+    // Use Microsoft Office Online Viewer for Word documents
+    // This works with publicly accessible URLs
+    const isDocx = fileName.toLowerCase().endsWith('.docx') || fileName.toLowerCase().endsWith('.doc');
+    const viewerUrl = isDocx 
+      ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`
+      : fileUrl;
+    
+    return (
+      <div 
+        style={{
+          background: themeStyles.container.background,
+          padding: '16px',
+          borderRadius: '12px',
+          marginBottom: '24px',
+          height: '800px',
+          overflow: 'hidden',
+          display: 'flex',
+          position: 'relative',
+          userSelect: 'none'
+        }}
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        <iframe
+          src={viewerUrl}
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            borderRadius: '8px',
+          }}
+          title={fileName}
+          allow="fullscreen"
+        />
+      </div>
+    );
+  }
   
   // Default/Unknown file type
   const fileIcon = fileType === 'document' ? '📝' : '📄';

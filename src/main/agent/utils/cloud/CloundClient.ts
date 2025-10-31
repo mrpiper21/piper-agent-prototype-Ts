@@ -13,8 +13,25 @@ export class CloudClient {
     console.log(apiKey, agentId);
     
     // Check if running in local mode
+    this.printApiUrl = "https://piper-server-prototype-ts.onrender.com/api/print";
     this.localMode = process.env['SKIP_CLOUD_CONNECTION'] === 'true';
-    this.printApiUrl = process.env.PRINT_API_URL || 'http://localhost:3000/api/print';
+    // Use environment variable with production default, fallback to localhost for development
+    // if (process.env.PRINT_API_URL) {
+    //   this.printApiUrl = process.env.PRINT_API_URL;
+    // } else {
+    //   let baseUrl: string;
+    //   if (process.env.API_BASE_URL) {
+    //     // Remove /api suffix if present to get base URL
+    //     baseUrl = process.env.API_BASE_URL.endsWith('/api') 
+    //       ? process.env.API_BASE_URL.slice(0, -4)
+    //       : process.env.API_BASE_URL.replace('/api', '');
+    //   } else {
+    //     baseUrl = process.env.NODE_ENV === 'development' 
+    //       ? 'http://localhost:3000' 
+    //       : 'https://piper-server-prototype-ts.onrender.com';
+    //   }
+    //   this.printApiUrl = `${"https://piper-server-prototype-ts.onrender.com"}/api/print`;
+    // }
     
     if (this.localMode) {
       logger.warn('⚠️  Running in LOCAL MODE - No cloud connection');

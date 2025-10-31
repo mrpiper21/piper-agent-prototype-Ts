@@ -3,14 +3,19 @@ import fs from 'fs';
 import path from 'path';
 import type { AnalyticsData, PrinterAgent, PrinterLog, PrintJob, User } from '../types';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+// Use environment variable with production default, fallback to localhost for development
+// const API_BASE_URL = process.env.API_BASE_URL || (
+//   process.env.NODE_ENV === 'development' 
+//     ? 'http://localhost:3000/api' 
+//     : 'https://piper-server-prototype-ts.onrender.com/api'
+// );
 
 class ApiService {
   private axiosInstance: AxiosInstance;
 
   constructor() {
     this.axiosInstance = axios.create({
-      baseURL: API_BASE_URL,
+      baseURL: "https://piper-server-prototype-ts.onrender.com/api",
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
