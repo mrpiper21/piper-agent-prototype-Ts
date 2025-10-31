@@ -1,5 +1,6 @@
 import { BrowserWindow, app } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { logger } from '../utils/logger';
 
 let mainWindow: BrowserWindow | null = null;
@@ -21,6 +22,24 @@ export function setupWindows(): BrowserWindow {
     indexPath = path.join(__dirname, '../renderer/index.html');
 
     logger.info(`Production mode - __dirname: ${__dirname}`);
+    logger.info(`Resolved preload path: ${preloadPath}`);
+    logger.info(`Resolved index path: ${indexPath}`);
+    
+    // Verify files exist (Note: in asar, files might not be directly accessible)
+    try {
+      if (!fs.existsSync(preloadPath)) {
+        logger.error(`Preload file not found at: ${preloadPath}`);
+      } else {
+        logger.info(`Preload file exists`);
+      }
+      if (!fs.existsSync(indexPath)) {
+        logger.error(`Index file not found at: ${indexPath}`);
+      } else {
+        logger.info(`Index file exists`);
+      }
+    } catch (err) {
+      logger.error(`Error checking file paths: ${err}`);
+    }
   } else {
     // Development mode
     preloadPath = path.join(__dirname, '../preload/index.js');
@@ -48,16 +67,25 @@ export function setupWindows(): BrowserWindow {
     logger.info(`Resolved index path: ${path.resolve(indexPath)}`);
 
     // Use loadFile which properly handles paths in asar archives
-    mainWindow.loadFile(indexPath);
+    mainWindow.loadFile(indexPath).catch((error) => {
+      logger.error(`Failed to load file: ${error}`);
+      mainWindow?.webContents.send('error', { message: `Failed to load application: ${error.message}` });
+      // Show window anyway so user can see error
+      mainWindow?.show();
+    });
 
-    // Open DevTools to see any errors
-    mainWindow.webContents.openDevTools();
+    // Only open DevTools in development or if debugging is needed
+    // Uncomment the line below if you need to debug production builds
+    // mainWindow.webContents.openDevTools();
   } else {
     // Development mode - load from Vite dev server
     // electron-vite runs the dev server on port 5173 by default
     const viteDevServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
     logger.info(`Loading development server: ${viteDevServerUrl}`);
-    mainWindow.loadURL(viteDevServerUrl);
+    mainWindow.loadURL(viteDevServerUrl).catch((error) => {
+      logger.error(`Failed to load URL: ${error}`);
+      mainWindow?.show();
+    });
     mainWindow.webContents.openDevTools();
   }
 
@@ -65,6 +93,13 @@ export function setupWindows(): BrowserWindow {
   mainWindow.once('ready-to-show', () => {
     logger.info('Window ready to show');
     mainWindow?.show();
+  });
+
+  // Handle console errors
+  mainWindow.webContents.on('console-message', (_event, level, message) => {
+    if (level >= 2) { // error or warning (0=log, 1=warn, 2=error)
+      logger.error(`Renderer console [${level}]: ${message}`);
+    }
   });
 
   // Log loading events

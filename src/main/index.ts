@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, dialog } from 'electron';
 import path from 'path';
 import { setupWindows } from './windows/MainWindow';
 import { setupIpcHandlers } from './ipc/handlers';
@@ -30,16 +30,41 @@ app.whenReady().then(() => {
   logger.info(`Running in ${app.isPackaged ? 'production' : 'development'} mode`);
   logger.info(`__dirname: ${__dirname}`);
 
-  // Initialize services after app is ready
-  dbService.init();
+  try {
+    // Initialize services after app is ready
+    dbService.init();
 
-  mainWindow = setupWindows();
+    mainWindow = setupWindows();
+  } catch (error) {
+    logger.error('Failed to initialize application:', error);
+    // Show error dialog
+    dialog.showErrorBox(
+      'Application Error',
+      `Failed to start application: ${error instanceof Error ? error.message : String(error)}\n\nCheck logs for more details.`
+    );
+    app.quit();
+  }
+}).catch((error) => {
+  logger.error('Failed to start application:', error);
+  app.quit();
 });
 
 app.on('window-all-closed', () => {
+  // On macOS, keep app running even when all windows are closed
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  dialog.showErrorBox('Uncaught Exception', error.message || String(error));
+  // Don't quit immediately, let the error be logged
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 app.on('activate', () => {
