@@ -1,15 +1,15 @@
-import * as pdfMake from 'pdfmake/build/pdfmake';
-import * as pdfFonts from 'pdfmake/build/vfs_fonts';
+import pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
 import type { PrintJob } from '../../users/api/dashboardApi';
 
-// Initialize pdfMake with fonts
-const pdfFontsModule = pdfFonts as any;
-if (pdfFontsModule.pdfMake && pdfFontsModule.pdfMake.vfs) {
-  (pdfMake as any).vfs = pdfFontsModule.pdfMake.vfs;
-} else if (pdfFontsModule.vfs) {
-  (pdfMake as any).vfs = pdfFontsModule.vfs;
-}
+// Initialize pdfMake fonts - pdfmake expects pdfMake.vfs to be set
+// Since we can't mutate ES module imports, we use a workaround:
+// Create a local copy and set vfs on that
+const fontsModule = pdfFonts as any;
+const vfs = fontsModule.pdfMake?.vfs || fontsModule.vfs || {};
 
+// Create a copy of pdfMake functions and assign vfs
+const pdfMakeWithFonts = { ...pdfMake, vfs };
 
 interface ReportData {
   date: string;
@@ -57,19 +57,7 @@ export function generateJobOrderPDF(data: ReportData): void {
 
     // Fill remaining rows up to 5 total rows
     while (tableData.length < 5) {
-      tableData.push([
-        `${tableData.length + 1}.`,
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-      ]);
+      tableData.push([`${tableData.length + 1}.`, '', '', '', '', '', '', '', '', '', '']);
     }
 
     // Calculate total amount
@@ -84,58 +72,47 @@ export function generateJobOrderPDF(data: ReportData): void {
     const docDefinition = {
       pageSize: 'A4',
       pageOrientation: 'portrait',
-      pageMargins: [15, 15, 15, 15],
+      pageMargins: [15, 20, 15, 15],
       // Use default fonts - pdfmake will use built-in fonts if none are specified
       content: [
-        // Header
+        // Simple Header - Single line
         {
-          columns: [
-            {
-              text: 'LEX PRINT SERVICES',
-              fontSize: 16,
-              bold: true,
-              width: '*',
-            },
-            {
-              text: 'JOB ORDER FORM',
-              fontSize: 14,
-              bold: true,
-              alignment: 'right',
-              width: '*',
-            },
-          ],
-          margin: [0, 0, 0, 10],
+          text: 'LEX PRINT SERVICES',
+          fontSize: 14,
+          bold: true,
+          margin: [0, 0, 0, 5],
         },
-        // Date and Details
+        {
+          text: 'JOB ORDER FORM',
+          fontSize: 12,
+          bold: true,
+          margin: [0, 0, 0, 15],
+        },
+        // Date and Details - Simple list format
         {
           text: `Date: ${data.date}`,
-          fontSize: 10,
-          margin: [0, 0, 0, 6],
+          fontSize: 9,
+          margin: [0, 0, 0, 4],
         },
         {
-          columns: [
-            {
-              text: data.companyName ? `COMPANY: ${data.companyName}` : 'COMPANY:',
-              fontSize: 10,
-              width: '*',
-            },
-          ],
-          margin: [0, 0, 0, 6],
+          text: data.companyName ? `COMPANY: ${data.companyName}` : 'COMPANY:',
+          fontSize: 9,
+          margin: [0, 0, 0, 4],
         },
         {
           text: `Job order no.: ${data.jobOrderNo || 'N/A'}`,
-          fontSize: 10,
-          margin: [0, 0, 0, 6],
+          fontSize: 9,
+          margin: [0, 0, 0, 4],
         },
         {
           text: `Material: ${data.material || 'Flexi'}`,
-          fontSize: 10,
-          margin: [0, 0, 0, 6],
+          fontSize: 9,
+          margin: [0, 0, 0, 4],
         },
         {
           text: `Client: ${data.clientName || 'N/A'}`,
-          fontSize: 10,
-          margin: [0, 0, 0, 10],
+          fontSize: 9,
+          margin: [0, 0, 0, 12],
         },
         // Table
         {
@@ -158,118 +135,66 @@ export function generateJobOrderPDF(data: ReportData): void {
                 { text: 'TOTAL', style: 'tableHeader', fontSize: 8 },
               ],
               // Data rows
-              ...tableData.map(row => row.map(cell => ({ text: cell || '', fontSize: 8 }))),
+              ...tableData.map((row) => row.map((cell) => ({ text: cell || '', fontSize: 8 }))),
             ],
           },
           layout: {
-            hLineWidth: function (i: number, node: unknown) {
-              const tableNode = node as { table?: { body?: unknown[] } };
-              return i === 0 || (tableNode.table?.body && i === tableNode.table.body.length) ? 1 : 0.5;
-            },
-            vLineWidth: function (_i: number) {
+            // Simple grid layout - all lines same width
+            hLineWidth: function () {
               return 0.5;
             },
-            hLineColor: function (_i: number) {
+            vLineWidth: function () {
+              return 0.5;
+            },
+            hLineColor: function () {
               return '#000000';
             },
             vLineColor: function () {
               return '#000000';
             },
             paddingLeft: function () {
-              return 2;
+              return 3;
             },
             paddingRight: function () {
-              return 2;
+              return 3;
             },
             paddingTop: function () {
-              return 2;
+              return 3;
             },
             paddingBottom: function () {
-              return 2;
+              return 3;
             },
           },
           margin: [0, 0, 0, 10],
         },
-        // Total Amount
+        // Total Amount (if any)
         ...(totalAmount > 0
           ? [
               {
-                text: totalAmount.toString(),
-                fontSize: 10,
+                text: `Total: ${totalAmount.toString()}`,
+                fontSize: 9,
                 bold: true,
                 alignment: 'right',
-                margin: [0, 10, 0, 0],
+                margin: [0, 8, 0, 0],
               },
             ]
           : []),
-        // Footer - Signature areas
+        // Footer - Signature areas (simple format)
         {
+          margin: [0, 30, 0, 0],
           columns: [
             {
-              stack: [
-                {
-                  text: 'Prepared by:',
-                  fontSize: 10,
-                  margin: [0, 0, 0, 2],
-                },
-                {
-                  canvas: [
-                    {
-                      type: 'line',
-                      x1: 0,
-                      y1: 0,
-                      x2: 100,
-                      y2: 0,
-                      lineWidth: 0.5,
-                    },
-                  ],
-                  margin: [0, 0, 0, 10],
-                },
-                {
-                  text: 'Printed by:',
-                  fontSize: 10,
-                  margin: [0, 0, 0, 2],
-                },
-                {
-                  canvas: [
-                    {
-                      type: 'line',
-                      x1: 0,
-                      y1: 0,
-                      x2: 100,
-                      y2: 0,
-                      lineWidth: 0.5,
-                    },
-                  ],
-                },
-              ],
+              text: 'Prepared by: _____________\n\nPrinted by: _____________',
+              fontSize: 9,
               width: '*',
             },
             {
-              stack: [
-                {
-                  text: 'Approved by:',
-                  fontSize: 10,
-                  margin: [0, 0, 0, 2],
-                },
-                {
-                  canvas: [
-                    {
-                      type: 'line',
-                      x1: 0,
-                      y1: 0,
-                      x2: 100,
-                      y2: 0,
-                      lineWidth: 0.5,
-                    },
-                  ],
-                },
-              ],
+              text: 'Approved by: _____________',
+              fontSize: 9,
               alignment: 'right',
               width: '*',
             },
           ],
-          margin: [0, 25, 0, 0],
         },
       ],
       styles: {
@@ -284,14 +209,20 @@ export function generateJobOrderPDF(data: ReportData): void {
     };
 
     // Generate and download PDF
-    const fileName = `Job_Order_${data.date.replace(/ - /g, '_').replace(/ /g, '_')}_${data.jobOrderNo || 'report'}.pdf`;
+    const fileName = `Job_Order_${data.date.replace(/ - /g, '_').replace(/ /g, '_')}_${
+      data.jobOrderNo || 'report'
+    }.pdf`;
     console.log('Generating PDF with filename:', fileName);
-    
-    pdfMake.createPdf(docDefinition as any).download(fileName);
-    
+
+    // Create PDF with fonts - use pdfMakeWithFonts which has vfs set
+    const pdfDoc = pdfMakeWithFonts.createPdf(docDefinition as any);
+    pdfDoc.download(fileName);
+
     console.log('PDF generated and download initiated successfully');
   } catch (error) {
     console.error('Error in generateJobOrderPDF:', error);
-    throw new Error(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 }
