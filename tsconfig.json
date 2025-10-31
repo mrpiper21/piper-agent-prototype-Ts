@@ -32,7 +32,15 @@
       "@/*": ["src/*"],
       "@core/*": ["src/core/*"],
       "@utils/*": ["src/utils/*"],
-      "@types/*": ["src/types/*"]
+      "@types/*": [
+        "src/types/*"
+      ],
+      "@shared/*": [
+        "src/shared/*"
+      ],
+      "@shared/types/ipc.types": [
+        "src/shared/types/ipc.types"
+      ]
     }
   },
   "include": [

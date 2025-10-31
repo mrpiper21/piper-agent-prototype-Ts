@@ -28,70 +28,83 @@ export default function JobsPage() {
   };
 
   return (
-    <div style={{ padding: '20px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '24px', 
-        flexShrink: 0 
-      }}>
-        <h2 style={{ color: '#fbbf24', fontWeight: '700', fontSize: '24px' }}>Recent Print Jobs</h2>
-        <button
-          onClick={() => queryClient.refetchQueries({ queryKey: ['jobs'] })}
-          disabled={isLoading}
-          style={{ 
-            ...sharedStyles.actionButton, 
-            ...themeStyles.primaryButton,
-            minWidth: '120px'
+      {!selectedJob && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px',
+            flexShrink: 0,
           }}
         >
-          {isLoading ? 'Loading...' : 'Refresh'}
-        </button>
-      </div>
+          <h2 style={{ color: '#fbbf24', fontWeight: '700', fontSize: '24px' }}>
+            Recent Print Jobs
+          </h2>
+          <button
+            onClick={() => queryClient.refetchQueries({ queryKey: ['jobs'] })}
+            disabled={isLoading}
+            style={{
+              ...sharedStyles.actionButton,
+              ...themeStyles.primaryButton,
+              minWidth: '120px',
+            }}
+          >
+            {isLoading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+      )}
 
       {/* Main Content */}
-      <div style={{ 
-        display: 'flex', 
-        gap: selectedJob ? '24px' : '0', 
-        flex: 1,
-        overflow: 'hidden',
-        transition: 'gap 0.3s ease'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: selectedJob ? '24px' : '0',
+          flex: 1,
+          // overflow: 'hidden',
+          transition: 'gap 0.3s ease',
+        }}
+      >
         {/* Job List */}
-        {!selectedJob ? <div style={{ 
-          flex: selectedJob ? '0 0 380px' : '1',
-          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          paddingRight: selectedJob ? '8px' : '0'
-        }}>
-          <div style={sharedStyles.jobsList}>
-            {!jobs || jobs.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '60px 20px',
-                color: themeStyles.textSecondary 
-              }}>
-                <p style={{ fontSize: '18px', marginBottom: '8px' }}>📋</p>
-                <p>No jobs found</p>
-              </div>
-            ) : (
-              jobs.map((job: any) => (
-                <JobListItem
-                  key={job.id || job._id || job.printJobId}
-                  job={job}
-                  isSelected={isJobSelected(job)}
-                  onSelect={() => setSelectedJob(isJobSelected(job) ? null : job)}
-                />
-              ))
-            )}
+        {!selectedJob ? (
+          <div
+            style={{
+              flex: selectedJob ? '0 0 380px' : '1',
+              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+              // overflowY: 'auto',
+              // overflowX: 'hidden',
+              paddingRight: selectedJob ? '8px' : '0',
+            }}
+          >
+            <div style={sharedStyles.jobsList}>
+              {!jobs || jobs.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '60px 20px',
+                    color: themeStyles.textSecondary,
+                  }}
+                >
+                  <p style={{ fontSize: '18px', marginBottom: '8px' }}>📋</p>
+                  <p>No jobs found</p>
+                </div>
+              ) : (
+                jobs.map((job: any) => (
+                  <JobListItem
+                    key={job.id || job._id || job.printJobId}
+                    job={job}
+                    isSelected={isJobSelected(job)}
+                    onSelect={() => setSelectedJob(isJobSelected(job) ? null : job)}
+                  />
+                ))
+              )}
+            </div>
           </div>
-        </div>: <JobPreview 
-            job={selectedJob}
-            onClose={() => setSelectedJob(null)}
-          />}
+        ) : (
+          <JobPreview job={selectedJob} onClose={() => setSelectedJob(null)} />
+        )}
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import {
 import { HiOutlineLogout } from 'react-icons/hi';
 import { lightStyles, darkStyles } from '../shared/clerkStyles';
 import { FaUserTie } from 'react-icons/fa';
+
 export default function ClerkLayout() {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
@@ -27,9 +28,8 @@ export default function ClerkLayout() {
   });
 
   // Count pending jobs
-  const pendingCount = jobs?.filter(
-    (job: any) => job.status === 'pending' || job.status === 'queued'
-  ).length || 0;
+  const pendingCount =
+    jobs?.filter((job: any) => job.status === 'pending' || job.status === 'queued').length || 0;
 
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
 
@@ -37,7 +37,7 @@ export default function ClerkLayout() {
     <div style={styles.wrapper}>
       {/* Sidebar */}
       <div style={{ ...styles.sidebar, ...themeStyles.sidebar }}>
-        <div style={styles.sidebarHeader}>
+        <div style={{ ...styles.sidebarHeader, ...themeStyles.sidebarHeader }}>
           <h2
             style={{
               color: '#fbbf24',
@@ -47,6 +47,7 @@ export default function ClerkLayout() {
               gap: '8px',
               fontWeight: '700',
               fontSize: '18px',
+              lineHeight: '24px',
             }}
           >
             <AiOutlinePrinter /> Print Station
@@ -76,11 +77,7 @@ export default function ClerkLayout() {
           >
             <AiOutlineFileAdd style={{ marginRight: '8px' }} />
             Print Jobs
-            {pendingCount > 0 && (
-              <span style={badgeStyles}>
-                {pendingCount}
-              </span>
-            )}
+            {pendingCount > 0 && <span style={badgeStyles}>{pendingCount}</span>}
           </NavLink>
           <NavLink
             to="/clerk/submit"
@@ -126,7 +123,10 @@ export default function ClerkLayout() {
         {/* Header */}
         <div style={{ ...styles.header, ...themeStyles.header }}>
           <div style={styles.userInfo}>
-            <button onClick={toggleTheme} style={{ ...styles.iconButton, ...themeStyles.iconButton }}>
+            <button
+              onClick={toggleTheme}
+              style={{ ...styles.iconButton, ...themeStyles.iconButton }}
+            >
               {theme === 'light' ? <AiOutlineMoon /> : <AiOutlineSun />}
             </button>
             <span style={{ color: themeStyles.text }}>{user?.name || 'Clerk'}</span>
@@ -167,8 +167,9 @@ const styles = {
     overflowX: 'hidden' as const,
   },
   sidebarHeader: {
-    padding: '20px',
-    borderBottom: '1px solid',
+    display: 'flex',
+    alignItems: 'center',
+    minHeight: '48px',
   },
   nav: {
     display: 'flex',
@@ -177,7 +178,7 @@ const styles = {
     gap: '5px',
   },
   navItem: {
-    padding: '12px 16px',
+    padding: '8px 10px',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
@@ -200,11 +201,8 @@ const styles = {
   },
   header: {
     display: 'flex',
-    justifyContent: 'end',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    padding: '20px',
-    borderBottom: '1px solid',
-    borderColor: 'inherit',
   },
   userInfo: {
     display: 'flex',
@@ -212,24 +210,26 @@ const styles = {
     alignItems: 'center',
   },
   iconButton: {
-    padding: '8px 12px',
+    padding: '8px',
     borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '20px',
-    transition: 'all 0.2s ease',
     border: 'none',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    cursor: 'pointer',
+    fontSize: '20px',
+    transition: 'all 0.2s ease',
   },
   logoutButton: {
     padding: '8px 16px',
-    border: 'none',
     borderRadius: '6px',
-    cursor: 'pointer',
+    border: 'none',
     display: 'flex',
     alignItems: 'center',
+    cursor: 'pointer',
+    fontSize: '14px',
     fontWeight: '500',
+    transition: 'all 0.2s ease',
   },
   content: {
     flex: 1,

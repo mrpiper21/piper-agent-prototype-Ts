@@ -482,7 +482,7 @@ const styles = {
     gap: '5px',
   },
   navItem: {
-    padding: '12px 16px',
+    padding: '12px 10px',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
@@ -506,7 +506,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'end',
     alignItems: 'center',
-    padding: '16px',
+    padding: '12px',
     borderBottom: '1px solid',
     borderColor: 'inherit',
   },

@@ -29,5 +29,14 @@ export default defineConfig({
       },
     },
     plugins: [react()],
+    optimizeDeps: {
+      include: ['jspdf', 'jspdf-autotable'],
+      exclude: [],
+    },
+    build: {
+      commonjsOptions: {
+        include: [/jspdf-autotable/, /node_modules/],
+      },
+    },
   },
 });

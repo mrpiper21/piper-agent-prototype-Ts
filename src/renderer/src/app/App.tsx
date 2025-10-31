@@ -2,7 +2,6 @@ import { Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage, useAuthStore } from '../features/auth';
 import LoadingScreen from '../shared/components/LoadingScreen';
-import { OfflineBanner } from '../shared/components';
 
 const ClerkLayout = lazy(() => import('../features/clerk/layouts/ClerkLayout'));
 const DashboardPage = lazy(() => import('../features/clerk/pages/DashboardPage'));
@@ -10,6 +9,7 @@ const JobsPage = lazy(() => import('../features/clerk/pages/JobsPage'));
 const SubmitPage = lazy(() => import('../features/clerk/pages/SubmitPage'));
 const StatusPage = lazy(() => import('../features/clerk/pages/StatusPage'));
 const ProfilePage = lazy(() => import('../features/clerk/pages/ProfilePage'));
+import { OfflineBanner } from './../shared/components/OfflineBanner';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);

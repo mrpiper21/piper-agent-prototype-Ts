@@ -183,7 +183,7 @@ class ApiService {
 
   async updateJob(id: string, updates: Partial<PrintJob>): Promise<PrintJob> {
     
-    const response = await this.axiosInstance.patch(`/print/jobs/${id}`, updates);
+    const response = await this.axiosInstance.put(`/print/jobs/${id}/status`, updates);
     return response.data.data;
   }
 

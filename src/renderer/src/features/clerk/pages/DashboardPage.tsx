@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import { lightStyles, darkStyles, sharedStyles } from '../shared/clerkStyles';
-import { 
-  AiOutlineCalendar, 
-  AiOutlineFile, 
-  AiOutlineCheckCircle, 
+import {
+  AiOutlineCalendar,
+  AiOutlineFile,
+  AiOutlineCheckCircle,
   AiOutlineClockCircle,
   AiOutlineCloseCircle,
   AiOutlineThunderbolt,
   AiOutlineLeft,
-  AiOutlineRight
+  AiOutlineRight,
+  AiOutlineDownload,
 } from 'react-icons/ai';
 import { useDashboardStats, useWeeklyActivity, useJobsByDate } from '../../users/api/dashboardApi';
+import { generateJobOrderPDF } from '../utils/generateReportPDF';
 
 interface DashboardStats {
   todaysJobs: number;
@@ -26,12 +28,12 @@ export default function DashboardPage() {
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [calendarOffset, setCalendarOffset] = useState<number>(0); // 0 = current period, -1 = past, +1 = future
-  
+
   // Fetch dashboard data from APIs
   const { data: statsData, isLoading: statsLoading } = useDashboardStats(selectedDate);
   const { data: weeklyData, isLoading: weeklyLoading } = useWeeklyActivity();
   const { data: jobsByDate, isLoading: jobsLoading } = useJobsByDate(selectedDate);
-  
+
   const stats: DashboardStats = useMemo(() => {
     if (!statsData) {
       return {
@@ -44,7 +46,7 @@ export default function DashboardPage() {
     }
     return statsData;
   }, [statsData]);
-  
+
   const chartData = useMemo(() => {
     return {
       completed: stats.completedJobs,
@@ -53,17 +55,17 @@ export default function DashboardPage() {
       max: Math.max(stats.completedJobs, stats.pendingJobs, stats.failedJobs, 10),
     };
   }, [stats]);
-  
+
   // Generate dates for the calendar view (28 days = 4 weeks) and map weekly activity data
   const calendarDates = useMemo(() => {
     const dates = [];
     const today = new Date();
     const offsetDays = calendarOffset * 28; // Each offset represents 28 days (4 weeks)
-    
+
     // Calculate the end date of the period (most recent date in the view)
     const endDate = new Date(today);
     endDate.setDate(today.getDate() - offsetDays);
-    
+
     // Generate 28 dates going backwards from end date (oldest to newest)
     // This ensures contiguous periods with no gaps
     for (let i = 27; i >= 0; i--) {
@@ -71,10 +73,10 @@ export default function DashboardPage() {
       date.setDate(endDate.getDate() - i);
       dates.push(date);
     }
-    
+
     return dates;
   }, [calendarOffset]);
-  
+
   // Get the date range for the calendar header
   const calendarDateRange = useMemo(() => {
     if (calendarDates.length === 0) return '';
@@ -82,15 +84,31 @@ export default function DashboardPage() {
     const lastDate = calendarDates[calendarDates.length - 1];
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
-    
+
     // If the range includes today, show "Today" or date range
-    if (firstDate.toISOString().split('T')[0] <= todayStr && 
-        lastDate.toISOString().split('T')[0] >= todayStr) {
-      return `Week of ${firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    if (
+      firstDate.toISOString().split('T')[0] <= todayStr &&
+      lastDate.toISOString().split('T')[0] >= todayStr
+    ) {
+      return `Week of ${firstDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      })} - ${lastDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })}`;
     }
-    return `${firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${lastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    return `${firstDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })} - ${lastDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })}`;
   }, [calendarDates]);
-  
+
   // Map weekly activity to a date -> count lookup
   const weeklyCountMap = useMemo(() => {
     if (!weeklyData) return new Map<string, number>();
@@ -100,39 +118,47 @@ export default function DashboardPage() {
     });
     return map;
   }, [weeklyData]);
-  
+
   const isLoading = statsLoading || weeklyLoading || jobsLoading;
-  
+
   return (
-    <div style={{ 
-      padding: '24px', 
-      // height: '100%', 
-      flexDirection: 'column', 
-      gap: '24px',
-      overflow: 'auto',
-      display: 'grid',
-      flexWrap: 'wrap'
-    }}>
+    <div
+      style={{
+        padding: '8px',
+        // height: '100%',
+        flexDirection: 'column',
+        gap: '18px',
+        overflow: 'auto',
+        display: 'grid',
+        flexWrap: 'wrap',
+      }}
+    >
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        flexShrink: 0
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexShrink: 0,
+        }}
+      >
         <div>
-          <h1 style={{ 
-            color: themeStyles.text, 
-            fontWeight: '700', 
-            fontSize: '32px',
-            marginBottom: '4px'
-          }}>
+          <h1
+            style={{
+              color: themeStyles.text,
+              fontWeight: '700',
+              fontSize: '24px',
+              marginBottom: '4px',
+            }}
+          >
             Dashboard Overview
           </h1>
-          <p style={{ 
-            color: themeStyles.textSecondary, 
-            fontSize: '14px'
-          }}>
+          <p
+            style={{
+              color: themeStyles.textSecondary,
+              fontSize: '14px',
+            }}
+          >
             Monitor and manage all your print jobs
           </p>
         </div>
@@ -178,89 +204,101 @@ export default function DashboardPage() {
           />
         </div>
       </div>
-      
+
       {/* Stats Grid */}
       {isLoading && !statsData ? (
-        <div style={{ 
-          ...sharedStyles.card, 
-          ...themeStyles.card,
-          textAlign: 'center',
-          padding: '40px'
-        }}>
+        <div
+          style={{
+            ...sharedStyles.card,
+            ...themeStyles.card,
+            textAlign: 'center',
+            padding: '40px',
+          }}
+        >
           <p style={{ color: themeStyles.textSecondary }}>Loading dashboard stats...</p>
         </div>
       ) : (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-          gap: '20px',
-          flexShrink: 0,
-        }}>
-        <StatCard
-          icon={<AiOutlineFile />}
-          title="Today's Jobs"
-          value={stats.todaysJobs}
-          color={themeStyles.accent}
-          themeStyles={themeStyles}
-          description="Active jobs today"
-        />
-        <StatCard
-          icon={<AiOutlineCheckCircle />}
-          title="Completed"
-          value={stats.completedJobs}
-          color={themeStyles.success}
-          themeStyles={themeStyles}
-          description="Successfully printed"
-        />
-        <StatCard
-          icon={<AiOutlineClockCircle />}
-          title="Pending"
-          value={stats.pendingJobs}
-          color={themeStyles.warning}
-          themeStyles={themeStyles}
-          description="Awaiting processing"
-        />
-        <StatCard
-          icon={<AiOutlineCloseCircle />}
-          title="Failed"
-          value={stats.failedJobs}
-          color={themeStyles.error}
-          themeStyles={themeStyles}
-          description="Unsuccessful jobs"
-        />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '20px',
+            flexShrink: 0,
+          }}
+        >
+          <StatCard
+            icon={<AiOutlineFile />}
+            title="Today's Jobs"
+            value={stats.todaysJobs}
+            color={themeStyles.accent}
+            themeStyles={themeStyles}
+            description="Active jobs today"
+          />
+          <StatCard
+            icon={<AiOutlineCheckCircle />}
+            title="Completed"
+            value={stats.completedJobs}
+            color={themeStyles.success}
+            themeStyles={themeStyles}
+            description="Successfully printed"
+          />
+          <StatCard
+            icon={<AiOutlineClockCircle />}
+            title="Pending"
+            value={stats.pendingJobs}
+            color={themeStyles.warning}
+            themeStyles={themeStyles}
+            description="Awaiting processing"
+          />
+          <StatCard
+            icon={<AiOutlineCloseCircle />}
+            title="Failed"
+            value={stats.failedJobs}
+            color={themeStyles.error}
+            themeStyles={themeStyles}
+            description="Unsuccessful jobs"
+          />
         </div>
       )}
-      
+
       {/* Charts and Calendar */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', 
-        gap: '24px',
-        flex: 1,
-        minHeight: 0
-      }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
+          gap: '24px',
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
         {/* Status Chart */}
-        <div style={{ 
-          ...sharedStyles.card, 
-          ...themeStyles.card, 
-          display: 'flex', 
-          flexDirection: 'column',
-        }}>
+        <div
+          style={{
+            ...sharedStyles.card,
+            ...themeStyles.card,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: `${themeStyles.primaryButton.background}20`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-            }}>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                background: `${themeStyles.primaryButton.background}20`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px',
+              }}
+            >
               📊
             </div>
             <div>
-              <h3 style={{ color: themeStyles.text, margin: 0, fontWeight: '700', fontSize: '18px' }}>
+              <h3
+                style={{ color: themeStyles.text, margin: 0, fontWeight: '700', fontSize: '18px' }}
+              >
                 Job Status Overview
               </h3>
               <p style={{ color: themeStyles.textSecondary, margin: 0, fontSize: '12px' }}>
@@ -268,7 +306,15 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', justifyContent: 'space-around' }}>
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+              justifyContent: 'space-around',
+            }}
+          >
             <Bar
               label="Completed"
               value={chartData.completed}
@@ -291,45 +337,65 @@ export default function DashboardPage() {
               themeStyles={themeStyles}
             />
           </div>
-          <div style={{ 
-            marginTop: '24px', 
-            display: 'flex', 
-            gap: '16px', 
-            justifyContent: 'center',
-            flexWrap: 'wrap' as const,
-            padding: '16px',
-            background: themeStyles.input.background,
-            borderRadius: '8px'
-          }}>
+          <div
+            style={{
+              marginTop: '24px',
+              display: 'flex',
+              gap: '16px',
+              justifyContent: 'center',
+              flexWrap: 'wrap' as const,
+              padding: '16px',
+              background: themeStyles.input.background,
+              borderRadius: '8px',
+            }}
+          >
             <LegendItem color={themeStyles.success} label="Completed" themeStyles={themeStyles} />
             <LegendItem color={themeStyles.warning} label="Pending" themeStyles={themeStyles} />
             <LegendItem color={themeStyles.error} label="Failed" themeStyles={themeStyles} />
           </div>
         </div>
-        
+
         {/* Calendar with Job Counts */}
-        <div style={{ 
-          ...sharedStyles.card, 
-          ...themeStyles.card, 
-          display: 'flex', 
-          flexDirection: 'column',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div
+          style={{
+            ...sharedStyles.card,
+            ...themeStyles.card,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '24px',
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: `${themeStyles.primaryButton.background}20`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '20px',
-              }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: `${themeStyles.primaryButton.background}20`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px',
+                }}
+              >
                 📅
               </div>
               <div style={{ flex: 1 }}>
-                <h3 style={{ color: themeStyles.text, margin: 0, fontWeight: '700', fontSize: '18px' }}>
+                <h3
+                  style={{
+                    color: themeStyles.text,
+                    margin: 0,
+                    fontWeight: '700',
+                    fontSize: '18px',
+                  }}
+                >
                   Activity Calendar
                 </h3>
                 <p style={{ color: themeStyles.textSecondary, margin: 0, fontSize: '12px' }}>
@@ -339,7 +405,7 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
-                onClick={() => setCalendarOffset(prev => prev + 1)}
+                onClick={() => setCalendarOffset((prev) => prev + 1)}
                 style={{
                   padding: '8px 12px',
                   borderRadius: '8px',
@@ -372,8 +438,14 @@ export default function DashboardPage() {
                   padding: '8px 12px',
                   borderRadius: '8px',
                   border: `1px solid ${themeStyles.card.border}`,
-                  background: calendarOffset === 0 ? themeStyles.card.background : themeStyles.primaryButton.background,
-                  color: calendarOffset === 0 ? themeStyles.textSecondary : themeStyles.primaryButton.color,
+                  background:
+                    calendarOffset === 0
+                      ? themeStyles.card.background
+                      : themeStyles.primaryButton.background,
+                  color:
+                    calendarOffset === 0
+                      ? themeStyles.textSecondary
+                      : themeStyles.primaryButton.color,
                   cursor: calendarOffset === 0 ? 'not-allowed' : 'pointer',
                   fontSize: '12px',
                   fontWeight: '600',
@@ -388,7 +460,7 @@ export default function DashboardPage() {
                 Today
               </button>
               <button
-                onClick={() => setCalendarOffset(prev => prev - 1)}
+                onClick={() => setCalendarOffset((prev) => prev - 1)}
                 disabled={calendarOffset === 0}
                 style={{
                   padding: '8px 12px',
@@ -420,17 +492,19 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', 
-            gap: '12px'
-          }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+              gap: '12px',
+            }}
+          >
             {calendarDates.map((date, index) => {
               const dateStr = date.toISOString().split('T')[0];
               const dayJobCount = weeklyCountMap.get(dateStr) || 0;
               const isToday = dateStr === new Date().toISOString().split('T')[0];
               const isSelected = dateStr === selectedDate;
-              
+
               return (
                 <button
                   key={index}
@@ -438,12 +512,14 @@ export default function DashboardPage() {
                   style={{
                     padding: '16px 12px',
                     borderRadius: '12px',
-                    border: `2px solid ${isSelected ? themeStyles.primaryButton.background : 'transparent'}`,
-                    background: isSelected 
-                      ? themeStyles.primaryButton.background 
-                      : isToday 
-                        ? `${themeStyles.primaryButton.background}15`
-                        : themeStyles.card.background,
+                    border: `2px solid ${
+                      isSelected ? themeStyles.primaryButton.background : 'transparent'
+                    }`,
+                    background: isSelected
+                      ? themeStyles.primaryButton.background
+                      : isToday
+                      ? `${themeStyles.primaryButton.background}15`
+                      : themeStyles.card.background,
                     color: isSelected ? '#000000' : themeStyles.text,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
@@ -461,28 +537,35 @@ export default function DashboardPage() {
                   }}
                   onMouseLeave={(e) => {
                     if (!isSelected) {
-                      e.currentTarget.style.background = isToday 
+                      e.currentTarget.style.background = isToday
                         ? `${themeStyles.primaryButton.background}15`
                         : themeStyles.card.background;
                     }
                   }}
                 >
-                  <span style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', opacity: 0.8 }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      textTransform: 'uppercase',
+                      opacity: 0.8,
+                    }}
+                  >
                     {date.toLocaleDateString('en-US', { weekday: 'short' })}
                   </span>
-                  <span style={{ fontSize: '24px', fontWeight: 'bold' }}>
-                    {date.getDate()}
-                  </span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold' }}>{date.getDate()}</span>
                   {dayJobCount > 0 && (
-                    <span style={{
-                      background: isSelected ? '#000000' : themeStyles.primaryButton.background,
-                      color: isSelected ? themeStyles.primaryButton.background : '#000000',
-                      borderRadius: '12px',
-                      padding: '2px 8px',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      marginTop: '4px',
-                    }}>
+                    <span
+                      style={{
+                        background: isSelected ? '#000000' : themeStyles.primaryButton.background,
+                        color: isSelected ? themeStyles.primaryButton.background : '#000000',
+                        borderRadius: '12px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        marginTop: '4px',
+                      }}
+                    >
                       {dayJobCount}
                     </span>
                   )}
@@ -492,70 +575,157 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Recent Jobs */}
       {selectedDate && (
-        <div style={{ 
-          ...sharedStyles.card, 
-          ...themeStyles.card,
-          flexShrink: 0,
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: '20px'
-          }}>
+        <div
+          style={{
+            ...sharedStyles.card,
+            ...themeStyles.card,
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px',
+            }}
+          >
             <div>
-              <h3 style={{ 
-                color: themeStyles.text, 
-                margin: 0, 
-                marginBottom: '4px',
-                fontWeight: '700',
-                fontSize: '18px'
-              }}>
-                Jobs for {new Date(selectedDate).toLocaleDateString('en-US', { 
+              <h3
+                style={{
+                  color: themeStyles.text,
+                  margin: 0,
+                  marginBottom: '4px',
+                  fontWeight: '700',
+                  fontSize: '18px',
+                }}
+              >
+                Jobs for{' '}
+                {new Date(selectedDate).toLocaleDateString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
-                  day: 'numeric'
+                  day: 'numeric',
                 })}
               </h3>
-              <p style={{ 
-                color: themeStyles.textSecondary, 
-                margin: 0,
-                fontSize: '13px'
-              }}>
+              <p
+                style={{
+                  color: themeStyles.textSecondary,
+                  margin: 0,
+                  fontSize: '13px',
+                }}
+              >
                 {jobsByDate?.length || 0} jobs found
               </p>
             </div>
-            <button
-              onClick={() => setSelectedDate('')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                border: `1px solid ${themeStyles.card.border}`,
-                background: themeStyles.input.background,
-                color: themeStyles.text,
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: '600',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <AiOutlineCalendar />
-              Clear Filter
-            </button>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setSelectedDate('')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: `1px solid ${themeStyles.card.border}`,
+                  background: themeStyles.input.background,
+                  color: themeStyles.text,
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <AiOutlineCalendar />
+                Clear Filter
+              </button>
+              <button
+                onClick={() => {
+                  try {
+                    console.log('Download button clicked');
+                    console.log('selectedDate:', selectedDate);
+                    console.log('jobsByDate:', jobsByDate);
+                    console.log('jobsByDate length:', jobsByDate?.length);
+
+                    if (!selectedDate) {
+                      alert('Please select a date first');
+                      return;
+                    }
+
+                    if (!jobsByDate || jobsByDate.length === 0) {
+                      alert('No jobs available for the selected date');
+                      return;
+                    }
+
+                    // Format date as DD - MM - YYYY
+                    const dateParts = selectedDate.split('-');
+                    if (dateParts.length !== 3) {
+                      alert('Invalid date format. Please select a valid date.');
+                      return;
+                    }
+                    const formattedDate = `${dateParts[2]} - ${dateParts[1]} - ${dateParts[0]}`;
+
+                    // Generate job order number from date or use a sequential number
+                    const jobOrderNo =
+                      selectedDate.replace(/-/g, '') || Date.now().toString().slice(-6);
+
+                    console.log('Generating PDF with:', {
+                      date: formattedDate,
+                      jobCount: jobsByDate.length,
+                      jobOrderNo,
+                    });
+
+                    generateJobOrderPDF({
+                      date: formattedDate,
+                      jobs: jobsByDate,
+                      companyName: '', // Can be added later
+                      clientName: '', // Can be added later
+                      material: 'Flexi', // Default material
+                      jobOrderNo: jobOrderNo,
+                    })
+
+                    console.log('PDF generation initiated');
+                  } catch (error) {
+                    console.error('Error generating PDF:', error);
+                    alert(
+                      `Error generating PDF: ${
+                        error instanceof Error ? error.message : 'Unknown error'
+                      }`
+                    );
+                  }
+                }}
+                disabled={!selectedDate || !jobsByDate || jobsByDate.length === 0}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: `1px solid ${themeStyles.card.border}`,
+                  background: themeStyles.input.background,
+                  color: themeStyles.text,
+                  cursor: !jobsByDate || jobsByDate.length === 0 ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  opacity: !jobsByDate || jobsByDate.length === 0 ? 0.6 : 1,
+                }}
+              >
+                <AiOutlineDownload />
+                Download Report
+              </button>
+            </div>
           </div>
           <div style={sharedStyles.jobsList}>
             {isLoading ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '60px 20px',
-                color: themeStyles.textSecondary 
-              }}>
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '60px 20px',
+                  color: themeStyles.textSecondary,
+                }}
+              >
                 <p style={{ fontSize: '16px' }}>Loading jobs...</p>
               </div>
             ) : jobsByDate && jobsByDate.length > 0 ? (
@@ -570,11 +740,33 @@ export default function DashboardPage() {
                   }}
                 >
                   <div style={{ flex: 1 }}>
-                    <p style={{ color: themeStyles.text, fontWeight: '600', marginBottom: '6px', fontSize: '15px' }}>
+                    <p
+                      style={{
+                        color: themeStyles.text,
+                        fontWeight: '600',
+                        marginBottom: '6px',
+                        fontSize: '15px',
+                      }}
+                    >
                       {job.fileName || job.name || 'Unnamed Job'}
                     </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                      <span style={{ color: themeStyles.textSecondary, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: themeStyles.textSecondary,
+                          fontSize: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
                         🖨️ {job.printerName || job.printer || 'N/A'}
                       </span>
                       <span style={{ color: themeStyles.textSecondary, fontSize: '12px' }}>
@@ -592,10 +784,12 @@ export default function DashboardPage() {
                       fontSize: '11px',
                       fontWeight: '700',
                       textTransform: 'uppercase',
-                      background: 
-                        job.status === 'completed' ? themeStyles.success :
-                        job.status === 'failed' ? themeStyles.error :
-                        themeStyles.warning,
+                      background:
+                        job.status === 'completed'
+                          ? themeStyles.success
+                          : job.status === 'failed'
+                          ? themeStyles.error
+                          : themeStyles.warning,
                       color: '#ffffff',
                       letterSpacing: '0.5px',
                     }}
@@ -605,13 +799,17 @@ export default function DashboardPage() {
                 </div>
               ))
             ) : (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '60px 20px',
-                color: themeStyles.textSecondary 
-              }}>
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '60px 20px',
+                  color: themeStyles.textSecondary,
+                }}
+              >
                 <div style={{ fontSize: '48px', marginBottom: '12px' }}>📭</div>
-                <p style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>No jobs on this date</p>
+                <p style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
+                  No jobs on this date
+                </p>
                 <p style={{ fontSize: '13px' }}>Try selecting a different date</p>
               </div>
             )}
