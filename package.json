@@ -97,7 +97,7 @@
       "provider": "github",
       "owner": "mrpiper21",
       "repo": "piper-agent-prototype-Ts",
-      "private": true
+      "private": false
     },
     "directories": {
       "output": "release/${version}"
