@@ -1,6 +1,6 @@
 {
   "name": "printmyfile-agent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "PrintMyFile SaaS Local Print Agent",
   "main": "./out/main/index.js",
   "scripts": {
@@ -108,11 +108,15 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "publisherName": "PrintMyFile",
