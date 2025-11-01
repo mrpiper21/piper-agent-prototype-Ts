@@ -1,6 +1,6 @@
 {
   "name": "printmyfile-agent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "PrintMyFile SaaS Local Print Agent",
   "main": "./out/main/index.js",
   "scripts": {
@@ -91,11 +91,11 @@
     "appId": "com.printmyfile.agent",
     "productName": "PrintMyFile Agent",
     "publish": {
-    "provider": "github",
-    "owner": "mrpiper21",
-    "repo": "piper-agent-prototype-Ts",
-    "private": true
-  },
+      "provider": "github",
+      "owner": "mrpiper21",
+      "repo": "piper-agent-prototype-Ts",
+      "private": true
+    },
     "directories": {
       "output": "release/${version}"
     },
