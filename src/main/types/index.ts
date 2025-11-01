@@ -96,5 +96,10 @@ export interface User {
   permissions: string[];
   createdAt: number;
   updatedAt: number;
+  location?: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
 }
 

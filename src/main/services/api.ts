@@ -142,10 +142,19 @@ class ApiService {
     return response.data.data.user;
   }
 
-  async updateProfile(updates: { name?: string; email?: string }): Promise<User> {
-    
-    const response = await this.axiosInstance.put('/auth/profile', updates);
-    return response.data.data.user;
+  async updateProfile(updates: { name?: string; email?: string, location?: { latitude: number; longitude: number; address: string }  }): Promise<User> {
+    try {
+      console.log(`Updating profile with data:`, JSON.stringify(updates, null, 2));
+      
+      const response = await this.axiosInstance.put('/auth/profile', updates);
+      
+      console.log(`Profile updated successfully:`, response.data.data.user);
+      
+      return response.data.data.user;
+    } catch (error: any) {
+      console.error(`Failed to update profile:`, error.response?.data || error.message);
+      throw error;
+    }
   }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
@@ -288,9 +297,18 @@ class ApiService {
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User> {
-    
-    const response = await this.axiosInstance.put(`/users/${id}`, updates);
-    return response.data.data.user;
+    try {
+      console.log(`Updating user ${id} with data:`, JSON.stringify(updates, null, 2));
+      
+      const response = await this.axiosInstance.put(`/users/${id}`, updates);
+      
+      console.log(`User ${id} updated successfully:`, response.data.data.user);
+      
+      return response.data.data.user;
+    } catch (error: any) {
+      console.error(`Failed to update user ${id}:`, error.response?.data || error.message);
+      throw error;
+    }
   }
 
   async deleteUser(id: string): Promise<void> {

@@ -9,6 +9,7 @@ const JobsPage = lazy(() => import('../features/clerk/pages/JobsPage'));
 const SubmitPage = lazy(() => import('../features/clerk/pages/SubmitPage'));
 const StatusPage = lazy(() => import('../features/clerk/pages/StatusPage'));
 const ProfilePage = lazy(() => import('../features/clerk/pages/ProfilePage'));
+const SetupLocationPage = lazy(() => import('../features/auth/pages/SetupLocationPage'));
 import { OfflineBanner } from './../shared/components/OfflineBanner';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -16,6 +17,24 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// Route guard for setup location - allows access if user exists but is not authenticated (location pending)
+function SetupLocationRoute({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // Allow access if user exists but not authenticated (location setup required)
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If user is already authenticated (has location), redirect to dashboard
+  if (isAuthenticated && user.location) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -39,6 +58,7 @@ export default function App() {
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/setup-location" element={<SetupLocationRoute><SetupLocationPage /></SetupLocationRoute>} />
             <Route path="/" element={<RoleBasedRoute />} />
             <Route
               path="/clerk"

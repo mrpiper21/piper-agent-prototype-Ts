@@ -6,6 +6,7 @@ const electronAPI: IpcApi = {
     login: (credentials) => ipcRenderer.invoke('auth:login', credentials),
     logout: () => ipcRenderer.invoke('auth:logout'),
     refreshToken: (token) => ipcRenderer.invoke('auth:refresh', token),
+    updateProfile: (updates) => ipcRenderer.invoke('auth:updateProfile', updates),
   },
   users: {
     getAll: () => ipcRenderer.invoke('users:getAll'),
@@ -62,6 +63,9 @@ const electronAPI: IpcApi = {
   },
   health: {
     check: () => ipcRenderer.invoke('health:check'),
+  },
+  location: {
+    getCurrentPosition: () => ipcRenderer.invoke('location:getCurrentPosition'),
   },
 };
 

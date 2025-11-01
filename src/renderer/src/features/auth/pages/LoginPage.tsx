@@ -4,6 +4,9 @@ import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../../../context/ThemeContext';
 import { AiOutlineMoon, AiOutlineSun } from 'react-icons/ai';
 
+// Access store without hook to avoid rules of hooks violation
+const getAuthState = () => useAuthStore.getState();
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, error, isLoading } = useAuthStore();
@@ -17,9 +20,25 @@ export default function LoginPage() {
     e.preventDefault();
     try {
       await login({ email, password });
-      navigate('/');
+      
+      // Check if user is authenticated (which means they have location)
+      const { isAuthenticated, user } = getAuthState();
+      
+      console.log('Login result:', { isAuthenticated, hasLocation: !!user?.location, user: user?.id });
+      
+      if (!isAuthenticated || !user?.location) {
+        // User doesn't have location - navigate to setup location page
+        // User data is stored temporarily but they are not authenticated
+        console.log('Navigating to setup-location page');
+        navigate('/setup-location');
+      } else {
+        // User has location and is authenticated - navigate to dashboard
+        console.log('Navigating to dashboard');
+        navigate('/');
+      }
     } catch (err) {
       // Error handled by store
+      console.error('Login error:', err);
     }
   };
 

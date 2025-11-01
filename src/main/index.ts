@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, session } from 'electron';
 import path from 'path';
 import { setupWindows } from './windows/MainWindow';
 import { setupIpcHandlers } from './ipc/handlers';
@@ -47,6 +47,30 @@ app.whenReady().then(() => {
   logger.info(`__dirname: ${__dirname}`);
 
   try {
+    // Set up session-level permissions for all windows (before creating windows)
+    const defaultSession = session.defaultSession;
+    
+    // Allow geolocation for all origins at session level
+    defaultSession.setPermissionCheckHandler((_webContents, permission: string, requestingOrigin: string) => {
+      if (permission === 'geolocation') {
+        logger.info(`Session permission check: ${permission} for ${requestingOrigin}`);
+        return true;
+      }
+      return false;
+    });
+
+    defaultSession.setPermissionRequestHandler((_webContents, permission: string, callback: (granted: boolean) => void, details: any) => {
+      logger.info(`Session permission request: ${permission} from ${details.requestingUrl}`);
+      if (permission === 'geolocation') {
+        logger.info('Session: Granting geolocation permission');
+        callback(true);
+      } else {
+        callback(false);
+      }
+    });
+    
+    logger.info('Session-level permissions configured');
+
     // Initialize services after app is ready
     dbService.init();
 

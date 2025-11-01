@@ -61,6 +61,32 @@ export function setupWindows(): BrowserWindow {
     autoHideMenuBar: false,
   });
 
+  // Handle geolocation permission requests - MUST be set before loading content
+  const session = mainWindow.webContents.session;
+  
+  // Set permission check handler - checks if permission is already granted
+  session.setPermissionCheckHandler((_webContents, permission: string, requestingOrigin: string) => {
+    logger.info(`Permission check: ${permission} for ${requestingOrigin}`);
+    // Always allow geolocation checks
+    if (permission === 'geolocation') {
+      return true;
+    }
+    return false;
+  });
+
+  // Set permission request handler - handles new permission requests
+  session.setPermissionRequestHandler((_webContents, permission: string, callback: (granted: boolean) => void, _details: any) => {
+    logger.info(`Permission request: ${permission}`);
+    // Always allow geolocation permission requests
+    if (permission === 'geolocation') {
+      logger.info('Granting geolocation permission');
+      callback(true);
+    } else {
+      logger.info(`Denying permission: ${permission}`);
+      callback(false);
+    }
+  });
+
   // Load content based on environment
   if (app.isPackaged) {
     // Production build

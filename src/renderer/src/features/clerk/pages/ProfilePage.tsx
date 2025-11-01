@@ -4,6 +4,7 @@ import { useTheme } from '../../../context/ThemeContext';
 import { lightStyles, darkStyles, sharedStyles } from '../shared/clerkStyles';
 import { 
   FaKey,
+  FaMapMarkerAlt,
   FaUserTie
 } from 'react-icons/fa';
 import { 
@@ -145,6 +146,28 @@ export default function ProfilePage() {
       month: 'long',
       day: 'numeric',
     });
+  };
+
+  const formatLocation = (location?: { latitude: number; longitude: number; address: string }) => {
+    if (!location?.address) return 'N/A';
+    
+    // Try to extract a shorter, more readable location
+    const address = location.address;
+    
+    // If address contains commas, take the last 2-3 parts (usually city, state, country)
+    const parts = address.split(',').map(p => p.trim());
+    
+    if (parts.length > 2) {
+      // Take last 2-3 parts for city, state/country
+      return parts.slice(-2).join(', ');
+    }
+    
+    // If address is too long, truncate it
+    if (address.length > 50) {
+      return address.substring(0, 47) + '...';
+    }
+    
+    return address;
   };
 
   return (
@@ -379,7 +402,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Account Details */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <InfoRow 
                   label="Email" 
                   value={user?.email || 'N/A'} 
@@ -396,6 +419,12 @@ export default function ProfilePage() {
                   label="Member Since" 
                   value={formatDate(user?.createdAt || 0)} 
                   icon={<AiOutlineCalendar />}
+                  themeStyles={themeStyles}
+                />
+                <InfoRow 
+                  label="Location" 
+                  value={formatLocation(user?.location)} 
+                  icon={<FaMapMarkerAlt />}
                   themeStyles={themeStyles}
                 />
               </div>
@@ -604,7 +633,7 @@ function InfoRow({ label, value, icon, themeStyles }: InfoRowProps) {
       display: 'flex', 
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '12px 0',
+      padding: '8px 0',
       borderBottom: `1px solid ${themeStyles.card.border}`
     }}>
       <div style={{ 

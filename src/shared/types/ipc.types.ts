@@ -6,6 +6,11 @@ export interface User {
   email: string;
   role: 'admin' | 'clerk';
   permissions: string[];
+  location: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  }
   createdAt: number;
   updatedAt: number;
 }
@@ -28,6 +33,11 @@ export interface CreateUserData {
 export interface UpdateUserData {
   name?: string;
   email?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
 }
 
 // Agent types
@@ -63,6 +73,7 @@ export interface IpcApi {
     login: (credentials: LoginCredentials) => Promise<AuthResponse>;
     logout: () => Promise<void>;
     refreshToken: (token: string) => Promise<string>;
+    updateProfile: (updates: { name?: string; email?: string; location?: { latitude: number; longitude: number; address: string } }) => Promise<User>;
   };
   users: {
     getAll: () => Promise<User[]>;
@@ -122,6 +133,9 @@ export interface IpcApi {
   };
   health: {
     check: () => Promise<any>;
+  };
+  location: {
+    getCurrentPosition: () => Promise<{ latitude: number; longitude: number; accuracy?: number }>;
   };
 }
 

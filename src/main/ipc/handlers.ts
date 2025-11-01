@@ -19,19 +19,57 @@ export function setupIpcHandlers() {
       // Use the API service to authenticate with the backend
       const response = await apiService.login(credentials.email, credentials.password);
 
-      logger.info('User logged in', { email: credentials.email });
+      logger.info('User logged in', { email: credentials.email, hasLocation: !!response.user.location });
 
-      // Show success notification
-      new Notification({
-        title: 'Login Successful',
-        body: `Welcome ${response.user.name}!`,
-        silent: false,
-      }).show();
+      // Check if user has location set
+      if (response.user.location) {
+        // User has location - save to local database and authenticate
+        try {
+          // Create user with basic data first
+          const createdUser = dbService.createUser({
+            name: response.user.name,
+            email: response.user.email,
+          });
+          // Then update with full data if needed
+          if (response.user.location) {
+            dbService.updateUser(createdUser.id, {
+              location: response.user.location,
+            });
+          }
+          logger.info('User saved to local database (has location)');
+        } catch (dbError) {
+          logger.warn('Failed to save user to local database, continuing anyway', dbError);
+        }
 
-      return {
-        user: response.user,
-        token: response.token,
-      } as AuthResponse;
+        // Show success notification
+        new Notification({
+          title: 'Login Successful',
+          body: `Welcome ${response.user.name}!`,
+          silent: false,
+        }).show();
+
+        return {
+          user: response.user,
+          token: response.token,
+          requiresLocation: false, // Location exists, user can be authenticated
+        } as AuthResponse & { requiresLocation: boolean };
+      } else {
+        // User doesn't have location - DON'T save to database, DON'T authenticate
+        logger.info('User logged in but location required', { email: credentials.email });
+
+        // Show notification that location is required
+        new Notification({
+          title: 'Location Required',
+          body: 'Please set your location to continue',
+          silent: false,
+        }).show();
+
+        return {
+          user: response.user,
+          token: response.token,
+          requiresLocation: true, // Location required, user cannot be authenticated yet
+        } as AuthResponse & { requiresLocation: boolean };
+      }
     } catch (error: any) {
       logger.error('Login error', error);
 
@@ -64,7 +102,7 @@ export function setupIpcHandlers() {
     }
   });
 
-  ipcMain.handle('auth:refresh', async (_, token: string) => {
+  ipcMain.handle('auth:refresh', async (_) => {
     try {
       // Use the API service to refresh token
       const response = await apiService.refreshToken();
@@ -74,6 +112,32 @@ export function setupIpcHandlers() {
       return response.token;
     } catch (error) {
       logger.error('Token refresh error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('auth:updateProfile', async (_, updates: { name?: string; email?: string; location?: { latitude: number; longitude: number; address: string } }) => {
+    try {
+      logger.info('Updating profile with data:', updates);
+      
+      // Update profile via API using /auth/profile endpoint
+      const user = await apiService.updateProfile(updates);
+      
+      logger.info('Profile updated successfully via API');
+      
+      // Also update local database if user ID exists
+      if (user.id) {
+        try {
+          dbService.updateUser(user.id, updates);
+          logger.info('Profile updated in local database');
+        } catch (dbError) {
+          logger.warn('Failed to update profile in local database, continuing anyway', dbError);
+        }
+      }
+      
+      return user;
+    } catch (error) {
+      logger.error('Update profile error', error);
       throw error;
     }
   });
@@ -112,10 +176,18 @@ export function setupIpcHandlers() {
 
   ipcMain.handle('users:update', async (_, id: string, data: UpdateUserData) => {
     try {
-      const user = dbService.updateUser(id, data);
-      if (!user) {
-        throw new Error('User not found');
-      }
+      logger.info(`Updating user ${id} with data:`, data);
+      
+      // Update via API to sync with backend first
+      const user = await apiService.updateUser(id, data);
+      
+      logger.info(`User ${id} updated successfully via API`);
+      
+      // Also update local database
+      dbService.updateUser(id, data);
+      
+      logger.info(`User ${id} updated in local database`);
+      
       return user;
     } catch (error) {
       logger.error('Update user error', error);
@@ -415,6 +487,13 @@ export function setupIpcHandlers() {
 
   ipcMain.handle('update:getVersion', async () => {
     return { version: updateService.getCurrentVersion() };
+  });
+
+  // Location handlers - fallback if browser geolocation fails
+  ipcMain.handle('location:getCurrentPosition', async () => {
+    // This is a fallback - browser geolocation should work with proper permissions
+    // For now, we'll return an error to use browser geolocation
+    throw new Error('Please use browser geolocation API. Ensure location permissions are granted.');
   });
 
   logger.info('IPC handlers registered');
