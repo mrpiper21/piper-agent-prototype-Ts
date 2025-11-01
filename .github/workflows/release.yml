@@ -9,7 +9,7 @@ jobs:
   release:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false  # Don't cancel other jobs if one fails
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
@@ -22,8 +22,11 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Delete package-lock.json
+        run: rm -f package-lock.json
+
       - name: Install dependencies
-        run: npm install  # Changed from npm ci
+        run: npm install --force
 
       - name: Build and Publish (Windows)
         if: matrix.os == 'windows-latest'
