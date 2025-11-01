@@ -1,6 +1,6 @@
 {
   "name": "printmyfile-agent",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "PrintMyFile SaaS Local Print Agent",
   "main": "./out/main/index.js",
   "scripts": {
