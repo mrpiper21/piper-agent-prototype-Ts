@@ -9,6 +9,7 @@ import path from 'path';
 import { logger } from '../../utils/logger.js';
 import { AgentConfig, ValidationResult } from '../../types/index.js';
 import { validateAgentId, validateApiKey, validateEnv } from '../../utils/validator.js';
+import { platform } from '../../utils/platform.js';
 
 export class ConfigManager {
   private configDir: string;
@@ -20,7 +21,6 @@ export class ConfigManager {
       this.configDir = process.env.CONFIG_DIR;
     } else {
       try {
-        const { platform } = require('../../utils/platform.js');
         this.configDir = platform.getConfigDirectory();
       } catch {
         // Fallback only if platform utils are not available

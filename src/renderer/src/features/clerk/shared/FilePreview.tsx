@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
 import { lightStyles, darkStyles } from './clerkStyles';
 import { getFileType } from './utils';
@@ -12,6 +12,42 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
   const { theme } = useTheme();
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
   const fileType = getFileType(fileName);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // Download handler that works with cross-origin URLs
+  const handleDownload = async () => {
+    if (!fileUrl || isDownloading) return;
+    
+    setIsDownloading(true);
+    try {
+      // Fetch the file as a blob
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      
+      // Create a blob URL and trigger download
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+        setIsDownloading(false);
+      }, 100);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsDownloading(false);
+    }
+  };
 
   // Block print functionality
   useEffect(() => {
@@ -47,19 +83,44 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
         minHeight: '800px',
         overflow: 'hidden',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        gap: '16px'
       }}>
         <img 
           src={fileUrl} 
           alt={fileName}
           style={{ 
             maxWidth: '100%', 
-            maxHeight: '100%', 
+            maxHeight: 'calc(100% - 60px)', 
             objectFit: 'contain',
             borderRadius: '8px',
           }} 
         />
+        <button
+          onClick={handleDownload}
+          disabled={!fileUrl || isDownloading}
+          style={{
+            padding: '10px 24px',
+            background: themeStyles.primaryButton.background,
+            color: themeStyles.primaryButton.color,
+            border: 'none',
+            borderRadius: '8px',
+            fontWeight: '600',
+            cursor: isDownloading || !fileUrl ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            transition: 'transform 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            opacity: isDownloading || !fileUrl ? 0.6 : 1,
+          }}
+          onMouseEnter={(e) => !isDownloading && fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          {isDownloading ? '⏳ Downloading...' : '⬇️ Download'}
+        </button>
       </div>
     );
   }
@@ -113,25 +174,62 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
           padding: '16px',
           borderRadius: '12px',
           marginBottom: '24px',
-          height: '800px',
-          overflow: 'hidden',
           display: 'flex',
-          position: 'relative',
-          userSelect: 'none'
+          flexDirection: 'column',
+          gap: '12px',
         }}
         onContextMenu={(e) => e.preventDefault()}
       >
-        <iframe
-          src={viewerUrl}
-          style={{
-            width: '100%',
-            height: '100%',
-            border: 'none',
-            borderRadius: '8px',
-          }}
-          title={fileName}
-          allow="fullscreen"
-        />
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '8px',
+        }}>
+          <button
+            onClick={handleDownload}
+            disabled={!fileUrl || isDownloading}
+            style={{
+              padding: '8px 16px',
+              background: themeStyles.primaryButton.background,
+              color: themeStyles.primaryButton.color,
+              border: 'none',
+              borderRadius: '6px',
+              fontWeight: '600',
+              cursor: isDownloading || !fileUrl ? 'not-allowed' : 'pointer',
+              fontSize: '13px',
+              transition: 'transform 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: isDownloading || !fileUrl ? 0.6 : 1,
+            }}
+            onMouseEnter={(e) => !isDownloading && fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            {isDownloading ? '⏳ Downloading...' : '⬇️ Download'}
+          </button>
+        </div>
+        <div style={{
+          height: '750px',
+          overflow: 'hidden',
+          display: 'flex',
+          position: 'relative',
+          userSelect: 'none',
+          borderRadius: '8px',
+          border: themeStyles.card.border,
+        }}>
+          <iframe
+            src={viewerUrl}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              borderRadius: '8px',
+            }}
+            title={fileName}
+            allow="fullscreen"
+          />
+        </div>
       </div>
     );
   }
@@ -163,26 +261,58 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
         {fileTypeLabel}
       </p>
       {fileUrl && (
-        <a 
-          href={fileUrl} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-block',
-            marginTop: '16px',
-            padding: '10px 24px',
-            background: themeStyles.primaryButton.background,
-            color: themeStyles.primaryButton.color,
-            textDecoration: 'none',
-            borderRadius: '8px',
-            fontWeight: '600',
-            transition: 'transform 0.2s ease',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-        >
-          🔗 Open File
-        </a>
+        <div style={{
+          display: 'flex',
+          gap: '12px',
+          justifyContent: 'center',
+          marginTop: '16px',
+        }}>
+          <button
+            onClick={handleDownload}
+            disabled={!fileUrl || isDownloading}
+            style={{
+              padding: '10px 24px',
+              background: themeStyles.primaryButton.background,
+              color: themeStyles.primaryButton.color,
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: isDownloading || !fileUrl ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              transition: 'transform 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              opacity: isDownloading || !fileUrl ? 0.6 : 1,
+            }}
+            onMouseEnter={(e) => !isDownloading && fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            {isDownloading ? '⏳ Downloading...' : '⬇️ Download'}
+          </button>
+          <a 
+            href={fileUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 24px',
+              background: themeStyles.button?.background || themeStyles.card.background,
+              color: themeStyles.text,
+              textDecoration: 'none',
+              border: themeStyles.card.border,
+              borderRadius: '8px',
+              fontWeight: '600',
+              transition: 'transform 0.2s ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            🔗 Open File
+          </a>
+        </div>
       )}
     </div>
   );

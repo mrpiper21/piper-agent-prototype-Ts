@@ -1,6 +1,7 @@
 
 
 import { ValidationResult, PrinterInfo, PrintJob } from '../types/index.js';
+import { platform } from './platform.js';
 
 /**
  * Validate required environment variables
@@ -36,7 +37,6 @@ export function validateEnv(): ValidationResult {
   // This avoids trying to write to Program Files which requires admin permissions
   if (!process.env['DOWNLOAD_DIR']) {
     try {
-      const { platform } = require('./platform.js');
       process.env['DOWNLOAD_DIR'] = platform.getDownloadsDirectory();
     } catch {
       // Fallback to relative path only if platform utils are not available
@@ -46,7 +46,6 @@ export function validateEnv(): ValidationResult {
   
   if (!process.env['LOG_DIR']) {
     try {
-      const { platform } = require('./platform.js');
       process.env['LOG_DIR'] = platform.getLogsDirectory();
     } catch {
       // Fallback to relative path only if platform utils are not available
@@ -56,7 +55,6 @@ export function validateEnv(): ValidationResult {
   
   if (!process.env['CONFIG_DIR']) {
     try {
-      const { platform } = require('./platform.js');
       process.env['CONFIG_DIR'] = platform.getConfigDirectory();
     } catch {
       // Fallback to relative path only if platform utils are not available
