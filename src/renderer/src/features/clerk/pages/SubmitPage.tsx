@@ -93,9 +93,21 @@ export default function SubmitPage() {
   };
 
   return (
-    <div style={{ ...sharedStyles.card, ...themeStyles.card }}>
-      <h2 style={{ color: '#fbbf24', marginBottom: '24px', fontWeight: '700' }}>Submit New Print Job</h2>
-      <div style={sharedStyles.form}>
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'flex-start',
+      minHeight: '100%',
+      padding: '20px'
+    }}>
+      <div style={{ 
+        ...sharedStyles.card, 
+        ...themeStyles.card,
+        maxWidth: '600px',
+        width: '100%'
+      }}>
+        <h2 style={{ color: '#fbbf24', marginBottom: '24px', fontWeight: '700', textAlign: 'center' }}>Submit New Print Job</h2>
+        <div style={sharedStyles.form}>
         <div style={{ marginBottom: '20px' }}>
           <label
             style={{
@@ -254,6 +266,7 @@ export default function SubmitPage() {
         >
           {isSubmitting ? 'Submitting...' : 'Submit Print Job'}
         </button>
+        </div>
       </div>
     </div>
   );
