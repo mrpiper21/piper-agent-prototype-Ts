@@ -2,6 +2,7 @@ import { BrowserWindow, app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { logger } from '../utils/logger';
+import { autoUpdater } from 'electron-updater';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -93,6 +94,44 @@ export function setupWindows(): BrowserWindow {
   mainWindow.once('ready-to-show', () => {
     logger.info('Window ready to show');
     mainWindow?.show();
+  });
+
+  autoUpdater.on('checking-for-update', () => {
+    logger.info('Checking for updates...');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('Update available:', info);
+    // Optionally show a notification to user
+    autoUpdater.downloadUpdate();
+  });
+  
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('Update not available:', info);
+  });
+  
+  autoUpdater.on('error', (err) => {
+    console.log('Error in auto-updater:', err);
+  });
+  
+  autoUpdater.on('download-progress', (progressObj) => {
+    console.log(`Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`);
+  });
+  
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('Update downloaded:', info);
+    // Notify user and restart
+    const { dialog } = require('electron');
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message: 'A new version has been downloaded. Restart the application to apply the updates.',
+      buttons: ['Restart', 'Later']
+    }).then((result: any) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
   });
 
   // Handle console errors

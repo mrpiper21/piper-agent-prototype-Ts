@@ -1,6 +1,6 @@
 {
   "name": "printmyfile-agent",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "description": "PrintMyFile SaaS Local Print Agent",
   "main": "./out/main/index.js",
   "scripts": {
@@ -14,6 +14,10 @@
     "package:win": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
     "package:mac": "npm run build && electron-builder --mac",
     "package:linux": "npm run build && electron-builder --linux",
+    "publish": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --publish always",
+    "publish:win": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --publish always",
+    "publish:mac": "npm run build && electron-builder --mac --publish always",
+    "publish:linux": "npm run build && electron-builder --linux --publish always",
     "test": "jest",
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration",
@@ -89,7 +93,8 @@
     "publish": {
       "provider": "github",
       "owner": "yourusername",
-      "repo": "piper-agent"
+      "repo": "piper-agent",
+      "private": true
     },
     "directories": {
       "output": "release/${version}"
@@ -101,16 +106,27 @@
     ],
     "win": {
       "target": [
-        "portable"
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
       ],
-      "publisherName": "PrintMyFile"
+      "publisherName": "PrintMyFile",
+      "sign": null
     },
     "mac": {
       "category": "public.app-category.utilities",
       "target": [
         "dmg",
         "zip"
-      ]
+      ],
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "sign": null
     },
     "linux": {
       "target": [
@@ -121,7 +137,11 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "perMachine": false
     }
   }
 }
