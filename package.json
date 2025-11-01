@@ -32,7 +32,10 @@
     "printer",
     "typescript"
   ],
-  "author": "PrintMyFile",
+  "author": {
+    "name": "Bernard Baah",
+    "email": "benbaah104@gmail.com"
+  },
   "license": "UNLICENSED",
   "dependencies": {
     "@tanstack/react-query": "^5.0.0",
@@ -137,7 +140,8 @@
         "AppImage",
         "deb"
       ],
-      "category": "Utility"
+      "category": "Utility",
+      "maintainer": "support@printmyfile.com"
     },
     "nsis": {
       "oneClick": false,

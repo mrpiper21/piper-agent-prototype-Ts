@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write  # Required to create releases and upload assets
+  actions: read    # Required for workflow access
+
 jobs:
   release:
     runs-on: ${{ matrix.os }}
@@ -23,7 +27,8 @@ jobs:
           node-version: '18'
 
       - name: Delete package-lock.json
-        run: rm -f package-lock.json
+        shell: bash
+        run: rm -f package-lock.json || del package-lock.json || true
 
       - name: Install dependencies
         run: npm install --force

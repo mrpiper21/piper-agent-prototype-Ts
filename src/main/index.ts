@@ -1,123 +1,107 @@
-// src/main/services/UpdateService.ts
-import { autoUpdater } from 'electron-updater';
-import { dialog, BrowserWindow } from 'electron';
+import { app, BrowserWindow, dialog } from 'electron';
+import path from 'path';
+import { setupWindows } from './windows/MainWindow';
+import { setupIpcHandlers } from './ipc/handlers';
 import { logger } from './utils/logger';
+import { dbService } from './services/DatabaseService';
+import { updateService } from './services/UpdateService';
 
-class UpdateService {
-  private updateCheckInterval: NodeJS.Timeout | null = null;
-
-  constructor() {
-    // Configure auto-updater
-    autoUpdater.autoDownload = false; // Don't auto-download, ask user first
-    autoUpdater.autoInstallOnAppQuit = true;
-    autoUpdater.logger = logger;
-
-    this.setupEventHandlers();
+// Load environment variables from .env file if available
+try {
+  const dotenv = require('dotenv');
+  const envPath = path.join(__dirname, '../../.env');
+  if (require('fs').existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    logger.info('Loaded .env file');
+  } else {
+    dotenv.config(); // Try default location
   }
+} catch (error) {
+  // dotenv might not be available, that's okay
+  logger.debug('dotenv not available, skipping .env load');
+}
 
-  private setupEventHandlers(): void {
-    autoUpdater.on('checking-for-update', () => {
-      logger.info('Checking for updates...');
+// Enable live reload for dev
+if (process.env.NODE_ENV === 'development') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('electron-reload')(__dirname, {
+      electron: path.join(__dirname, '../../node_modules/.bin/electron'),
+      hardResetMethod: 'exit',
     });
-
-    autoUpdater.on('update-available', (info) => {
-      logger.info('Update available:', info);
-      
-      dialog.showMessageBox({
-        type: 'info',
-        title: 'Update Available',
-        message: `A new version ${info.version} is available. Would you like to download it now?`,
-        buttons: ['Download', 'Later'],
-        defaultId: 0,
-        cancelId: 1
-      }).then((result) => {
-        if (result.response === 0) {
-          autoUpdater.downloadUpdate();
-          
-          // Show downloading notification
-          const mainWindow = BrowserWindow.getAllWindows()[0];
-          if (mainWindow) {
-            mainWindow.webContents.send('update-downloading');
-          }
-        }
-      });
-    });
-
-    autoUpdater.on('update-not-available', (info) => {
-      logger.info('Update not available:', info);
-    });
-
-    autoUpdater.on('error', (err) => {
-      logger.error('Error in auto-updater:', err);
-      
-      // Only show error dialog if it's not a network error
-      if (!err.message.includes('net::')) {
-        dialog.showErrorBox('Update Error', `Error checking for updates: ${err.message}`);
-      }
-    });
-
-    autoUpdater.on('download-progress', (progressObj) => {
-      const message = `Download speed: ${Math.round(progressObj.bytesPerSecond / 1024)}KB/s - ${Math.round(progressObj.percent)}% (${Math.round(progressObj.transferred / 1024 / 1024)}MB/${Math.round(progressObj.total / 1024 / 1024)}MB)`;
-      logger.info(message);
-      
-      // Send progress to renderer
-      const mainWindow = BrowserWindow.getAllWindows()[0];
-      if (mainWindow) {
-        mainWindow.webContents.send('update-progress', {
-          percent: progressObj.percent,
-          transferred: progressObj.transferred,
-          total: progressObj.total
-        });
-      }
-    });
-
-    autoUpdater.on('update-downloaded', (info) => {
-      logger.info('Update downloaded:', info);
-      
-      dialog.showMessageBox({
-        type: 'info',
-        title: 'Update Ready',
-        message: `Version ${info.version} has been downloaded. The application will restart to apply the update.`,
-        buttons: ['Restart Now', 'Restart Later'],
-        defaultId: 0,
-        cancelId: 1
-      }).then((result) => {
-        if (result.response === 0) {
-          // Small delay to ensure dialog closes properly
-          setImmediate(() => {
-            autoUpdater.quitAndInstall(false, true);
-          });
-        }
-      });
-    });
-  }
-
-  public checkForUpdates(): void {
-    logger.info('Manually checking for updates...');
-    autoUpdater.checkForUpdates().catch((error) => {
-      logger.error('Failed to check for updates:', error);
-    });
-  }
-
-  public startPeriodicUpdateChecks(intervalMinutes: number): void {
-    if (this.updateCheckInterval) {
-      clearInterval(this.updateCheckInterval);
-    }
-
-    logger.info(`Starting periodic update checks every ${intervalMinutes} minutes`);
-    
-    this.updateCheckInterval = setInterval(() => {
-      this.checkForUpdates();
-    }, intervalMinutes * 60 * 1000);
-  }
-
-  public stopPeriodicUpdateChecks(): void {
-    if (this.updateCheckInterval) {
-      clearInterval(this.updateCheckInterval);
-      this.updateCheckInterval = null;
-      logger.info('Stopped periodic update checks');
-    }
+  } catch (error) {
+    // electron-reload may not be installed
+    console.log('electron-reload not found, skipping live reload');
   }
 }
 
-export const updateService = new UpdateService();
+// Handle IPC events
+setupIpcHandlers();
+
+// Create application window
+let mainWindow: BrowserWindow | null = null;
+
+app.whenReady().then(() => {
+  logger.info('Application starting...');
+  logger.info(`Running in ${app.isPackaged ? 'production' : 'development'} mode`);
+  logger.info(`__dirname: ${__dirname}`);
+
+  try {
+    // Initialize services after app is ready
+    dbService.init();
+
+    mainWindow = setupWindows();
+
+    // Start auto-update checks (only in production)
+    if (app.isPackaged) {
+      // Check for updates 5 minutes after app starts (give time for app to load)
+      setTimeout(() => {
+        updateService.checkForUpdates();
+      }, 5 * 60 * 1000);
+      
+      // Then check periodically (every 6 hours)
+      updateService.startPeriodicUpdateChecks(360);
+    }
+  } catch (error) {
+    logger.error('Failed to initialize application:', error);
+    // Show error dialog
+    dialog.showErrorBox(
+      'Application Error',
+      `Failed to start application: ${error instanceof Error ? error.message : String(error)}\n\nCheck logs for more details.`
+    );
+    app.quit();
+  }
+}).catch((error) => {
+  logger.error('Failed to start application:', error);
+  app.quit();
+});
+
+app.on('window-all-closed', () => {
+  // On macOS, keep app running even when all windows are closed
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  dialog.showErrorBox('Uncaught Exception', error.message || String(error));
+  // Don't quit immediately, let the error be logged
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    setupWindows();
+  }
+});
+
+app.on('before-quit', () => {
+  logger.info('Application shutting down...');
+  updateService.stopPeriodicUpdateChecks();
+  dbService.close();
+});
