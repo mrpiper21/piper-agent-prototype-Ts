@@ -5,6 +5,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { DEFAULT_CONFIG } from '../types/index.js';
+import { platform } from './platform.js';
 
 export enum LogLevel {
   DEBUG = 0,
@@ -32,7 +33,19 @@ class Logger {
     this.logLevel = this.parseLogLevel(process.env.LOG_LEVEL || 'info');
     this.logToFile = process.env.LOG_FILE !== 'false';
     this.logToConsole = process.env.LOG_CONSOLE !== 'false';
-    this.logDir = process.env.LOG_DIR || './logs';
+    
+    // Use user-writable directory instead of ./logs (which fails in Program Files)
+    // This avoids permission errors when app is installed in Program Files
+    if (process.env.LOG_DIR) {
+      this.logDir = process.env.LOG_DIR;
+    } else {
+      // Use platform utilities to get proper user-writable directory
+      // On Windows: C:\Users\<user>\AppData\Local\PrintMyFile\logs
+      // On macOS: ~/Library/Application Support/PrintMyFile/logs
+      // On Linux: ~/.config/printmyfile/logs
+      this.logDir = platform.getLogsDirectory();
+    }
+    
     this.maxLogSize = DEFAULT_CONFIG.MAX_LOG_SIZE;
     this.maxLogFiles = DEFAULT_CONFIG.MAX_LOG_FILES;
 

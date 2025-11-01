@@ -15,7 +15,18 @@ export class ConfigManager {
   private configFile: string;
 
   constructor() {
-    this.configDir = process.env.CONFIG_DIR || './.config';
+    // Use platform-specific directory instead of relative path (fixes permission issues)
+    if (process.env.CONFIG_DIR) {
+      this.configDir = process.env.CONFIG_DIR;
+    } else {
+      try {
+        const { platform } = require('../../utils/platform.js');
+        this.configDir = platform.getConfigDirectory();
+      } catch {
+        // Fallback only if platform utils are not available
+        this.configDir = './.config';
+      }
+    }
     this.configFile = path.join(this.configDir, 'agent.config.json');
     this.ensureConfigDir();
   }

@@ -31,9 +31,38 @@ export function validateEnv(): ValidationResult {
   process.env['LOG_LEVEL'] = process.env['LOG_LEVEL'] || 'info';
   process.env['POLL_INTERVAL'] = process.env['POLL_INTERVAL'] || '5000';
   process.env['HEARTBEAT_INTERVAL'] = process.env['HEARTBEAT_INTERVAL'] || '30000';
-  process.env['DOWNLOAD_DIR'] = process.env['DOWNLOAD_DIR'] || './downloads';
-  process.env['LOG_DIR'] = process.env['LOG_DIR'] || './logs';
-  process.env['CONFIG_DIR'] = process.env['CONFIG_DIR'] || './.config';
+  
+  // Use platform-specific directories instead of relative paths (fixes permission issues)
+  // This avoids trying to write to Program Files which requires admin permissions
+  if (!process.env['DOWNLOAD_DIR']) {
+    try {
+      const { platform } = require('./platform.js');
+      process.env['DOWNLOAD_DIR'] = platform.getDownloadsDirectory();
+    } catch {
+      // Fallback to relative path only if platform utils are not available
+      process.env['DOWNLOAD_DIR'] = './downloads';
+    }
+  }
+  
+  if (!process.env['LOG_DIR']) {
+    try {
+      const { platform } = require('./platform.js');
+      process.env['LOG_DIR'] = platform.getLogsDirectory();
+    } catch {
+      // Fallback to relative path only if platform utils are not available
+      process.env['LOG_DIR'] = './logs';
+    }
+  }
+  
+  if (!process.env['CONFIG_DIR']) {
+    try {
+      const { platform } = require('./platform.js');
+      process.env['CONFIG_DIR'] = platform.getConfigDirectory();
+    } catch {
+      // Fallback to relative path only if platform utils are not available
+      process.env['CONFIG_DIR'] = './.config';
+    }
+  }
 
   return {
     valid: errors.length === 0,
