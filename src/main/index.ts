@@ -5,6 +5,7 @@ import { setupIpcHandlers } from './ipc/handlers';
 import { logger } from './utils/logger';
 import { dbService } from './services/DatabaseService';
 import { updateService } from './services/UpdateService';
+import { autoUpdater } from 'electron-updater';
 
 // Enable live reload for dev
 if (process.env.NODE_ENV === 'development') {
@@ -18,6 +19,10 @@ if (process.env.NODE_ENV === 'development') {
     // electron-reload may not be installed
     console.log('electron-reload not found, skipping live reload');
   }
+}
+
+if (process.env.NODE_ENV === 'development') {
+  autoUpdater.updateConfigPath = path.join(__dirname, 'dev-app-update.yml');
 }
 
 // Handle IPC events
