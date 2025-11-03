@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../../../context/ThemeContext';
 import { lightStyles, darkStyles } from '../../clerk/shared/clerkStyles';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
 
 // Create a custom Google Maps-like marker icon
 const createGoogleMapsLikeIcon = () => {
@@ -34,6 +35,13 @@ interface Location {
   address: string;
 }
 
+interface SearchResult {
+  display_name: string;
+  lat: string;
+  lon: string;
+  place_id: number;
+}
+
 function MapController() {
   const map = useMap();
   useEffect(() => {
@@ -53,21 +61,23 @@ function LocationMarker({
   setAddress,
   reverseGeocode,
   setLocationWithLogging,
+  zoomLevel,
 }: {
   position: [number, number];
   setPosition: (pos: [number, number]) => void;
   setAddress: (addr: string) => void;
   reverseGeocode: (lat: number, lng: number) => Promise<string>;
   setLocationWithLogging: (lat: number, lng: number, addr: string, source: string, accuracy?: number) => void;
+  zoomLevel?: number;
 }) {
   const map = useMap();
   
   // Center map on marker when position changes
   useEffect(() => {
     if (position && map) {
-      map.setView(position, map.getZoom());
+      map.setView(position, zoomLevel || map.getZoom());
     }
-  }, [position, map]);
+  }, [position, map, zoomLevel]);
   
   useMapEvents({
     click(e) {
@@ -100,6 +110,17 @@ export default function SetupLocationPage() {
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [locationPermission, setLocationPermission] = useState<'prompt' | 'granted' | 'denied'>('prompt');
   const [retryCount, setRetryCount] = useState(0);
+  
+  // Search functionality
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [mapZoom, setMapZoom] = useState<number>(13);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   // Helper function to reverse geocode coordinates
   const reverseGeocode = useCallback(async (lat: number, lng: number): Promise<string> => {
@@ -119,6 +140,35 @@ export default function SetupLocationPage() {
       return data.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
     } catch {
       return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    }
+  }, []);
+
+  // Helper function to geocode/search locations by name
+  const geocodeSearch = useCallback(async (query: string): Promise<SearchResult[]> => {
+    if (!query.trim()) {
+      return [];
+    }
+
+    try {
+      setIsSearching(true);
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'PiperAgent/1.0',
+          },
+        }
+      );
+      
+      if (!response.ok) throw new Error('Search failed');
+      
+      const data = await response.json();
+      return data || [];
+    } catch (error) {
+      console.error('Geocode search error:', error);
+      return [];
+    } finally {
+      setIsSearching(false);
     }
   }, []);
 
@@ -249,6 +299,53 @@ export default function SetupLocationPage() {
     initializeDefaultLocation();
   }, []); // Only run once on mount
 
+  // Handle search query changes with debouncing
+  useEffect(() => {
+    if (debouncedSearchQuery.trim()) {
+      geocodeSearch(debouncedSearchQuery).then((results) => {
+        setSearchResults(results);
+        setShowSearchResults(true);
+      });
+    } else {
+      setSearchResults([]);
+      setShowSearchResults(false);
+    }
+  }, [debouncedSearchQuery, geocodeSearch]);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node) &&
+        searchInputRef.current &&
+        !searchInputRef.current.contains(event.target as Node)
+      ) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Handle search result selection
+  const handleSearchResultSelect = useCallback((result: SearchResult) => {
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    const newPosition: [number, number] = [lat, lng];
+    
+    setPosition(newPosition);
+    setAddress(result.display_name);
+    setLocationWithLogging(lat, lng, result.display_name, 'search');
+    setMapZoom(15); // Zoom in when selecting from search for better visibility
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
+  }, [setLocationWithLogging]);
+
   const handleSave = async () => {
     if (!position) {
       setError('Please select a location on the map');
@@ -298,76 +395,204 @@ export default function SetupLocationPage() {
         background: themeStyles.card.background,
         borderBottom: themeStyles.card.border,
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: 'column',
+        gap: '16px',
         flexShrink: 0,
       }}>
-        <h1 style={{
-          color: themeStyles.text,
-          fontSize: '24px',
-          fontWeight: '700',
-          margin: 0,
-        }}>
-          Set Your Location
-        </h1>
         <div style={{
           display: 'flex',
-          gap: '12px',
+          justifyContent: 'space-between',
           alignItems: 'center',
         }}>
-          {address && (
-            <div style={{
-              color: themeStyles.textSecondary,
-              fontSize: '14px',
-              maxWidth: '400px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}>
-              📍 {address}
-            </div>
-          )}
-          {locationPermission !== 'granted' && (
+          <h1 style={{
+            color: themeStyles.text,
+            fontSize: '24px',
+            fontWeight: '700',
+            margin: 0,
+          }}>
+            Set Your Location
+          </h1>
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'center',
+          }}>
+            {address && (
+              <div style={{
+                color: themeStyles.textSecondary,
+                fontSize: '14px',
+                maxWidth: '400px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                📍 {address}
+              </div>
+            )}
+            {locationPermission !== 'granted' && (
+              <button
+                onClick={() => requestUserLocation(false)}
+                disabled={isLoadingLocation}
+                style={{
+                  padding: '10px 20px',
+                  background: themeStyles.button?.background || themeStyles.card.background,
+                  color: themeStyles.text,
+                  border: themeStyles.card.border,
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: isLoadingLocation ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  opacity: isLoadingLocation ? 0.6 : 1,
+                  transition: 'opacity 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                {isLoadingLocation ? '⏳ Getting Location...' : '📍 Use My Location'}
+              </button>
+            )}
             <button
-              onClick={() => requestUserLocation(false)}
-              disabled={isLoadingLocation}
+              onClick={handleSave}
+              disabled={!position || isSaving}
               style={{
-                padding: '10px 20px',
-                background: themeStyles.button?.background || themeStyles.card.background,
-                color: themeStyles.text,
-                border: themeStyles.card.border,
+                padding: '10px 24px',
+                background: themeStyles.primaryButton.background,
+                color: themeStyles.primaryButton.color,
+                border: 'none',
                 borderRadius: '8px',
                 fontWeight: '600',
-                cursor: isLoadingLocation ? 'not-allowed' : 'pointer',
+                cursor: (!position || isSaving) ? 'not-allowed' : 'pointer',
                 fontSize: '14px',
-                opacity: isLoadingLocation ? 0.6 : 1,
+                opacity: (!position || isSaving) ? 0.6 : 1,
                 transition: 'opacity 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
               }}
             >
-              {isLoadingLocation ? '⏳ Getting Location...' : '📍 Use My Location'}
+              {isSaving ? 'Saving...' : 'Save Location'}
             </button>
-          )}
-          <button
-            onClick={handleSave}
-            disabled={!position || isSaving}
-            style={{
-              padding: '10px 24px',
-              background: themeStyles.primaryButton.background,
-              color: themeStyles.primaryButton.color,
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: '600',
-              cursor: (!position || isSaving) ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              opacity: (!position || isSaving) ? 0.6 : 1,
-              transition: 'opacity 0.2s ease',
+          </div>
+        </div>
+        
+        {/* Search Input */}
+        <div ref={searchContainerRef}>
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (e.target.value.trim()) {
+                setShowSearchResults(true);
+              }
             }}
-          >
-            {isSaving ? 'Saving...' : 'Save Location'}
-          </button>
+            onFocus={() => {
+              if (searchResults.length > 0) {
+                setShowSearchResults(true);
+              }
+            }}
+            placeholder="Search for a location (e.g., Accra, Ghana)"
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              paddingRight: isSearching ? '40px' : '16px',
+              background: themeStyles.input?.background || themeStyles.card.background,
+              color: themeStyles.text,
+              border: `1px solid ${themeStyles.card.border}`,
+              borderRadius: '8px',
+              fontSize: '14px',
+              outline: 'none',
+              transition: 'border-color 0.2s ease',
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setShowSearchResults(false);
+                setSearchQuery('');
+              }
+            }}
+          />
+          {isSearching && (
+            <div style={{
+              position: 'absolute',
+              right: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: themeStyles.textSecondary,
+            }}>
+              ⏳
+            </div>
+          )}
+          
+          {/* Search Results Dropdown */}
+          {showSearchResults && searchResults.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              marginTop: '8px',
+              background: themeStyles.card.background,
+              border: `1px solid ${themeStyles.card.border}`,
+              borderRadius: '8px',
+              maxHeight: '300px',
+              overflowY: 'auto',
+              zIndex: 1000,
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            }}>
+              {searchResults.map((result) => (
+                <div
+                  key={result.place_id}
+                  onClick={() => handleSearchResultSelect(result)}
+                  style={{
+                    padding: '12px 16px',
+                    cursor: 'pointer',
+                    borderBottom: `1px solid ${themeStyles.card.border}`,
+                    transition: 'background-color 0.2s ease',
+                    color: themeStyles.text,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = themeStyles.button?.background || themeStyles.card.background;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    marginBottom: '4px',
+                  }}>
+                    {result.display_name.split(',').slice(0, 2).join(', ')}
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: themeStyles.textSecondary,
+                  }}>
+                    {result.display_name}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {showSearchResults && searchQuery.trim() && !isSearching && searchResults.length === 0 && debouncedSearchQuery.trim() && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              marginTop: '8px',
+              background: themeStyles.card.background,
+              border: `1px solid ${themeStyles.card.border}`,
+              borderRadius: '8px',
+              padding: '16px',
+              color: themeStyles.textSecondary,
+              fontSize: '14px',
+              zIndex: 1000,
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            }}>
+              No locations found
+            </div>
+          )}
         </div>
       </div>
 
@@ -381,9 +606,9 @@ export default function SetupLocationPage() {
       }}>
         {position ? (
           <MapContainer
-            key={`${position[0]}-${position[1]}`}
+            key={`${position[0]}-${position[1]}-${mapZoom}`}
             center={position}
-            zoom={13}
+            zoom={mapZoom}
             style={{ height: '100%', width: '100%', zIndex: 0 }}
             scrollWheelZoom={true}
             zoomControl={true}
@@ -404,6 +629,7 @@ export default function SetupLocationPage() {
               setAddress={setAddress}
               reverseGeocode={reverseGeocode}
               setLocationWithLogging={setLocationWithLogging}
+              zoomLevel={mapZoom}
             />
           </MapContainer>
         ) : (
