@@ -4,6 +4,7 @@
 
 import fs from 'fs-extra';
 import path from 'path';
+import os from 'os';
 import { DEFAULT_CONFIG } from '../types/index.js';
 import { platform } from './platform.js';
 
@@ -37,7 +38,22 @@ class Logger {
     // Use user-writable directory instead of ./logs (which fails in Program Files)
     // This avoids permission errors when app is installed in Program Files
     if (process.env.LOG_DIR) {
-      this.logDir = process.env.LOG_DIR;
+      const envLogDir = process.env.LOG_DIR.trim();
+      // Validate that LOG_DIR is not a root path (security check)
+      const normalized = path.normalize(envLogDir);
+      const isRootPath = 
+        normalized === '/' || 
+        normalized.match(/^[A-Z]:\\?$/) || // Windows root
+        (normalized.startsWith('/') && normalized.split(path.sep).filter(p => p).length <= 1) ||
+        normalized.length < 3;
+      
+      if (isRootPath) {
+        console.error(`ERROR: LOG_DIR environment variable is set to root path: ${envLogDir}`);
+        console.error('Root paths require admin permissions and are not allowed. Using platform default.');
+        this.logDir = platform.getLogsDirectory();
+      } else {
+        this.logDir = envLogDir;
+      }
     } else {
       // Use platform utilities to get proper user-writable directory
       // On Windows: C:\Users\<user>\AppData\Local\PrintMyFile\logs
@@ -64,7 +80,39 @@ class Logger {
 
   private ensureLogDir(): void {
     if (this.logToFile) {
-      fs.ensureDirSync(this.logDir);
+      // Safety check: prevent creating directories at root level (which requires admin permissions)
+      // Root paths like '/logr', 'C:\logr', etc. should never be used
+      const normalizedPath = path.normalize(this.logDir);
+      const isRootPath = 
+        normalizedPath === '/' || 
+        normalizedPath.match(/^[A-Z]:\\?$/) || // Windows root like "C:\" or "C:"
+        (normalizedPath.startsWith('/') && normalizedPath.split(path.sep).filter(p => p).length <= 1) || // Unix root like "/logr" or "/tmp" 
+        normalizedPath.length < 3; // Very short paths are suspicious
+      
+      if (isRootPath) {
+        console.error(`ERROR: Attempted to create log directory at root path: ${this.logDir}`);
+        console.error('This requires admin permissions and is not allowed. Using fallback directory.');
+        // Fallback to a safe directory
+        this.logDir = path.join(os.homedir(), 'PrintMyFile', 'logs');
+      }
+      
+      try {
+        fs.ensureDirSync(this.logDir);
+      } catch (error: any) {
+        console.error(`Failed to create log directory at ${this.logDir}:`, error.message);
+        // Try fallback directory if primary fails
+        const fallbackDir = path.join(os.homedir(), 'PrintMyFile', 'logs');
+        console.error(`Attempting fallback directory: ${fallbackDir}`);
+        try {
+          fs.ensureDirSync(fallbackDir);
+          this.logDir = fallbackDir;
+        } catch (fallbackError: any) {
+          console.error(`Failed to create fallback log directory: ${fallbackError.message}`);
+          // Disable file logging if we can't create any directory
+          this.logToFile = false;
+          console.warn('File logging disabled due to directory creation errors');
+        }
+      }
     }
   }
 

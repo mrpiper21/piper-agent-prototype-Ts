@@ -5,7 +5,24 @@
 import os from 'os';
 import path from 'path';
 import { PlatformInfo, SUPPORTED_PLATFORMS } from '../types/index.js';
-import {exec} from 'child_process'
+import {exec} from 'child_process';
+
+// Try to import Electron app module if available (only works in main process)
+// This function safely gets the Electron app instance
+function getElectronApp(): any {
+  try {
+    // Check if we're in an Electron environment
+    if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
+      const electron = require('electron');
+      if (electron && electron.app) {
+        return electron.app;
+      }
+    }
+  } catch {
+    // Electron not available or not in main process, that's okay
+  }
+  return null;
+}
 
 export class PlatformUtils {
   private static instance: PlatformUtils;
@@ -76,6 +93,26 @@ export class PlatformUtils {
   }
 
   getApplicationDataDirectory(): string {
+    // If running in Electron, use app.getPath('userData') which is the recommended way
+    // This ensures we use proper writable directories that don't require admin permissions
+    const electronApp = getElectronApp();
+    if (electronApp && typeof electronApp.getPath === 'function') {
+      try {
+        // Electron's userData path is already platform-specific and writable
+        // e.g., Windows: C:\Users\<user>\AppData\Roaming\<appName>
+        //       macOS: ~/Library/Application Support/<appName>
+        //       Linux: ~/.config/<appName>
+        const userDataPath = electronApp.getPath('userData');
+        if (userDataPath && userDataPath.length > 0) {
+          return userDataPath;
+        }
+      } catch (error) {
+        // If app.getPath fails, fall through to manual construction
+        console.warn('Failed to get Electron userData path, using fallback:', error);
+      }
+    }
+    
+    // Fallback to manual path construction when not in Electron or if app.getPath fails
     if (this.isWindows()) {
       return path.join(os.homedir(), 'AppData', 'Local', 'PrintMyFile');
     } else if (this.isMacOS()) {
