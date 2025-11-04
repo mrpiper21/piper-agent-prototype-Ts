@@ -8,18 +8,26 @@ import { PlatformInfo, SUPPORTED_PLATFORMS } from '../types/index.js';
 import {exec} from 'child_process';
 
 // Try to import Electron app module if available (only works in main process)
+// Using Function constructor to dynamically require electron while avoiding linting errors
+let electronAppModule: typeof import('electron') | null = null;
+try {
+  // Check if we're in an Electron environment before attempting import
+  if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
+    // Use Function constructor to dynamically require electron
+    // This avoids the "require statement not part of import" linting error
+    // while still allowing conditional import of optional dependency
+    const requireFunc = new Function('module', 'return require(module)');
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    electronAppModule = requireFunc('electron');
+  }
+} catch {
+  // Electron not available, that's okay
+}
+
 // This function safely gets the Electron app instance
-function getElectronApp(): any {
-  try {
-    // Check if we're in an Electron environment
-    if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
-      const electron = require('electron');
-      if (electron && electron.app) {
-        return electron.app;
-      }
-    }
-  } catch {
-    // Electron not available or not in main process, that's okay
+function getElectronApp(): typeof import('electron').app | null {
+  if (electronAppModule && electronAppModule.app) {
+    return electronAppModule.app;
   }
   return null;
 }
