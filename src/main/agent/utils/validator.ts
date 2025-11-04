@@ -44,6 +44,12 @@ export function validateEnv(): ValidationResult {
     }
   }
   
+  // LOG_DIR is no longer used - electron-log automatically handles log directory
+  // But we keep this for backward compatibility with other code that might reference it
+  // electron-log uses user-writable directories automatically:
+  // - Windows: %USERPROFILE%\AppData\Roaming\<app name>\logs\
+  // - macOS: ~/Library/Logs/<app name>/
+  // - Linux: ~/.config/<app name>/logs/
   if (!process.env['LOG_DIR']) {
     try {
       process.env['LOG_DIR'] = platform.getLogsDirectory();
