@@ -142,14 +142,37 @@ export class UpdateService {
       logger.info('Update not available. Current version is latest.');
     });
 
-    autoUpdater.on('error', (error) => {
+    autoUpdater.on('error', async (error) => {
       logger.error('Auto-updater error:', error);
-      // Don't show error to user unless it's a critical check
+      
+      // Show error dialog to user for critical errors
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Only show dialog for download/update errors, not for check errors
+      if (errorMessage.includes('download') || errorMessage.includes('update')) {
+        try {
+          await dialog.showErrorBox(
+            'Update Error',
+            `An error occurred while updating: ${errorMessage}\n\nPlease try again later or download manually from GitHub.`
+          );
+        } catch (dialogError) {
+          // Dialog might fail if window is closed, just log it
+          logger.error('Failed to show error dialog:', dialogError);
+        }
+      }
     });
 
     autoUpdater.on('download-progress', (progressObj) => {
-      const message = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
+      const percent = Math.round(progressObj.percent || 0);
+      const bytesPerSecond = progressObj.bytesPerSecond || 0;
+      const transferred = progressObj.transferred || 0;
+      const total = progressObj.total || 0;
+      
+      const message = `Download progress: ${percent}% (${this.formatBytes(transferred)}/${this.formatBytes(total)}) - ${this.formatBytes(bytesPerSecond)}/s`;
       logger.info(message);
+      
+      // Optionally send progress to renderer for UI updates
+      // This would require IPC setup if you want progress bars in the UI
     });
 
     autoUpdater.on('update-downloaded', (info) => {
@@ -159,38 +182,69 @@ export class UpdateService {
   }
 
   private async showUpdateAvailableDialog(info: any): Promise<void> {
-    const response = await dialog.showMessageBox({
-      type: 'info',
-      title: 'Update Available',
-      message: `A new version (${info.version}) is available!`,
-      detail: `Current version: ${app.getVersion()}\nNew version: ${info.version}\n\nWould you like to download and install it now?`,
-      buttons: ['Download Now', 'Later'],
-      defaultId: 0,
-      cancelId: 1,
-    });
+    try {
+      const response = await dialog.showMessageBox({
+        type: 'info',
+        title: 'Update Available',
+        message: `A new version (${info.version}) is available!`,
+        detail: `Current version: ${app.getVersion()}\nNew version: ${info.version}\n\nWould you like to download it now? The update will be installed when you restart the app.`,
+        buttons: ['Download Now', 'Later'],
+        defaultId: 0,
+        cancelId: 1,
+      });
 
-    if (response.response === 0) {
-      // User chose to download
-      logger.info('User chose to download update');
-      autoUpdater.downloadUpdate();
+      if (response.response === 0) {
+        // User chose to download
+        logger.info('User chose to download update');
+        try {
+          // Start the download (happens in background)
+          await autoUpdater.downloadUpdate();
+          logger.info('Update download initiated successfully');
+          // Note: User will be notified via showUpdateDownloadedDialog when download completes
+        } catch (downloadError) {
+          logger.error('Failed to start update download:', downloadError);
+          await dialog.showErrorBox(
+            'Download Failed',
+            `Failed to download update: ${downloadError instanceof Error ? downloadError.message : String(downloadError)}\n\nPlease try again later or download manually from GitHub.`
+          );
+        }
+      }
+    } catch (error) {
+      logger.error('Error showing update dialog:', error);
     }
   }
 
   private async showUpdateDownloadedDialog(info: any): Promise<void> {
-    const response = await dialog.showMessageBox({
-      type: 'info',
-      title: 'Update Ready',
-      message: 'Update downloaded successfully!',
-      detail: `Version ${info.version} has been downloaded. The application will restart to install the update.`,
-      buttons: ['Restart Now', 'Later'],
-      defaultId: 0,
-      cancelId: 1,
-    });
+    try {
+      const response = await dialog.showMessageBox({
+        type: 'info',
+        title: 'Update Ready to Install',
+        message: 'Update downloaded successfully!',
+        detail: `Version ${info.version} has been downloaded.\n\nThe application will restart to install the update.`,
+        buttons: ['Restart Now', 'Later'],
+        defaultId: 0,
+        cancelId: 1,
+      });
 
-    if (response.response === 0) {
-      // User chose to restart
-      logger.info('User chose to restart and install update');
-      autoUpdater.quitAndInstall(false, true); // isSilent, isForceRunAfter
+      if (response.response === 0) {
+        // User chose to restart
+        logger.info('User chose to restart and install update');
+        try {
+          // isSilent: false (show progress), isForceRunAfter: true (force restart after install)
+          autoUpdater.quitAndInstall(false, true);
+        } catch (installError) {
+          logger.error('Failed to install update:', installError);
+          await dialog.showErrorBox(
+            'Installation Error',
+            `Failed to install update: ${installError instanceof Error ? installError.message : String(installError)}\n\nPlease restart the application manually.`
+          );
+        }
+      } else {
+        // User chose later - update will install on next app quit (autoInstallOnAppQuit is true)
+        logger.info('User chose to install update later');
+      }
+    } catch (error) {
+      logger.error('Error showing update downloaded dialog:', error);
     }
   }
 
@@ -247,6 +301,17 @@ export class UpdateService {
    */
   getCurrentVersion(): string {
     return app.getVersion();
+  }
+
+  /**
+   * Format bytes to human-readable format
+   */
+  private formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   }
 }
 
