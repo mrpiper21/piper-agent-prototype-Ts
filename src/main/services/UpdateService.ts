@@ -20,6 +20,14 @@ export class UpdateService {
     autoUpdater.autoInstallOnAppQuit = true; // Install when app quits
     autoUpdater.allowPrerelease = false; // Only stable releases
     
+    // Disable signature verification for unsigned builds (Windows requires this for unsigned apps)
+    // This allows updates to work even when the app is not digitally signed
+    if (process.platform === 'win32') {
+      // @ts-ignore - verifySignatureAndUpdaterIntegrity might not be in types but exists in runtime
+      autoUpdater.verifySignatureAndUpdaterIntegrity = false;
+      logger.info('Signature verification disabled for Windows (unsigned build)');
+    }
+    
     // Set GitHub token if available (required for private repos)
     if (this.githubToken) {
       // Set token for authentication with private repos
@@ -147,14 +155,52 @@ export class UpdateService {
       
       // Show error dialog to user for critical errors
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorObj = error as any;
+      
+      // Check if this is a signature verification error
+      const isSignatureError = 
+        errorMessage.includes('not signed') || 
+        errorMessage.includes('digitally signed') ||
+        errorMessage.includes('SignerCertificate') ||
+        (errorObj?.rawInfo && errorObj.rawInfo.Status === 2);
       
       // Only show dialog for download/update errors, not for check errors
-      if (errorMessage.includes('download') || errorMessage.includes('update')) {
+      if (errorMessage.includes('download') || errorMessage.includes('update') || isSignatureError) {
         try {
-          await dialog.showErrorBox(
-            'Update Error',
-            `An error occurred while updating: ${errorMessage}\n\nPlease try again later or download manually from GitHub.`
-          );
+          const repoOwner = process.env.GITHUB_REPO_OWNER || 'mrpiper21';
+          const repoName = process.env.GITHUB_REPO_NAME || 'piper-agent-prototype-Ts';
+          const githubUrl = `https://github.com/${repoOwner}/${repoName}/releases`;
+          
+          let errorDetail = errorMessage;
+          
+          // Provide helpful message for signature errors
+          if (isSignatureError) {
+            errorDetail = `The update installer is not digitally signed.\n\n` +
+              `This is normal for unsigned builds. You can:\n` +
+              `1. Manually download and install from: ${githubUrl}\n` +
+              `2. Or temporarily disable Windows SmartScreen to install unsigned updates.\n\n` +
+              `Technical details: ${errorMessage}`;
+          }
+          
+          await dialog.showMessageBox({
+            type: 'warning',
+            title: 'Update Installation Issue',
+            message: isSignatureError 
+              ? 'Update requires manual installation'
+              : 'Update Error',
+            detail: errorDetail,
+            buttons: isSignatureError 
+              ? ['Open GitHub Releases', 'OK']
+              : ['OK'],
+            defaultId: 0,
+            cancelId: 1,
+          }).then((result) => {
+            if (isSignatureError && result.response === 0) {
+              // Open GitHub releases page
+              const { shell } = require('electron');
+              shell.openExternal(githubUrl);
+            }
+          });
         } catch (dialogError) {
           // Dialog might fail if window is closed, just log it
           logger.error('Failed to show error dialog:', dialogError);
@@ -216,11 +262,24 @@ export class UpdateService {
 
   private async showUpdateDownloadedDialog(info: any): Promise<void> {
     try {
+      const isWindows = process.platform === 'win32';
+      const isUnsigned = true; // Since we're not signing the app (sign: null in package.json)
+      
+      let detailMessage = `Version ${info.version} has been downloaded.\n\nThe application will restart to install the update.`;
+      
+      // Add warning for Windows unsigned builds
+      if (isWindows && isUnsigned) {
+        detailMessage = `Version ${info.version} has been downloaded.\n\n` +
+          `⚠️ Note: This is an unsigned build. Windows may show a security warning.\n` +
+          `You may need to click "More info" and then "Run anyway" if Windows blocks the installer.\n\n` +
+          `The application will restart to install the update.`;
+      }
+      
       const response = await dialog.showMessageBox({
         type: 'info',
         title: 'Update Ready to Install',
         message: 'Update downloaded successfully!',
-        detail: `Version ${info.version} has been downloaded.\n\nThe application will restart to install the update.`,
+        detail: detailMessage,
         buttons: ['Restart Now', 'Later'],
         defaultId: 0,
         cancelId: 1,
@@ -230,14 +289,44 @@ export class UpdateService {
         // User chose to restart
         logger.info('User chose to restart and install update');
         try {
+          // For Windows unsigned builds, we might need to handle installation differently
           // isSilent: false (show progress), isForceRunAfter: true (force restart after install)
           autoUpdater.quitAndInstall(false, true);
         } catch (installError) {
           logger.error('Failed to install update:', installError);
-          await dialog.showErrorBox(
-            'Installation Error',
-            `Failed to install update: ${installError instanceof Error ? installError.message : String(installError)}\n\nPlease restart the application manually.`
-          );
+          const errorMessage = installError instanceof Error ? installError.message : String(installError);
+          
+          // Check if it's a signature/execution policy error
+          if (errorMessage.includes('not signed') || errorMessage.includes('execution policy') || errorMessage.includes('digitally signed')) {
+            const repoOwner = process.env.GITHUB_REPO_OWNER || 'mrpiper21';
+            const repoName = process.env.GITHUB_REPO_NAME || 'piper-agent-prototype-Ts';
+            const githubUrl = `https://github.com/${repoOwner}/${repoName}/releases`;
+            
+            await dialog.showMessageBox({
+              type: 'warning',
+              title: 'Update Installation Blocked',
+              message: 'Windows blocked the unsigned installer',
+              detail: `Windows security is blocking the unsigned installer.\n\n` +
+                `Options:\n` +
+                `1. Manually download from: ${githubUrl}\n` +
+                `2. Right-click the installer and select "Run as administrator"\n` +
+                `3. Or adjust Windows SmartScreen settings\n\n` +
+                `Technical error: ${errorMessage}`,
+              buttons: ['Open GitHub Releases', 'OK'],
+              defaultId: 0,
+              cancelId: 1,
+            }).then((result) => {
+              if (result.response === 0) {
+                const { shell } = require('electron');
+                shell.openExternal(githubUrl);
+              }
+            });
+          } else {
+            await dialog.showErrorBox(
+              'Installation Error',
+              `Failed to install update: ${errorMessage}\n\nPlease restart the application manually.`
+            );
+          }
         }
       } else {
         // User chose later - update will install on next app quit (autoInstallOnAppQuit is true)
