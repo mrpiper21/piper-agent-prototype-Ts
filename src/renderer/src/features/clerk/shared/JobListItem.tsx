@@ -74,7 +74,8 @@ export function JobListItem({ job, isSelected, onSelect }: JobListItemProps) {
         ...sharedStyles.jobItem,
         ...themeStyles.card,
         cursor: 'pointer',
-        transition: 'all 0.25s ease',
+        // Only transition transform/box-shadow for hover, not theme colors
+        transition: 'transform 0.25s ease, box-shadow 0.25s ease',
         position: 'relative',
         transform: isSelected ? 'translateX(4px)' : 'translateX(0)',
         borderLeft: isSelected ? `4px solid ${themeStyles.accent}` : '4px solid transparent',

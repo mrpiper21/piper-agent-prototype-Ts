@@ -17,7 +17,10 @@ type StatusFilter = 'all' | 'pending' | 'processing' | 'completed' | 'failed';
 
 export default function JobsPage() {
   const { theme } = useTheme();
-  const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
+  // Memoize themeStyles to ensure synchronous updates with layout
+  const themeStyles = useMemo(() => {
+    return theme === 'dark' ? darkStyles : lightStyles;
+  }, [theme]);
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');

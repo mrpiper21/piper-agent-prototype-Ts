@@ -25,7 +25,10 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const { theme } = useTheme();
-  const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
+  // Memoize themeStyles to ensure synchronous updates with layout
+  const themeStyles = useMemo(() => {
+    return theme === 'dark' ? darkStyles : lightStyles;
+  }, [theme]);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [calendarOffset, setCalendarOffset] = useState<number>(0); // 0 = current period, -1 = past, +1 = future
 

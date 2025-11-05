@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 
 type Theme = 'light' | 'dark';
 
@@ -24,12 +25,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem('theme', theme);
-    document.documentElement.setAttribute('data-theme', theme);
+    // Apply theme synchronously to DOM to ensure all components update together
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
+  const toggleTheme = useCallback(() => {
+    // Use flushSync to ensure all React updates happen synchronously
+    // This forces layout, sidebar, and pages to update at the same time
+    flushSync(() => {
+      setTheme(prev => {
+        const newTheme = prev === 'light' ? 'dark' : 'light';
+        // Apply immediately to DOM for instant visual feedback
+        if (typeof document !== 'undefined') {
+          document.documentElement.setAttribute('data-theme', newTheme);
+        }
+        return newTheme;
+      });
+    });
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>

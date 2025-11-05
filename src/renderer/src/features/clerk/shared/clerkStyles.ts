@@ -77,7 +77,7 @@ export const sharedStyles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    transition: 'all 0.2s ease',
+    // Removed transition for instant theme changes - only keep hover transitions
     cursor: 'pointer',
   },
   printersList: {
