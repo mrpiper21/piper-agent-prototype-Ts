@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../auth/store/authStore';
 import { useTheme } from '../../../context/ThemeContext';
@@ -10,6 +10,8 @@ import {
   AiOutlineMoon,
   AiOutlineSun,
   AiOutlineDashboard,
+  AiOutlineCheckCircle,
+  AiOutlineClockCircle,
 } from 'react-icons/ai';
 import { HiOutlineLogout } from 'react-icons/hi';
 import { lightStyles, darkStyles } from '../shared/clerkStyles';
@@ -31,6 +33,27 @@ export default function ClerkLayout() {
   const pendingCount =
     jobs?.filter((job: any) => job.status === 'pending' || job.status === 'queued').length || 0;
 
+  // Fetch printers for status
+  const { data: printers } = useQuery({
+    queryKey: ['printers'],
+    queryFn: () => electronAPI.agent.getPrinters(),
+    staleTime: 5000,
+    refetchInterval: 10000,
+  });
+
+  const onlinePrintersCount = printers?.filter((p: any) => p.status === 'online').length || 0;
+  const totalPrintersCount = printers?.length || 0;
+
+  // Current time state
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Memoize themeStyles to ensure consistent updates across all components
   const themeStyles = useMemo(() => {
     return theme === 'dark' ? darkStyles : lightStyles;
@@ -38,8 +61,9 @@ export default function ClerkLayout() {
 
   return (
     <div style={styles.wrapper}>
-      {/* Sidebar */}
-      <div style={{ ...styles.sidebar, ...themeStyles.sidebar }}>
+      <div style={styles.mainContainer}>
+        {/* Sidebar */}
+        <div style={{ ...styles.sidebar, ...themeStyles.sidebar }}>
         <div style={{ ...styles.sidebarHeader, ...themeStyles.sidebarHeader }}>
           <h2
             style={{
@@ -148,6 +172,44 @@ export default function ClerkLayout() {
           <Outlet />
         </div>
       </div>
+      </div>
+
+      {/* Task Bar */}
+      <div style={{ ...styles.taskBar, ...themeStyles.taskBar }}>
+        <div style={styles.taskBarLeft}>
+          <div style={styles.taskBarItem}>
+            <AiOutlineCheckCircle
+              style={{
+                color: themeStyles.success,
+                fontSize: '14px',
+                marginRight: '6px',
+              }}
+            />
+            <span style={{ color: themeStyles.textSecondary, fontSize: '12px' }}>
+              {onlinePrintersCount}/{totalPrintersCount} Printers Online
+            </span>
+          </div>
+          {pendingCount > 0 && (
+            <div style={styles.taskBarItem}>
+              <AiOutlineClockCircle
+                style={{
+                  color: themeStyles.warning,
+                  fontSize: '14px',
+                  marginRight: '6px',
+                }}
+              />
+              <span style={{ color: themeStyles.textSecondary, fontSize: '12px' }}>
+                {pendingCount} Pending Job{pendingCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
+        </div>
+        <div style={styles.taskBarRight}>
+          <span style={{ color: themeStyles.textSecondary, fontSize: '12px' }}>
+            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -155,10 +217,17 @@ export default function ClerkLayout() {
 const styles = {
   wrapper: {
     display: 'flex',
+    flexDirection: 'column' as const,
     height: '100vh',
     overflow: 'hidden',
     overflowX: 'hidden' as const,
     width: '100vw',
+  },
+  mainContainer: {
+    display: 'flex',
+    flex: 1,
+    overflow: 'hidden',
+    minHeight: 0,
   },
   sidebar: {
     width: '250px',
@@ -168,6 +237,7 @@ const styles = {
     borderRight: '1px solid',
     overflowY: 'auto' as const,
     overflowX: 'hidden' as const,
+    flexShrink: 0,
   },
   sidebarHeader: {
     display: 'flex',
@@ -239,6 +309,29 @@ const styles = {
     padding: '20px',
     overflow: 'auto',
     overflowX: 'hidden' as const,
+  },
+  taskBar: {
+    height: '24px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '0 12px',
+    borderTop: '1px solid',
+    fontSize: '12px',
+    flexShrink: 0,
+  },
+  taskBarLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  taskBarRight: {
+    display: 'flex',
+    alignItems: 'center',
+  },
+  taskBarItem: {
+    display: 'flex',
+    alignItems: 'center',
   },
 };
 

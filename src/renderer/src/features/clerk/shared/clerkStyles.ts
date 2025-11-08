@@ -27,6 +27,10 @@ export const lightStyles = {
   primaryButton: { background: '#fbbf24', color: '#000000' },
   dangerButton: { background: '#ef4444', color: '#ffffff' },
   activeNav: { background: '#fbbf24' },
+  taskBar: {
+    background: '#f8f9fa',
+    borderColor: '#e1e1e1',
+  },
 };
 
 export const darkStyles = {
@@ -58,6 +62,10 @@ export const darkStyles = {
   primaryButton: { background: '#fbbf24', color: '#000000' },
   dangerButton: { background: '#ef4444', color: '#ffffff' },
   activeNav: { background: '#fbbf24' },
+  taskBar: {
+    background: '#1a1a1a',
+    borderColor: '#404040',
+  },
 };
 
 export const sharedStyles = {
