@@ -1,12 +1,35 @@
 // ============================================================================
-// LOGGER - Centralized logging utility
+// LOGGER - Using electron-log for proper log file management
 // ============================================================================
+// electron-log automatically handles finding user-writable directories:
+// - Windows: %USERPROFILE%\AppData\Roaming\<app name>\logs\
+// - macOS: ~/Library/Logs/<app name>/
+// - Linux: ~/.config/<app name>/logs/
+// This prevents permission errors when app is installed in Program Files
 
-import fs from 'fs-extra';
-import path from 'path';
-import os from 'os';
-import { DEFAULT_CONFIG } from '../types/index.js';
-import { platform } from './platform.js';
+import log from 'electron-log';
+
+// Configure electron-log for agent logging
+// Use a separate log file for agent logs
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+// Set log level from environment or default to 'info'
+const logLevel = (process.env.LOG_LEVEL || 'info').toLowerCase();
+log.transports.file.level = logLevel as any;
+log.transports.console.level = isDevelopment ? 'debug' : 'info';
+
+// Configure log file settings
+log.transports.file.maxSize = 10 * 1024 * 1024; // 10MB
+log.transports.file.format = '[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}';
+
+// Set a custom log file name for agent logs
+// electron-log will automatically use the correct user-writable directory
+log.transports.file.fileName = 'agent.log';
+
+// In production, reduce console logging
+if (!isDevelopment) {
+  log.transports.console.level = 'warn'; // Only show warnings and errors in console
+}
 
 export enum LogLevel {
   DEBUG = 0,
@@ -24,48 +47,9 @@ interface LogEntry {
 
 class Logger {
   private logLevel: LogLevel;
-  private logToFile: boolean;
-  private logToConsole: boolean;
-  private logDir: string;
-  private maxLogSize: number;
-  private maxLogFiles: number;
 
   constructor() {
     this.logLevel = this.parseLogLevel(process.env.LOG_LEVEL || 'info');
-    this.logToFile = process.env.LOG_FILE !== 'false';
-    this.logToConsole = process.env.LOG_CONSOLE !== 'false';
-    
-    // Use user-writable directory instead of ./logs (which fails in Program Files)
-    // This avoids permission errors when app is installed in Program Files
-    if (process.env.LOG_DIR) {
-      const envLogDir = process.env.LOG_DIR.trim();
-      // Validate that LOG_DIR is not a root path (security check)
-      const normalized = path.normalize(envLogDir);
-      const isRootPath = 
-        normalized === '/' || 
-        normalized.match(/^[A-Z]:\\?$/) || // Windows root
-        (normalized.startsWith('/') && normalized.split(path.sep).filter(p => p).length <= 1) ||
-        normalized.length < 3;
-      
-      if (isRootPath) {
-        console.error(`ERROR: LOG_DIR environment variable is set to root path: ${envLogDir}`);
-        console.error('Root paths require admin permissions and are not allowed. Using platform default.');
-        this.logDir = platform.getLogsDirectory();
-      } else {
-        this.logDir = envLogDir;
-      }
-    } else {
-      // Use platform utilities to get proper user-writable directory
-      // On Windows: C:\Users\<user>\AppData\Local\PrintMyFile\logs
-      // On macOS: ~/Library/Application Support/PrintMyFile/logs
-      // On Linux: ~/.config/printmyfile/logs
-      this.logDir = platform.getLogsDirectory();
-    }
-    
-    this.maxLogSize = DEFAULT_CONFIG.MAX_LOG_SIZE;
-    this.maxLogFiles = DEFAULT_CONFIG.MAX_LOG_FILES;
-
-    this.ensureLogDir();
   }
 
   private parseLogLevel(level: string): LogLevel {
@@ -78,115 +62,31 @@ class Logger {
     }
   }
 
-  private ensureLogDir(): void {
-    if (this.logToFile) {
-      // Safety check: prevent creating directories at root level (which requires admin permissions)
-      // Root paths like '/logr', 'C:\logr', etc. should never be used
-      const normalizedPath = path.normalize(this.logDir);
-      const isRootPath = 
-        normalizedPath === '/' || 
-        normalizedPath.match(/^[A-Z]:\\?$/) || // Windows root like "C:\" or "C:"
-        (normalizedPath.startsWith('/') && normalizedPath.split(path.sep).filter(p => p).length <= 1) || // Unix root like "/logr" or "/tmp" 
-        normalizedPath.length < 3; // Very short paths are suspicious
-      
-      if (isRootPath) {
-        console.error(`ERROR: Attempted to create log directory at root path: ${this.logDir}`);
-        console.error('This requires admin permissions and is not allowed. Using fallback directory.');
-        // Fallback to a safe directory
-        this.logDir = path.join(os.homedir(), 'PrintMyFile', 'logs');
-      }
-      
-      try {
-        fs.ensureDirSync(this.logDir);
-      } catch (error: any) {
-        console.error(`Failed to create log directory at ${this.logDir}:`, error.message);
-        // Try fallback directory if primary fails
-        const fallbackDir = path.join(os.homedir(), 'PrintMyFile', 'logs');
-        console.error(`Attempting fallback directory: ${fallbackDir}`);
-        try {
-          fs.ensureDirSync(fallbackDir);
-          this.logDir = fallbackDir;
-        } catch (fallbackError: any) {
-          console.error(`Failed to create fallback log directory: ${fallbackError.message}`);
-          // Disable file logging if we can't create any directory
-          this.logToFile = false;
-          console.warn('File logging disabled due to directory creation errors');
-        }
-      }
-    }
-  }
-
-  private formatMessage(level: string, message: string, data?: any): string {
-    const timestamp = new Date().toISOString();
-    const logEntry: LogEntry = {
-      timestamp,
-      level,
-      message,
-      data: data ? JSON.stringify(data) : undefined,
-    };
-
-    const formatted = `${timestamp} [${level.toUpperCase()}] ${message}`;
-    return this.logToFile ? JSON.stringify(logEntry) : formatted;
-  }
-
-  private async writeToFile(message: string): Promise<void> {
-    if (!this.logToFile) return;
-
-    const logFile = path.join(this.logDir, 'agent.log');
-    
-    try {
-      await fs.appendFile(logFile, message + '\n');
-      await this.rotateLogIfNeeded(logFile);
-    } catch (error) {
-      console.error('Failed to write to log file:', error);
-    }
-  }
-
-  private async rotateLogIfNeeded(logFile: string): Promise<void> {
-    try {
-      const stats = await fs.stat(logFile);
-      
-      if (stats.size > this.maxLogSize) {
-        // Rotate logs
-        for (let i = this.maxLogFiles - 1; i >= 1; i--) {
-          const oldFile = `${logFile}.${i}`;
-          const newFile = `${logFile}.${i + 1}`;
-          
-          if (await fs.pathExists(oldFile)) {
-            await fs.move(oldFile, newFile);
-          }
-        }
-        
-        // Move current log to .1
-        await fs.move(logFile, `${logFile}.1`);
-      }
-    } catch (error) {
-      console.error('Failed to rotate log:', error);
-    }
+  private shouldLog(level: LogLevel): boolean {
+    return level >= this.logLevel;
   }
 
   private log(level: LogLevel, levelName: string, message: string, data?: any): void {
-    if (level < this.logLevel) return;
+    if (!this.shouldLog(level)) return;
 
-    const formattedMessage = this.formatMessage(levelName, message, data);
+    // Format message with data if provided
+    const formattedMessage = data ? `${message} ${JSON.stringify(data)}` : message;
 
-    if (this.logToConsole) {
-      const colors = {
-        debug: '\x1b[36m', // Cyan
-        info: '\x1b[32m',  // Green
-        warn: '\x1b[33m',  // Yellow
-        error: '\x1b[31m', // Red
-        reset: '\x1b[0m'
-      };
-
-      const color = colors[levelName as keyof typeof colors] || colors.reset;
-      console.log(`${color}${formattedMessage}${colors.reset}`);
-    }
-
-    if (this.logToFile) {
-      this.writeToFile(formattedMessage).catch(() => {
-        // Ignore file write errors to prevent infinite loops
-      });
+    switch (levelName.toLowerCase()) {
+      case 'debug':
+        log.debug(formattedMessage);
+        break;
+      case 'info':
+        log.info(formattedMessage);
+        break;
+      case 'warn':
+        log.warn(formattedMessage);
+        break;
+      case 'error':
+        log.error(formattedMessage);
+        break;
+      default:
+        log.info(formattedMessage);
     }
   }
 
@@ -240,13 +140,23 @@ class Logger {
   // Set log level dynamically
   setLogLevel(level: string): void {
     this.logLevel = this.parseLogLevel(level);
+    const electronLogLevel = level.toLowerCase() as any;
+    log.transports.file.level = electronLogLevel;
+    log.transports.console.level = electronLogLevel;
   }
 
   // Get current log level
   getLogLevel(): string {
     return Object.keys(LogLevel)[this.logLevel].toLowerCase();
   }
+
+  // Get log file path (useful for debugging)
+  getLogFilePath(): string {
+    return log.transports.file.getFile().path;
+  }
 }
 
 // Export singleton instance
 export const logger = new Logger();
+// Also export electron-log for advanced usage
+export { log };

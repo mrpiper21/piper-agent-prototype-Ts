@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAuthStore } from '../../auth/store/authStore';
 import { useTheme } from '../../../context/ThemeContext';
 import { lightStyles, darkStyles, sharedStyles } from '../shared/clerkStyles';
@@ -23,7 +23,10 @@ export default function ProfilePage() {
   const { user } = useAuthStore();
   const { theme } = useTheme();
   const queryClient = useQueryClient();
-  const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
+  // Memoize themeStyles to ensure synchronous updates with layout
+  const themeStyles = useMemo(() => {
+    return theme === 'dark' ? darkStyles : lightStyles;
+  }, [theme]);
   
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);

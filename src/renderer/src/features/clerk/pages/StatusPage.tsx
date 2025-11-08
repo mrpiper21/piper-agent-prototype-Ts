@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { electronAPI } from '../../../lib';
 import { useTheme } from '../../../context/ThemeContext';
 import { lightStyles, darkStyles, sharedStyles } from '../shared/clerkStyles';
 
 export default function StatusPage() {
   const { theme } = useTheme();
-  const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
+  // Memoize themeStyles to ensure synchronous updates with layout
+  const themeStyles = useMemo(() => {
+    return theme === 'dark' ? darkStyles : lightStyles;
+  }, [theme]);
   const [printers, setPrinters] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 

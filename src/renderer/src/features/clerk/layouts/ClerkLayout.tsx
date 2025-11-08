@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../auth/store/authStore';
 import { useTheme } from '../../../context/ThemeContext';
@@ -31,7 +31,10 @@ export default function ClerkLayout() {
   const pendingCount =
     jobs?.filter((job: any) => job.status === 'pending' || job.status === 'queued').length || 0;
 
-  const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
+  // Memoize themeStyles to ensure consistent updates across all components
+  const themeStyles = useMemo(() => {
+    return theme === 'dark' ? darkStyles : lightStyles;
+  }, [theme]);
 
   return (
     <div style={styles.wrapper}>
@@ -141,7 +144,7 @@ export default function ClerkLayout() {
         </div>
 
         {/* Content */}
-        <div style={styles.content}>
+        <div style={styles.content} key={theme}>
           <Outlet />
         </div>
       </div>
