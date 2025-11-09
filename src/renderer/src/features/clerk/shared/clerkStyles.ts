@@ -69,48 +69,52 @@ export const darkStyles = {
 };
 
 export const sharedStyles = {
+  container: {
+    maxWidth: '1400px',
+    margin: '0 auto',
+    padding: '0 16px',
+  },
   card: {
-    padding: '24px',
-    borderRadius: '12px',
+    padding: '16px',
+    borderRadius: '8px',
   },
   jobsList: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '12px',
-    marginTop: '20px',
+    gap: '8px',
+    marginTop: '12px',
   },
   jobItem: {
-    padding: '16px',
-    borderRadius: '8px',
+    padding: '12px',
+    borderRadius: '6px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    // Removed transition for instant theme changes - only keep hover transitions
     cursor: 'pointer',
   },
   printersList: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '12px',
-    marginTop: '20px',
+    gap: '8px',
+    marginTop: '12px',
   },
   printerCard: {
-    padding: '16px',
-    borderRadius: '8px',
+    padding: '12px',
+    borderRadius: '6px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     transition: 'all 0.2s ease',
   },
   form: {
-    marginTop: '20px',
+    marginTop: '16px',
   },
   input: {
     borderRadius: '6px',
     fontSize: '14px',
   },
   fileButton: {
-    padding: '12px',
+    padding: '10px 16px',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
@@ -118,7 +122,7 @@ export const sharedStyles = {
     fontWeight: '500',
   },
   actionButton: {
-    padding: '10px 20px',
+    padding: '8px 16px',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',

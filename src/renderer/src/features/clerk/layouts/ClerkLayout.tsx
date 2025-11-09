@@ -306,7 +306,7 @@ const styles = {
   },
   content: {
     flex: 1,
-    padding: '20px',
+    padding: '16px',
     overflow: 'auto',
     overflowX: 'hidden' as const,
   },
