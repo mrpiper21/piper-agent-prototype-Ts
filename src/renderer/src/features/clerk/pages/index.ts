@@ -3,4 +3,5 @@ export { default as JobsPage } from './JobsPage';
 export { default as SubmitPage } from './SubmitPage';
 export { default as StatusPage } from './StatusPage';
 export { default as ProfilePage } from './ProfilePage';
+export { default as UserManagementPage } from './UserManagementPage';
 

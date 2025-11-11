@@ -5,17 +5,20 @@ import { setupIpcHandlers } from './ipc/handlers';
 import { logger } from './utils/logger';
 import { dbService } from './services/DatabaseService';
 import { updateService } from './services/UpdateService';
-
+import fs from 'fs';
+import updateElectronApp from 'update-electron-app';
+updateElectronApp.updateElectronApp();
 // Load environment variables from .env file if available
 try {
-  const dotenv = require('dotenv');
-  const envPath = path.join(__dirname, '../../.env');
-  if (require('fs').existsSync(envPath)) {
-    dotenv.config({ path: envPath });
-    logger.info('Loaded .env file');
-  } else {
-    dotenv.config(); // Try default location
-  }
+  import('dotenv').then((dotenv) => {
+    const envPath = path.join(__dirname, '../../.env');
+    if (fs.existsSync(envPath)) {
+      dotenv.config({ path: envPath });
+      logger.info('Loaded .env file');
+    } else {
+      dotenv.config(); // Try default location
+    }
+  });
 } catch (error) {
   // dotenv might not be available, that's okay
   logger.debug('dotenv not available, skipping .env load');

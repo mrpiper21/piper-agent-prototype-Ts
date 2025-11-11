@@ -135,9 +135,12 @@ export function JobDetails({ job }: JobDetailsProps) {
 
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+              display: 'flex',
+              justifyContent: 'space-between',
               gap: '16px',
+              alignItems: 'center',
+              paddingRight: '16px',
+              paddingLeft: '16px',
             }}
           >
             <div>
@@ -158,6 +161,19 @@ export function JobDetails({ job }: JobDetailsProps) {
               </p>
               <p style={{ color: themeStyles.text, fontSize: '14px' }}>
                 {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p
+                style={{ color: themeStyles.textSecondary, fontSize: '12px', marginBottom: '6px' }}
+              >
+                Size
+              </p>
+              <p style={{ color: themeStyles.text, fontSize: '16px' }}>
+                height: {job.height as number}
+              </p>
+              <p style={{ color: themeStyles.text, fontSize: '16px' }}>
+                width: {job.width as number}
               </p>
             </div>
           </div>
@@ -193,7 +209,15 @@ export function JobDetails({ job }: JobDetailsProps) {
           </div>
         </div>
 
-        <div style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>
+        <div
+          style={{
+            marginTop: '24px',
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <button
             onClick={handleMarkAsCompleted}
             disabled={isUpdating || job.status === 'completed'}
@@ -201,6 +225,7 @@ export function JobDetails({ job }: JobDetailsProps) {
               ...sharedStyles.actionButton,
               ...themeStyles.primaryButton,
               flex: 1,
+              maxWidth: '500px',
               minHeight: '44px',
               fontSize: '15px',
               opacity: isUpdating || job.status === 'completed' ? 0.6 : 1,

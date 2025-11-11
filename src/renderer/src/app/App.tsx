@@ -9,6 +9,7 @@ const JobsPage = lazy(() => import('../features/clerk/pages/JobsPage'));
 const SubmitPage = lazy(() => import('../features/clerk/pages/SubmitPage'));
 const StatusPage = lazy(() => import('../features/clerk/pages/StatusPage'));
 const ProfilePage = lazy(() => import('../features/clerk/pages/ProfilePage'));
+const UserManagementPage = lazy(() => import('../features/clerk/pages/UserManagementPage'));
 const SetupLocationPage = lazy(() => import('../features/auth/pages/SetupLocationPage'));
 import { OfflineBanner } from './../shared/components/OfflineBanner';
 
@@ -58,17 +59,29 @@ export default function App() {
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/setup-location" element={<SetupLocationRoute><SetupLocationPage /></SetupLocationRoute>} />
+            <Route
+              path="/setup-location"
+              element={
+                <SetupLocationRoute>
+                  <SetupLocationPage />
+                </SetupLocationRoute>
+              }
+            />
             <Route path="/" element={<RoleBasedRoute />} />
             <Route
               path="/clerk"
-              element={<ProtectedRoute><ClerkLayout /></ProtectedRoute>}
+              element={
+                <ProtectedRoute>
+                  <ClerkLayout />
+                </ProtectedRoute>
+              }
             >
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="jobs" element={<JobsPage />} />
               <Route path="submit" element={<SubmitPage />} />
               <Route path="status" element={<StatusPage />} />
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="user-management" element={<UserManagementPage />} />
             </Route>
           </Routes>
         </Suspense>

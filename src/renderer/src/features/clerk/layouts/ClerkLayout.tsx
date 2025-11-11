@@ -12,6 +12,7 @@ import {
   AiOutlineDashboard,
   AiOutlineCheckCircle,
   AiOutlineClockCircle,
+  AiOutlineUser,
 } from 'react-icons/ai';
 import { HiOutlineLogout } from 'react-icons/hi';
 import { lightStyles, darkStyles } from '../shared/clerkStyles';
@@ -142,6 +143,20 @@ export default function ClerkLayout() {
             <FaUserTie style={{ marginRight: '8px' }} />
             Profile
           </NavLink>
+          {user?.role === 'admin' && (
+            <NavLink
+              to="/clerk/user-management"
+              style={({ isActive }) => ({
+                ...styles.navItem,
+                ...(isActive ? themeStyles.activeNav : {}),
+                color: isActive ? '#000000' : themeStyles.text,
+                fontWeight: isActive ? '700' : '500',
+              })}
+            >
+              <AiOutlineUser style={{ marginRight: '8px' }} />
+              User Management
+            </NavLink>
+          )}
         </nav>
       </div>
 

@@ -13,18 +13,20 @@ export function JobPreview({ job, onClose }: JobPreviewProps) {
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
 
   return (
-    <div style={{ 
-      flex: '1',
-      background: themeStyles.card.background,
-      border: themeStyles.card.border,
-      padding: '16px',
-      borderRadius: '12px',
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%',
-      // overflow: 'hidden',
-      animation: 'slideIn 0.3s ease-out',
-    }}>
+    <div
+      style={{
+        flex: '1',
+        background: themeStyles.card.background,
+        border: themeStyles.card.border,
+        padding: '16px',
+        borderRadius: '12px',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        // overflow: 'hidden',
+        animation: 'slideIn 0.3s ease-out',
+      }}
+    >
       <style>{`
         @keyframes slideIn {
           from {
@@ -37,15 +39,17 @@ export function JobPreview({ job, onClose }: JobPreviewProps) {
           }
         }
       `}</style>
-      
+
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '20px',
-        flexShrink: 0
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+          flexShrink: 0,
+        }}
+      >
         <h2 style={{ color: '#fbbf24', fontWeight: '700', fontSize: '22px' }}>Preview</h2>
         <button
           onClick={(e) => {
@@ -74,7 +78,7 @@ export function JobPreview({ job, onClose }: JobPreviewProps) {
       </div>
 
       {/* Scrollable Content */}
-      <div style={{ flex: 1, overflow: 'auto'}}>
+      <div style={{ flex: 1, overflow: 'auto', paddingBottom: '30px' }}>
         <FilePreview fileName={job.fileName} fileUrl={job?.cloudinaryUrl} />
         <JobDetails job={job} />
       </div>

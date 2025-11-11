@@ -28,11 +28,13 @@ export interface AuthResponse {
 export interface CreateUserData {
   name: string;
   email: string;
+  role?: 'admin' | 'clerk';
 }
 
 export interface UpdateUserData {
   name?: string;
   email?: string;
+  role?: 'admin' | 'clerk';
   location?: {
     latitude: number;
     longitude: number;
