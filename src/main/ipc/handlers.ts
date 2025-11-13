@@ -4,12 +4,15 @@ import { agentService } from '../services/AgentService';
 import { apiService } from '../services/api';
 import { updateService } from '../services/UpdateService';
 import { logger } from '../utils/logger';
+import { sendClerkWelcomeEmail } from '../services/EmailService';
+import fs from 'fs';
 import type {
   LoginCredentials,
   AuthResponse,
   CreateUserData,
   UpdateUserData,
   PrintOptions,
+  createClerkData,
 } from '../../shared/types/ipc.types';
 
 export function setupIpcHandlers() {
@@ -19,9 +22,36 @@ export function setupIpcHandlers() {
       // Use the API service to authenticate with the backend
       const response = await apiService.login(credentials.email, credentials.password);
 
-      logger.info('User logged in', { email: credentials.email, hasLocation: !!response.user.location });
+      logger.info('User logged in', {
+        email: credentials.email,
+        hasLocation: !!response.user.location,
+        isTemporaryPassword: response.user.isTemporaryPassword,
+      });
 
-      // Check if user has location set
+      // Priority 1: Check if clerk has temporary password (must change password first)
+      // If isTemporaryPassword is true, user is a clerk and must change password
+      if (response.user.isTemporaryPassword === true) {
+        logger.info('Clerk logged in with temporary password, password setup required', {
+          email: credentials.email,
+        });
+
+        // Show notification that password change is required
+        new Notification({
+          title: 'Password Change Required',
+          body: 'Please set a new password to continue',
+          silent: false,
+        }).show();
+
+        return {
+          user: response.user,
+          token: response.token,
+          requiresLocation: false,
+          requiresPasswordSetup: true, // Password setup required, user cannot be authenticated yet
+        } as AuthResponse & { requiresLocation: boolean; requiresPasswordSetup: boolean };
+      }
+
+      // Priority 2: If isTemporaryPassword is not present, user is an admin
+      // Check if admin has location set
       if (response.user.location) {
         // User has location - save to local database and authenticate
         try {
@@ -52,7 +82,8 @@ export function setupIpcHandlers() {
           user: response.user,
           token: response.token,
           requiresLocation: false, // Location exists, user can be authenticated
-        } as AuthResponse & { requiresLocation: boolean };
+          requiresPasswordSetup: false,
+        } as AuthResponse & { requiresLocation: boolean; requiresPasswordSetup: boolean };
       } else {
         // User doesn't have location - DON'T save to database, DON'T authenticate
         logger.info('User logged in but location required', { email: credentials.email });
@@ -68,7 +99,8 @@ export function setupIpcHandlers() {
           user: response.user,
           token: response.token,
           requiresLocation: true, // Location required, user cannot be authenticated yet
-        } as AuthResponse & { requiresLocation: boolean };
+          requiresPasswordSetup: false,
+        } as AuthResponse & { requiresLocation: boolean; requiresPasswordSetup: boolean };
       }
     } catch (error: any) {
       logger.error('Login error', error);
@@ -116,31 +148,41 @@ export function setupIpcHandlers() {
     }
   });
 
-  ipcMain.handle('auth:updateProfile', async (_, updates: { name?: string; email?: string; location?: { latitude: number; longitude: number; address: string } }) => {
-    try {
-      logger.info('Updating profile with data:', updates);
-      
-      // Update profile via API using /auth/profile endpoint
-      const user = await apiService.updateProfile(updates);
-      
-      logger.info('Profile updated successfully via API');
-      
-      // Also update local database if user ID exists
-      if (user.id) {
-        try {
-          dbService.updateUser(user.id, updates);
-          logger.info('Profile updated in local database');
-        } catch (dbError) {
-          logger.warn('Failed to update profile in local database, continuing anyway', dbError);
-        }
+  ipcMain.handle(
+    'auth:updateProfile',
+    async (
+      _,
+      updates: {
+        name?: string;
+        email?: string;
+        location?: { latitude: number; longitude: number; address: string };
       }
-      
-      return user;
-    } catch (error) {
-      logger.error('Update profile error', error);
-      throw error;
+    ) => {
+      try {
+        logger.info('Updating profile with data:', updates);
+
+        // Update profile via API using /auth/profile endpoint
+        const user = await apiService.updateProfile(updates);
+
+        logger.info('Profile updated successfully via API');
+
+        // Also update local database if user ID exists
+        if (user.id) {
+          try {
+            dbService.updateUser(user.id, updates);
+            logger.info('Profile updated in local database');
+          } catch (dbError) {
+            logger.warn('Failed to update profile in local database, continuing anyway', dbError);
+          }
+        }
+
+        return user;
+      } catch (error) {
+        logger.error('Update profile error', error);
+        throw error;
+      }
     }
-  });
+  );
 
   // Users handlers
   ipcMain.handle('users:getAll', async () => {
@@ -177,17 +219,17 @@ export function setupIpcHandlers() {
   ipcMain.handle('users:update', async (_, id: string, data: UpdateUserData) => {
     try {
       logger.info(`Updating user ${id} with data:`, data);
-      
+
       // Update via API to sync with backend first
       const user = await apiService.updateUser(id, data);
-      
+
       logger.info(`User ${id} updated successfully via API`);
-      
+
       // Also update local database
       dbService.updateUser(id, data);
-      
+
       logger.info(`User ${id} updated in local database`);
-      
+
       return user;
     } catch (error) {
       logger.error('Update user error', error);
@@ -204,11 +246,71 @@ export function setupIpcHandlers() {
     }
   });
 
+  // Admin Management handlers
+  ipcMain.handle('adminManagement:createClerk', async (_, data: createClerkData) => {
+    try {
+      logger.info('Creating clerk via API', { email: data.email });
+      const user = await apiService.createClerk(data);
+      logger.info('Clerk created successfully via API', { userId: user.id });
+
+      // Send welcome email with temporary password
+      await sendClerkWelcomeEmail({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+      });
+
+      return user;
+    } catch (error) {
+      logger.error('Create clerk error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('adminManagement:getMyClerks', async (_, adminId: string) => {
+    try {
+      logger.info('IPC handler received getMyClerks', {
+        adminId,
+        type: typeof adminId,
+        isUndefined: adminId === undefined,
+        isNull: adminId === null,
+        isEmpty: adminId === '',
+      });
+
+      if (!adminId || adminId === 'undefined' || adminId === 'null' || adminId === '') {
+        logger.error('adminId is required but was not provided or is invalid', { adminId });
+        throw new Error('Admin ID is required');
+      }
+
+      logger.info('Fetching admin clerks via API', { adminId });
+      const clerks = await apiService.getMyClerks(adminId);
+      logger.info('Fetched clerks successfully', { count: clerks.length, adminId });
+      return clerks;
+    } catch (error) {
+      logger.error('Get my clerks error', { error, adminId });
+      throw error;
+    }
+  });
+
+  ipcMain.handle(
+    'adminManagement:changeClerkPassword',
+    async (_, clerkId: string, newPassword: string) => {
+      try {
+        logger.info('Changing clerk password via API', { clerkId });
+        const updatedClerk = await apiService.changeClerkPassword(clerkId, newPassword);
+        logger.info('Clerk password changed successfully via API', { clerkId });
+        return updatedClerk;
+      } catch (error) {
+        logger.error('Change clerk password error', error);
+        throw error;
+      }
+    }
+  );
+
   // Files handlers
   ipcMain.handle('files:save', async (_, filePath: string, content: string) => {
     try {
-      const fs = require('fs').promises;
-      await fs.writeFile(filePath, content, 'utf-8');
+      await fs.promises.writeFile(filePath, content);
       logger.info('File saved', { path: filePath });
     } catch (error) {
       logger.error('File save error', error);
@@ -218,8 +320,7 @@ export function setupIpcHandlers() {
 
   ipcMain.handle('files:read', async (_, filePath: string) => {
     try {
-      const fs = require('fs').promises;
-      const content = await fs.readFile(filePath, 'utf-8');
+      const content = await fs.promises.readFile(filePath, 'utf-8');
       return content;
     } catch (error) {
       logger.error('File read error', error);

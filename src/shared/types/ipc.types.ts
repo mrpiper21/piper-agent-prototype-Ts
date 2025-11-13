@@ -6,11 +6,12 @@ export interface User {
   email: string;
   role: 'admin' | 'clerk';
   permissions: string[];
-  location: {
+  location?: {
     latitude: number;
     longitude: number;
     address: string;
-  }
+  };
+  isTemporaryPassword?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -29,6 +30,12 @@ export interface CreateUserData {
   name: string;
   email: string;
   role?: 'admin' | 'clerk';
+}
+export interface createClerkData {
+  name: string;
+  email: string;
+  password: string;
+  permissions: string[];
 }
 
 export interface UpdateUserData {
@@ -75,7 +82,11 @@ export interface IpcApi {
     login: (credentials: LoginCredentials) => Promise<AuthResponse>;
     logout: () => Promise<void>;
     refreshToken: (token: string) => Promise<string>;
-    updateProfile: (updates: { name?: string; email?: string; location?: { latitude: number; longitude: number; address: string } }) => Promise<User>;
+    updateProfile: (updates: {
+      name?: string;
+      email?: string;
+      location?: { latitude: number; longitude: number; address: string };
+    }) => Promise<User>;
   };
   users: {
     getAll: () => Promise<User[]>;
@@ -83,6 +94,11 @@ export interface IpcApi {
     create: (data: CreateUserData) => Promise<User>;
     update: (id: string, data: UpdateUserData) => Promise<User>;
     delete: (id: string) => Promise<void>;
+  };
+  adminManagement: {
+    createClerk: (data: createClerkData) => Promise<User>;
+    getMyClerks: (adminId: string) => Promise<User[]>;
+    changeClerkPassword: (clerkId: string, newPassword: string) => Promise<User>;
   };
   files: {
     save: (path: string, content: string) => Promise<void>;
@@ -127,10 +143,12 @@ export interface IpcApi {
       failedJobs: number;
       totalJobs: number;
     }>;
-    getWeeklyActivity: () => Promise<Array<{
-      date: string;
-      count: number;
-    }>>;
+    getWeeklyActivity: () => Promise<
+      Array<{
+        date: string;
+        count: number;
+      }>
+    >;
     getJobsByDate: (date: string) => Promise<any[]>;
   };
   health: {

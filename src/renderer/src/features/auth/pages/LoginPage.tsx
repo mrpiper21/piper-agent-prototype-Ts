@@ -20,24 +20,32 @@ export default function LoginPage() {
     e.preventDefault();
     try {
       await login({ email, password });
-      
-      // Check if user is authenticated (which means they have location)
+
       const { isAuthenticated, user } = getAuthState();
-      
-      console.log('Login result:', { isAuthenticated, hasLocation: !!user?.location, user: user?.id });
-      
-      if (!isAuthenticated || !user?.location) {
-        // User doesn't have location - navigate to setup location page
-        // User data is stored temporarily but they are not authenticated
-        console.log('Navigating to setup-location page');
-        navigate('/setup-location');
-      } else {
-        // User has location and is authenticated - navigate to dashboard
-        console.log('Navigating to dashboard');
-        navigate('/');
+
+      console.log('Login result:', {
+        isAuthenticated,
+        hasLocation: !!user?.location,
+        isTemporaryPassword: user?.isTemporaryPassword,
+        user: user?.id,
+      });
+
+      // Priority 1: If isTemporaryPassword is true, user is a clerk - must change password
+      if (user?.isTemporaryPassword === true) {
+        navigate('/setup-password');
+        return;
       }
+
+      // Priority 2: If isTemporaryPassword is not present, user is an admin
+      // Check if admin has location set
+      if (!user?.location) {
+        navigate('/setup-location');
+        return;
+      }
+
+      // User is fully set up (admin with location) - navigate to dashboard
+      navigate('/');
     } catch (err) {
-      // Error handled by store
       console.error('Login error:', err);
     }
   };

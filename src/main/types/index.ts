@@ -101,5 +101,6 @@ export interface User {
     longitude: number;
     address: string;
   };
+  isTemporaryPassword?: boolean;
 }
 

@@ -11,6 +11,7 @@ const StatusPage = lazy(() => import('../features/clerk/pages/StatusPage'));
 const ProfilePage = lazy(() => import('../features/clerk/pages/ProfilePage'));
 const UserManagementPage = lazy(() => import('../features/clerk/pages/UserManagementPage'));
 const SetupLocationPage = lazy(() => import('../features/auth/pages/SetupLocationPage'));
+const SetupPasswordPage = lazy(() => import('../features/auth/pages/SetupPasswordPage'));
 import { OfflineBanner } from './../shared/components/OfflineBanner';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -18,6 +19,25 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// Route guard for setup password - allows access if user has temporary password
+// If isTemporaryPassword is true, user is a clerk and must change password
+function SetupPasswordRoute({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // Allow access if user exists and has temporary password (clerk)
+  if (!user || user.isTemporaryPassword !== true) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If user is already authenticated (password already changed), redirect to dashboard
+  if (isAuthenticated && user.isTemporaryPassword !== true) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -59,6 +79,14 @@ export default function App() {
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/setup-password"
+              element={
+                <SetupPasswordRoute>
+                  <SetupPasswordPage />
+                </SetupPasswordRoute>
+              }
+            />
             <Route
               path="/setup-location"
               element={

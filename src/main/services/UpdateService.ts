@@ -9,53 +9,63 @@ export class UpdateService {
   private githubToken: string | null = null;
 
   constructor() {
-    // Load environment variables from .env file if it exists
-    this.loadEnvFile();
-    
-    // Get GitHub token from environment
-    this.githubToken = process.env.GITHUB_PERSONAL_ACCESS_TOKEN || null;
-    
-    // Configure auto-updater
-    autoUpdater.autoDownload = false; // Don't auto-download, let user decide
-    autoUpdater.autoInstallOnAppQuit = true; // Install when app quits
-    autoUpdater.allowPrerelease = false; // Only stable releases
-    
-    // Disable signature verification for unsigned builds (Windows requires this for unsigned apps)
-    // This allows updates to work even when the app is not digitally signed
-    if (process.platform === 'win32') {
-      // @ts-ignore - verifySignatureAndUpdaterIntegrity might not be in types but exists in runtime
-      autoUpdater.verifySignatureAndUpdaterIntegrity = false;
-      logger.info('Signature verification disabled for Windows (unsigned build)');
-    }
-    
-    // Set GitHub token if available (required for private repos)
-    if (this.githubToken) {
-      // Set token for authentication with private repos
-      autoUpdater.requestHeaders = {
-        Authorization: `token ${this.githubToken}`,
-      };
-      logger.info('GitHub Personal Access Token configured for private repository updates');
-    } else {
-      logger.warn('No GITHUB_PERSONAL_ACCESS_TOKEN found. Auto-updates may not work with private repositories.');
-    }
-    
-    // Set update server - GitHub Releases
-    // Get repo info from package.json build.publish config or environment variables
-    const repoOwner = process.env.GITHUB_REPO_OWNER || 'mrpiper21';
-    const repoName = process.env.GITHUB_REPO_NAME || 'piper-agent-prototype-Ts';
-    const isPrivate = this.githubToken !== null; // Private if token is provided
-    
-    autoUpdater.setFeedURL({
-      provider: 'github',
-      owner: repoOwner,
-      repo: repoName,
-      private: isPrivate,
-    });
-    
-    logger.info(`Configured auto-updater for: ${repoOwner}/${repoName} (${isPrivate ? 'private' : 'public'})`);
+    try {
+      // Load environment variables from .env file if it exists
+      this.loadEnvFile();
+      
+      // Get GitHub token from environment
+      this.githubToken = process.env.GITHUB_PERSONAL_ACCESS_TOKEN || null;
+      
+      // Configure auto-updater with error handling
+      try {
+        autoUpdater.autoDownload = false; // Don't auto-download, let user decide
+        autoUpdater.autoInstallOnAppQuit = true; // Install when app quits
+        autoUpdater.allowPrerelease = false; // Only stable releases
+        
+        // Disable signature verification for unsigned builds (Windows requires this for unsigned apps)
+        // This allows updates to work even when the app is not digitally signed
+        if (process.platform === 'win32') {
+          // @ts-ignore - verifySignatureAndUpdaterIntegrity might not be in types but exists in runtime
+          autoUpdater.verifySignatureAndUpdaterIntegrity = false;
+          logger.info('Signature verification disabled for Windows (unsigned build)');
+        }
+        
+        // Set GitHub token if available (required for private repos)
+        if (this.githubToken) {
+          // Set token for authentication with private repos
+          autoUpdater.requestHeaders = {
+            Authorization: `token ${this.githubToken}`,
+          };
+          logger.info('GitHub Personal Access Token configured for private repository updates');
+        } else {
+          logger.warn('No GITHUB_PERSONAL_ACCESS_TOKEN found. Auto-updates may not work with private repositories.');
+        }
+        
+        // Set update server - GitHub Releases
+        // Get repo info from package.json build.publish config or environment variables
+        const repoOwner = process.env.GITHUB_REPO_OWNER || 'mrpiper21';
+        const repoName = process.env.GITHUB_REPO_NAME || 'piper-agent-prototype-Ts';
+        const isPrivate = this.githubToken !== null; // Private if token is provided
+        
+        autoUpdater.setFeedURL({
+          provider: 'github',
+          owner: repoOwner,
+          repo: repoName,
+          private: isPrivate,
+        });
+        
+        logger.info(`Configured auto-updater for: ${repoOwner}/${repoName} (${isPrivate ? 'private' : 'public'})`);
 
-    // Event handlers
-    this.setupEventHandlers();
+        // Event handlers
+        this.setupEventHandlers();
+      } catch (updaterError) {
+        logger.error('Failed to configure auto-updater (non-critical):', updaterError instanceof Error ? updaterError.message : String(updaterError));
+        // Don't throw - auto-updater is not critical for app functionality
+      }
+    } catch (error) {
+      logger.error('Failed to initialize UpdateService (non-critical):', error instanceof Error ? error.message : String(error));
+      // Don't throw - UpdateService is not critical for app functionality
+    }
   }
 
   /**

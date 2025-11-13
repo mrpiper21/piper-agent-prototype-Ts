@@ -32,9 +32,22 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       login: async (credentials) => {
         set({ isLoading: true, error: null });
         try {
-          const response: AuthResponse & { requiresLocation?: boolean } = await window.electron.auth.login(credentials);
+          const response: AuthResponse & { requiresLocation?: boolean; requiresPasswordSetup?: boolean } = await window.electron.auth.login(credentials);
           
-          // Check if location is required
+          // Priority 1: Check if password setup is required (for clerks with temporary password)
+          if (response.requiresPasswordSetup) {
+            // Clerk has temporary password - store user data temporarily but DON'T authenticate
+            set({
+              user: response.user,
+              token: response.token,
+              isAuthenticated: false, // Not authenticated yet - password setup required
+              isLoading: false,
+            });
+            // Don't throw error - navigation will happen in LoginPage
+            return;
+          }
+
+          // Priority 2: Check if location is required
           if (response.requiresLocation) {
             // User doesn't have location - store user data temporarily but DON'T authenticate
             set({
@@ -47,7 +60,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             return;
           }
 
-          // User has location - authenticate them
+          // User has location and password is set - authenticate them
           set({
             user: response.user,
             token: response.token,
