@@ -67,19 +67,29 @@ export default function JobsPage() {
     // Apply sorting
     filtered.sort((a: any, b: any) => {
       switch (sortBy) {
-        case 'newest':
+        case 'newest': {
           const dateA = new Date(a.createdAt || a.submittedAt || 0).getTime();
           const dateB = new Date(b.createdAt || b.submittedAt || 0).getTime();
           return dateB - dateA;
-        case 'oldest':
+        }
+        case 'oldest': {
           const dateAOld = new Date(a.createdAt || a.submittedAt || 0).getTime();
           const dateBOld = new Date(b.createdAt || b.submittedAt || 0).getTime();
           return dateAOld - dateBOld;
-        case 'status':
-          const statusOrder = ['pending', 'queued', 'processing', 'printing', 'completed', 'failed'];
+        }
+        case 'status': {
+          const statusOrder = [
+            'pending',
+            'queued',
+            'processing',
+            'printing',
+            'completed',
+            'failed',
+          ];
           const aIndex = statusOrder.indexOf(a.status?.toLowerCase() || '');
           const bIndex = statusOrder.indexOf(b.status?.toLowerCase() || '');
           return aIndex - bIndex;
+        }
         case 'filename':
           return (a.fileName || '').localeCompare(b.fileName || '');
         default:
