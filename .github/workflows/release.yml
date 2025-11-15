@@ -51,16 +51,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run publish:linux
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}-build
-          path: |
-            release/**/*.exe
-            release/**/*.dmg
-            release/**/*.zip
-            release/**/*.AppImage
-            release/**/*.deb
-            release/**/*.yml
-          retention-days: 30
-          if-no-files-found: warn
+      # Artifacts are skipped to save storage quota
+      # electron-builder --publish already uploads to GitHub Releases
+      # Uncomment below only if you need artifacts as backup
+      # - name: Upload artifacts (backup only)
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{ matrix.os }}-build-backup
+      #     path: |
+      #       release/**/*.exe
+      #       release/**/*.dmg
+      #       release/**/*.zip
+      #       release/**/*.AppImage
+      #       release/**/*.deb
+      #       release/**/*.yml
+      #     retention-days: 1
+      #     compression-level: 9
+      #     if-no-files-found: warn
