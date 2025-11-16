@@ -1,11 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { User, CreateUserData, UpdateUserData } from '@shared/types/ipc.types';
+import type { CreateUserData, UpdateUserData } from '@shared/types/ipc.types';
 
 export function useUsers() {
   return useQuery({
     queryKey: ['users'],
     queryFn: () => window.electron.users.getAll(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     retry: 3,
   });
 }

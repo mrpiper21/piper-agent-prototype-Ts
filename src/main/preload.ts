@@ -15,6 +15,12 @@ const electronAPI: IpcApi = {
     update: (id, data) => ipcRenderer.invoke('users:update', id, data),
     delete: (id) => ipcRenderer.invoke('users:delete', id),
   },
+  adminManagement: {
+    createClerk: (data) => ipcRenderer.invoke('adminManagement:createClerk', data),
+    getMyClerks: (adminId: string) => ipcRenderer.invoke('adminManagement:getMyClerks', adminId),
+    changeClerkPassword: (clerkId: string, newPassword: string) =>
+      ipcRenderer.invoke('adminManagement:changeClerkPassword', clerkId, newPassword),
+  },
   files: {
     save: (path, content) => ipcRenderer.invoke('files:save', path, content),
     read: (path) => ipcRenderer.invoke('files:read', path),

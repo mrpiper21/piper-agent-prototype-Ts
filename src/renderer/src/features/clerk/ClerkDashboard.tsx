@@ -11,7 +11,7 @@ import { HiOutlineLogout } from 'react-icons/hi';
 export default function ClerkDashboard() {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'jobs' | 'print' | 'status'>('jobs');
+  const [activeTab, setActiveTab] = useState<'jobs' | 'print' | 'status'>('jobs' as const);
 
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
 

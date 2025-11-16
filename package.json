@@ -1,19 +1,20 @@
 {
   "name": "printmyfile-agent",
-  "version": "1.1.9",
+  "version": "1.1.11",
   "description": "PrintMyFile SaaS Local Print Agent",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "start": "electron dist/main/index.js",
-    "start:built": "electron dist/main/index.js",
+    "start": "electron out/main/index.js",
+    "start:built": "electron out/main/index.js",
     "lint": "eslint . --ext .ts,.tsx",
     "package": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
     "package:win": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
     "package:mac": "npm run build && electron-builder --mac",
     "package:linux": "npm run build && electron-builder --linux",
+    "publish:forge": "electron-forge publish",
     "publish": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --publish always",
     "publish:win": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --publish always",
     "publish:mac": "npm run build && electron-builder --mac --publish always",
@@ -36,6 +37,10 @@
     "name": "Bernard Baah",
     "email": "benbaah104@gmail.com"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrpiper21/piper-agent-prototype-Ts.git"
+  },
   "license": "UNLICENSED",
   "dependencies": {
     "@tanstack/react-query": "^5.0.0",
@@ -53,6 +58,7 @@
     "jspdf-autotable": "^5.0.2",
     "leaflet": "^1.9.4",
     "node-cron": "^3.0.3",
+    "nodemailer": "^7.0.10",
     "ora": "^8.0.1",
     "pdfmake": "^0.2.20",
     "react": "^18.2.0",
@@ -65,9 +71,11 @@
     "zustand": "^4.4.0"
   },
   "devDependencies": {
+    "@electron-forge/publisher-github": "^7.10.2",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^29.5.8",
     "@types/node": "^20.10.0",
+    "@types/nodemailer": "^7.0.3",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/uuid": "^9.0.7",
@@ -104,12 +112,15 @@
       "releaseType": "release"
     },
     "directories": {
-      "output": "release/${version}"
+      "output": "release/${version}",
+      "buildResources": "build"
     },
+    "icon": "build/icon.png",
     "files": [
       "out/**/*",
       "node_modules/**/*",
-      "package.json"
+      "package.json",
+      "build/icon.png"
     ],
     "win": {
       "target": [
@@ -127,6 +138,7 @@
         }
       ],
       "publisherName": "PrintMyFile",
+      "icon": "build/icon.png",
       "sign": null
     },
     "mac": {
@@ -135,6 +147,7 @@
         "dmg",
         "zip"
       ],
+      "icon": "build/icon.png",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "sign": null
@@ -144,6 +157,7 @@
         "AppImage",
         "deb"
       ],
+      "icon": "build/icon.png",
       "category": "Utility",
       "maintainer": "support@printmyfile.com"
     },

@@ -36,13 +36,21 @@ class DatabaseService {
   createUser(data: CreateUserData): User {
     const user: User = {
       id: crypto.randomUUID(),
-      ...data,
+      name: data.name,
+      email: data.email,
+      role: data.role || 'clerk',
+      permissions: [],
+      location: {
+        latitude: 0,
+        longitude: 0,
+        address: '',
+      },
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
     
     this.data.users.push(user);
-    logger.info('User created', { id: user.id, email: user.email });
+    logger.info('User created', { id: user.id, email: user.email, role: user.role });
     return user;
   }
 
@@ -55,6 +63,12 @@ class DatabaseService {
     }
     if (data.email !== undefined) {
       user.email = data.email;
+    }
+    if (data.role !== undefined) {
+      user.role = data.role;
+    }
+    if (data.location !== undefined) {
+      user.location = data.location;
     }
     
     user.updatedAt = Date.now();

@@ -33,9 +33,11 @@ export default function AdminDashboard() {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
             }}
           >
-            <AiOutlineDashboard /> Admin Panel
+            <AiOutlineDashboard /> Admin
           </h2>
         </div>
         <nav style={styles.nav}>
@@ -162,29 +164,29 @@ function OverviewTab({ themeStyles }: { themeStyles: any }) {
   return (
     <div style={styles.overview}>
       <div style={{ ...styles.card, ...themeStyles.card }}>
-        <h2 style={{ color: themeStyles.text }}>System Overview</h2>
+        <h2 style={{ color: themeStyles.text, margin: 0, marginBottom: '12px', fontSize: '18px', fontWeight: '600' }}>System Overview</h2>
         <div style={styles.stats}>
           <div style={{ ...styles.statCard, ...themeStyles.card }}>
-            <h3 style={{ color: themeStyles.textSecondary }}>Total Users</h3>
-            <p style={{ ...styles.statValue, color: themeStyles.accent }}>
+            <h3 style={{ color: themeStyles.textSecondary, margin: 0, fontSize: '13px', fontWeight: '500' }}>Total Users</h3>
+            <p style={{ ...styles.statValue, color: themeStyles.accent, margin: 0 }}>
               {overviewData?.totalUsers || 0}
             </p>
           </div>
           <div style={{ ...styles.statCard, ...themeStyles.card }}>
-            <h3 style={{ color: themeStyles.textSecondary }}>Active Printers</h3>
-            <p style={{ ...styles.statValue, color: themeStyles.accent }}>
+            <h3 style={{ color: themeStyles.textSecondary, margin: 0, fontSize: '13px', fontWeight: '500' }}>Active Printers</h3>
+            <p style={{ ...styles.statValue, color: themeStyles.accent, margin: 0 }}>
               {overviewData?.activePrinters || 0}
             </p>
           </div>
           <div style={{ ...styles.statCard, ...themeStyles.card }}>
-            <h3 style={{ color: themeStyles.textSecondary }}>Jobs Today</h3>
-            <p style={{ ...styles.statValue, color: themeStyles.accent }}>
+            <h3 style={{ color: themeStyles.textSecondary, margin: 0, fontSize: '13px', fontWeight: '500' }}>Jobs Today</h3>
+            <p style={{ ...styles.statValue, color: themeStyles.accent, margin: 0 }}>
               {overviewData?.jobsToday || 0}
             </p>
           </div>
           <div style={{ ...styles.statCard, ...themeStyles.card }}>
-            <h3 style={{ color: themeStyles.textSecondary }}>Success Rate</h3>
-            <p style={{ ...styles.statValue, color: themeStyles.success }}>
+            <h3 style={{ color: themeStyles.textSecondary, margin: 0, fontSize: '13px', fontWeight: '500' }}>Success Rate</h3>
+            <p style={{ ...styles.statValue, color: themeStyles.success, margin: 0 }}>
               {overviewData?.successRate ? `${overviewData.successRate.toFixed(1)}%` : '0%'}
             </p>
           </div>
@@ -197,9 +199,9 @@ function OverviewTab({ themeStyles }: { themeStyles: any }) {
 function UsersTab({ themeStyles }: { themeStyles: any }) {
   return (
     <div style={{ ...styles.card, ...themeStyles.card }}>
-      <h2 style={{ color: themeStyles.text }}>User Management</h2>
+      <h2 style={{ color: themeStyles.text, margin: 0, marginBottom: '16px', fontSize: '18px', fontWeight: '600' }}>User Management</h2>
       <button style={{ ...styles.actionButton, ...themeStyles.primaryButton }}>Add New User</button>
-      <p style={{ color: themeStyles.textSecondary, marginTop: '20px' }}>User list will go here</p>
+      <p style={{ color: themeStyles.textSecondary, marginTop: '16px', fontSize: '14px' }}>User list will go here</p>
     </div>
   );
 }
@@ -268,7 +270,7 @@ function AgentsTab({ themeStyles }: { themeStyles: any }) {
 
   return (
     <div style={{ ...styles.card, ...themeStyles.card }}>
-      <h2 style={{ color: themeStyles.text }}>Print Agents</h2>
+      <h2 style={{ color: themeStyles.text, margin: 0, marginBottom: '16px', fontSize: '18px', fontWeight: '600' }}>Print Agents</h2>
       <div style={{ ...styles.statusCard, ...themeStyles.card }}>
         <div>
           <p style={{ color: themeStyles.textSecondary }}>Agent Status</p>
@@ -291,8 +293,8 @@ function AgentsTab({ themeStyles }: { themeStyles: any }) {
       </div>
 
       {/* Printers */}
-      <div style={{ marginTop: '20px' }}>
-        <h3 style={{ color: themeStyles.text }}>Available Printers</h3>
+      <div style={{ marginTop: '16px' }}>
+        <h3 style={{ color: themeStyles.text, margin: 0, marginBottom: '12px', fontSize: '16px', fontWeight: '600' }}>Available Printers</h3>
         <div style={styles.printersGrid}>
           {printers.map((printer, i) => (
             <div key={i} style={{ ...styles.printerCard, ...themeStyles.card }}>
@@ -311,8 +313,8 @@ function AgentsTab({ themeStyles }: { themeStyles: any }) {
 
       {/* Agents List */}
       {agents.length > 0 && (
-        <div style={{ marginTop: '20px' }}>
-          <h3 style={{ color: themeStyles.text }}>Registered Agents</h3>
+        <div style={{ marginTop: '16px' }}>
+          <h3 style={{ color: themeStyles.text, margin: 0, marginBottom: '12px', fontSize: '16px', fontWeight: '600' }}>Registered Agents</h3>
           <div style={styles.agentsList}>
             {agents.map((agent) => (
               <div key={agent.id || agent._id} style={{ ...styles.agentCard, ...themeStyles.card }}>
@@ -557,23 +559,23 @@ const styles = {
     overflow: 'hidden',
   },
   sidebar: {
-    width: '250px',
+    width: '220px',
     display: 'flex',
     flexDirection: 'column' as const,
     borderRight: '1px solid',
   },
   sidebarHeader: {
-    padding: '20px',
+    padding: '16px',
     borderBottom: '1px solid',
   },
   nav: {
     display: 'flex',
     flexDirection: 'column' as const,
-    padding: '10px',
-    gap: '5px',
+    padding: '8px',
+    gap: '4px',
   },
   navItem: {
-    padding: '12px 16px',
+    padding: '10px 12px',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
@@ -594,19 +596,19 @@ const styles = {
     display: 'flex',
     justifyContent: 'end',
     alignItems: 'center',
-    padding: '13.5px',
+    padding: '12px 16px',
     borderBottom: '1px solid',
   },
   userInfo: {
     display: 'flex',
-    gap: '15px',
+    gap: '12px',
     alignItems: 'center',
   },
   iconButton: {
-    padding: '8px 12px',
-    borderRadius: '4px',
+    padding: '6px 10px',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '20px',
+    fontSize: '18px',
     transition: 'all 0.2s ease',
     border: 'none',
     display: 'flex',
@@ -614,67 +616,71 @@ const styles = {
     justifyContent: 'center',
   },
   logoutButton: {
-    padding: '8px 16px',
+    padding: '6px 14px',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
+    fontSize: '13px',
   },
   content: {
     flex: 1,
-    padding: '20px',
+    padding: '16px',
     overflow: 'auto',
+    maxWidth: '1400px',
+    width: '100%',
+    margin: '0 auto',
   },
   overview: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '20px',
+    gap: '16px',
   },
   card: {
-    padding: '24px',
+    padding: '16px',
     borderRadius: '8px',
   },
   stats: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '20px',
-    marginTop: '20px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+    gap: '12px',
+    marginTop: '16px',
   },
   statCard: {
-    padding: '20px',
+    padding: '16px',
     borderRadius: '8px',
   },
   statValue: {
-    fontSize: '36px',
+    fontSize: '28px',
     fontWeight: 'bold',
-    marginTop: '10px',
+    marginTop: '8px',
   },
   statusCard: {
-    padding: '20px',
+    padding: '16px',
     borderRadius: '8px',
-    marginTop: '20px',
+    marginTop: '16px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   statusBadge: {
-    fontSize: '24px',
+    fontSize: '18px',
     fontWeight: 'bold',
-    marginTop: '5px',
+    marginTop: '4px',
   },
   actionButton: {
-    padding: '10px 20px',
+    padding: '8px 16px',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '14px',
     transition: 'all 0.2s ease',
   },
   printersGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '12px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+    gap: '10px',
     marginTop: '12px',
   },
   printerCard: {
@@ -685,12 +691,12 @@ const styles = {
   agentsList: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '12px',
+    gap: '8px',
     marginTop: '12px',
   },
   agentCard: {
-    padding: '16px',
-    borderRadius: '8px',
+    padding: '12px',
+    borderRadius: '6px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -698,21 +704,21 @@ const styles = {
   discrepanciesList: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '12px',
+    gap: '8px',
     marginTop: '12px',
   },
   discrepancyCard: {
-    padding: '16px',
-    borderRadius: '8px',
+    padding: '12px',
+    borderRadius: '6px',
   },
   logsList: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '12px',
+    gap: '8px',
   },
   logCard: {
-    padding: '16px',
-    borderRadius: '8px',
+    padding: '12px',
+    borderRadius: '6px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',

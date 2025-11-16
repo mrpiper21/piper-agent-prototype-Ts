@@ -33,6 +33,24 @@ jobs:
       - name: Install dependencies
         run: npm install --force
 
+      - name: Create .env file from secrets
+        shell: bash
+        run: |
+          {
+            echo "EMAIL_USER=${{ secrets.EMAIL_USER }}"
+            echo "EMAIL_PASS=${{ secrets.EMAIL_PASS }}"
+            echo "API_BASE_URL=${{ secrets.API_BASE_URL }}"
+            echo "PERSONAL_ACCESS_TOKEN=${{ secrets.PERSONAL_ACCESS_TOKEN }}"
+            echo "REPO_OWNER=${{ secrets.REPO_OWNER }}"
+            echo "REPO_NAME=${{ secrets.REPO_NAME }}"
+            echo "CLOUD_URL=${{ secrets.CLOUD_URL }}"
+            echo "AGENT_ID=${{ secrets.AGENT_ID }}"
+            echo "API_KEY=${{ secrets.API_KEY }}"
+            echo "LOCATION_NAME=${{ secrets.LOCATION_NAME }}"
+            echo "LOG_LEVEL=${{ secrets.LOG_LEVEL }}"
+            echo "NODE_ENV=production"
+          } > .env
+
       - name: Build and Publish (Windows)
         if: matrix.os == 'windows-latest'
         env:
@@ -51,16 +69,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run publish:linux
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}-build
-          path: |
-            release/**/*.exe
-            release/**/*.dmg
-            release/**/*.zip
-            release/**/*.AppImage
-            release/**/*.deb
-            release/**/*.yml
-          retention-days: 30
-          if-no-files-found: warn
+      # Artifacts are skipped to save storage quota
+      # electron-builder --publish already uploads to GitHub Releases
+      # Uncomment below only if you need artifacts as backup
+      # - name: Upload artifacts (backup only)
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{ matrix.os }}-build-backup
+      #     path: |
+      #       release/**/*.exe
+      #       release/**/*.dmg
+      #       release/**/*.zip
+      #       release/**/*.AppImage
+      #       release/**/*.deb
+      #       release/**/*.yml
+      #     retention-days: 1
+      #     compression-level: 9
+      #     if-no-files-found: warn
