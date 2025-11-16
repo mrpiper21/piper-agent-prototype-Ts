@@ -381,7 +381,7 @@ export default function SubmitPage() {
             >
               Select File <span style={{ color: themeStyles.error }}>*</span>
             </label>
-            
+
             {selectedFile ? (
               <div
                 style={{
@@ -756,7 +756,7 @@ export default function SubmitPage() {
               style={{
                 ...sharedStyles.input,
                 ...themeStyles.input,
-                width: '100%',
+                width: '96%',
                 padding: '12px',
                 fontSize: '14px',
                 resize: 'vertical',
@@ -792,7 +792,10 @@ export default function SubmitPage() {
               justifyContent: 'center',
               gap: '10px',
               opacity: !selectedFile || !printer || isSubmitting || isLoadingPrinters ? 0.6 : 1,
-              cursor: !selectedFile || !printer || isSubmitting || isLoadingPrinters ? 'not-allowed' : 'pointer',
+              cursor:
+                !selectedFile || !printer || isSubmitting || isLoadingPrinters
+                  ? 'not-allowed'
+                  : 'pointer',
             }}
           >
             {isSubmitting ? (

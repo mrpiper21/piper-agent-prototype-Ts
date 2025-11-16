@@ -174,20 +174,20 @@ export default function ProfilePage() {
   };
 
   return (
-    <div style={{ padding: '24px', height: '100%', overflow: 'auto' }}>
+    <div style={{ padding: 'var(--spacing-md, 12px)', height: '100%', overflow: 'auto' }}>
       {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
+      <div style={{ marginBottom: 'var(--spacing-md, 12px)' }}>
         <h1 style={{ 
           color: themeStyles.text, 
-          fontSize: '32px', 
-          fontWeight: '700',
-          marginBottom: '8px'
+          fontSize: 'var(--font-size-xl, 18px)', 
+          fontWeight: '600',
+          marginBottom: 'var(--spacing-xs, 4px)'
         }}>
           My Profile
         </h1>
         <p style={{ 
           color: themeStyles.textSecondary, 
-          fontSize: '14px' 
+          fontSize: 'var(--font-size-small, 12px)' 
         }}>
           Manage your account information and preferences
         </p>
@@ -200,45 +200,45 @@ export default function ProfilePage() {
           ...themeStyles.card,
           background: themeStyles.success,
           color: '#ffffff',
-          padding: '16px',
-          marginBottom: '24px',
+          padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
+          marginBottom: 'var(--spacing-md, 12px)',
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
+          gap: 'var(--spacing-sm, 8px)',
+          boxShadow: 'none',
         }}>
-          <AiOutlineSave />
-          <span>{successMessage}</span>
+          <AiOutlineSave style={{ fontSize: 'var(--icon-size-sm, 14px)' }} />
+          <span style={{ fontSize: 'var(--font-size, 14px)' }}>{successMessage}</span>
         </div>
       )}
 
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', 
-        gap: '24px' 
+        gap: 'var(--spacing-md, 12px)' 
       }}>
         {/* Profile Card */}
         <div style={{ 
           ...sharedStyles.card, 
           ...themeStyles.card,
-          boxShadow: theme === 'dark' 
-            ? '0 4px 20px rgba(0, 0, 0, 0.4)' 
-            : '0 2px 12px rgba(0, 0, 0, 0.06)'
+          padding: 'var(--spacing-md, 12px)',
+          boxShadow: 'none'
         }}>
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            marginBottom: '24px'
+            marginBottom: 'var(--spacing-md, 12px)'
           }}>
             <h2 style={{ 
               color: themeStyles.text, 
-              fontSize: '20px', 
-              fontWeight: '700',
+              fontSize: 'var(--font-size-large, 16px)', 
+              fontWeight: '600',
               display: 'flex',
               alignItems: 'center',
-              gap: '10px'
+              gap: 'var(--spacing-sm, 8px)'
             }}>
-              <AiOutlineUser style={{ color: themeStyles.accent, fontSize: '24px' }} />
+              <AiOutlineUser style={{ color: themeStyles.accent, fontSize: 'var(--icon-size, 16px)' }} />
               Personal Information
             </h2>
             {!isEditingProfile && (
@@ -260,14 +260,14 @@ export default function ProfilePage() {
 
           {isEditingProfile ? (
             <form onSubmit={handleProfileSubmit}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md, 12px)' }}>
                 <div>
                   <label style={{ 
                     color: themeStyles.text, 
                     display: 'block', 
-                    marginBottom: '8px',
-                    fontWeight: '600',
-                    fontSize: '14px'
+                    marginBottom: 'var(--spacing-xs, 4px)',
+                    fontWeight: '500',
+                    fontSize: 'var(--font-size-small, 12px)'
                   }}>
                     Full Name
                   </label>
@@ -279,7 +279,8 @@ export default function ProfilePage() {
                       ...sharedStyles.input,
                       ...themeStyles.input,
                       width: '100%',
-                      padding: '12px',
+                      padding: 'var(--spacing-sm, 8px)',
+                      fontSize: 'var(--font-size, 14px)',
                     }}
                     required
                   />
@@ -289,9 +290,9 @@ export default function ProfilePage() {
                   <label style={{ 
                     color: themeStyles.text, 
                     display: 'block', 
-                    marginBottom: '8px',
-                    fontWeight: '600',
-                    fontSize: '14px'
+                    marginBottom: 'var(--spacing-xs, 4px)',
+                    fontWeight: '500',
+                    fontSize: 'var(--font-size-small, 12px)'
                   }}>
                     Email Address
                   </label>
@@ -303,7 +304,8 @@ export default function ProfilePage() {
                       ...sharedStyles.input,
                       ...themeStyles.input,
                       width: '100%',
-                      padding: '12px',
+                      padding: 'var(--spacing-sm, 8px)',
+                      fontSize: 'var(--font-size, 14px)',
                     }}
                     required
                   />

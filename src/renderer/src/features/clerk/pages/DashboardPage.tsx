@@ -125,12 +125,12 @@ export default function DashboardPage() {
   const isLoading = statsLoading || weeklyLoading || jobsLoading;
 
   return (
-    <div style={sharedStyles.container}>
+    <div style={{ ...sharedStyles.container, padding: 'var(--spacing-md, 12px)' }}>
       <div
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px',
+          gap: 'var(--spacing-md, 12px)',
         }}
       >
         {/* Header */}
@@ -140,7 +140,7 @@ export default function DashboardPage() {
             justifyContent: 'space-between',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: '12px',
+            gap: 'var(--spacing-sm, 8px)',
           }}
         >
           <div>
@@ -148,9 +148,9 @@ export default function DashboardPage() {
               style={{
                 color: themeStyles.text,
                 fontWeight: '600',
-                fontSize: '20px',
+                fontSize: 'var(--font-size-large, 16px)',
                 margin: 0,
-                marginBottom: '4px',
+                marginBottom: 'var(--spacing-xs, 4px)',
               }}
             >
               Dashboard
@@ -158,14 +158,14 @@ export default function DashboardPage() {
             <p
               style={{
                 color: themeStyles.textSecondary,
-                fontSize: '13px',
+                fontSize: 'var(--font-size-small, 12px)',
                 margin: 0,
               }}
             >
               Print job overview
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs, 4px)', flexWrap: 'wrap' }}>
             <button
               onClick={() => {
                 const today = new Date().toISOString().split('T')[0];
@@ -173,14 +173,20 @@ export default function DashboardPage() {
                 setCalendarOffset(0);
               }}
               style={{
-                ...sharedStyles.actionButton,
-                ...themeStyles.primaryButton,
+                padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+                borderRadius: 'var(--border-radius-sm, 4px)',
+                border: 'none',
+                background: themeStyles.primaryButton.background,
+                color: themeStyles.primaryButton.color,
+                fontSize: 'var(--font-size-small, 12px)',
+                fontWeight: '500',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: 'var(--spacing-xs, 4px)',
               }}
             >
-              <AiOutlineThunderbolt />
+              <AiOutlineThunderbolt style={{ fontSize: 'var(--icon-size-sm, 14px)' }} />
               Today
             </button>
             <input
@@ -188,13 +194,14 @@ export default function DashboardPage() {
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               style={{
-                padding: '8px 12px',
-                borderRadius: '6px',
-                border: `1px solid ${themeStyles.card.border}`,
+                padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+                borderRadius: 'var(--border-radius-sm, 4px)',
+                border: themeStyles.card.border,
                 background: themeStyles.input.background,
                 color: themeStyles.input.color,
-                fontSize: '13px',
+                fontSize: 'var(--font-size-small, 12px)',
                 cursor: 'pointer',
+                height: '32px',
               }}
             />
           </div>
@@ -207,17 +214,18 @@ export default function DashboardPage() {
               ...sharedStyles.card,
               ...themeStyles.card,
               textAlign: 'center',
-              padding: '24px',
+              padding: 'var(--spacing-md, 12px)',
+              boxShadow: 'none',
             }}
           >
-            <p style={{ color: themeStyles.textSecondary, fontSize: '14px' }}>Loading...</p>
+            <p style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size, 14px)' }}>Loading...</p>
           </div>
         ) : (
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-              gap: '12px',
+              gap: 'var(--spacing-sm, 8px)',
             }}
           >
             <StatCard
@@ -260,7 +268,7 @@ export default function DashboardPage() {
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '16px',
+            gap: 'var(--spacing-md, 12px)',
           }}
         >
           {/* Status Chart */}
@@ -270,13 +278,15 @@ export default function DashboardPage() {
               ...themeStyles.card,
               display: 'flex',
               flexDirection: 'column',
+              padding: 'var(--spacing-md, 12px)',
+              boxShadow: 'none',
             }}
           >
             <div
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs, 4px)', marginBottom: 'var(--spacing-sm, 8px)' }}
             >
               <h3
-                style={{ color: themeStyles.text, margin: 0, fontWeight: '600', fontSize: '16px' }}
+                style={{ color: themeStyles.text, margin: 0, fontWeight: '600', fontSize: 'var(--font-size, 14px)' }}
               >
                 Job Status
               </h3>
@@ -285,7 +295,7 @@ export default function DashboardPage() {
               style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '12px',
+                gap: 'var(--spacing-sm, 8px)',
               }}
             >
               <Bar
@@ -312,14 +322,14 @@ export default function DashboardPage() {
             </div>
             <div
               style={{
-                marginTop: '12px',
+                marginTop: 'var(--spacing-sm, 8px)',
                 display: 'flex',
-                gap: '12px',
+                gap: 'var(--spacing-sm, 8px)',
                 justifyContent: 'flex-start',
                 flexWrap: 'wrap' as const,
-                padding: '12px',
+                padding: 'var(--spacing-sm, 8px)',
                 background: themeStyles.input.background,
-                borderRadius: '6px',
+                borderRadius: 'var(--border-radius-sm, 4px)',
               }}
             >
               <LegendItem color={themeStyles.success} label="Completed" themeStyles={themeStyles} />
@@ -335,6 +345,8 @@ export default function DashboardPage() {
               ...themeStyles.card,
               display: 'flex',
               flexDirection: 'column',
+              padding: 'var(--spacing-md, 12px)',
+              boxShadow: 'none',
             }}
           >
             <div
@@ -342,7 +354,7 @@ export default function DashboardPage() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '24px',
+                marginBottom: 'var(--spacing-md, 12px)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
@@ -469,7 +481,7 @@ export default function DashboardPage() {
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-                gap: '12px',
+                gap: 'var(--spacing-sm, 8px)',
               }}
             >
               {calendarDates.map((date, index) => {
@@ -708,8 +720,12 @@ export default function DashboardPage() {
                     style={{
                       ...sharedStyles.jobItem,
                       ...themeStyles.card,
-                      padding: '16px',
-                      marginBottom: '12px',
+                      padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
+                      marginBottom: 'var(--spacing-xs, 4px)',
+                      borderRadius: 0,
+                      border: 'none',
+                      borderBottom: themeStyles.card.border,
+                      boxShadow: 'none',
                     }}
                   >
                     <div style={{ flex: 1 }}>
@@ -804,64 +820,70 @@ interface StatCardProps {
 }
 
 function StatCard({ icon, title, value, color, themeStyles, description }: StatCardProps) {
+  const { theme } = useTheme();
   return (
     <div style={{ 
       ...sharedStyles.card, 
       ...themeStyles.card,
-      transition: 'all 0.2s ease',
+      padding: 'var(--spacing-md, 12px)',
+      boxShadow: 'none',
+      transition: 'background 0.15s ease',
       cursor: 'pointer',
     }}
     onMouseEnter={(e: any) => {
-      e.currentTarget.style.transform = 'translateY(-2px)';
+      e.currentTarget.style.background = theme === 'dark' 
+        ? 'rgba(255, 255, 255, 0.03)' 
+        : 'rgba(0, 0, 0, 0.02)';
     }}
     onMouseLeave={(e: any) => {
-      e.currentTarget.style.transform = 'translateY(0)';
+      e.currentTarget.style.background = themeStyles.card.background;
     }}
     >
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
-        marginBottom: '16px'
+        marginBottom: 'var(--spacing-sm, 8px)'
       }}>
         <div style={{
-          width: '48px',
-          height: '48px',
-          borderRadius: '12px',
+          width: '36px',
+          height: '36px',
+          borderRadius: 'var(--border-radius-sm, 4px)',
           background: `${color}15`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '24px',
+          fontSize: 'var(--icon-size-lg, 20px)',
           color: color,
         }}>
           {icon}
         </div>
         <div style={{
-          padding: '4px 12px',
-          borderRadius: '20px',
+          padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+          borderRadius: 'var(--border-radius-sm, 4px)',
           background: `${color}20`,
           color: color,
-          fontSize: '12px',
-          fontWeight: '700',
+          fontSize: 'var(--font-size-small, 12px)',
+          fontWeight: '600',
         }}>
           {value}
         </div>
       </div>
       <h4 style={{ 
         color: themeStyles.text, 
-        fontSize: '16px', 
-        fontWeight: '700',
-        marginBottom: '4px'
+        fontSize: 'var(--font-size, 14px)', 
+        fontWeight: '600',
+        marginBottom: 'var(--spacing-xs, 4px)',
+        margin: 0,
       }}>
         {title}
       </h4>
       {description && (
         <p style={{ 
           color: themeStyles.textSecondary, 
-          fontSize: '12px',
+          fontSize: 'var(--font-size-small, 12px)',
           margin: 0,
-          lineHeight: '1.4'
+          lineHeight: 'var(--line-height, 1.5)'
         }}>
           {description}
         </p>

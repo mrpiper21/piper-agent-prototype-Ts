@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../../../context/ThemeContext';
 import { electronAPI } from '../../../lib';
-import { lightStyles, darkStyles, sharedStyles } from './clerkStyles';
+import { lightStyles, darkStyles } from './clerkStyles';
 import { getStatusColor } from './utils';
 
 interface Job {
@@ -85,48 +85,48 @@ export function JobDetails({ job }: JobDetailsProps) {
     <>
       <div
         style={{
-          marginTop: '24px',
-          paddingTop: '24px',
-          borderTop: `1px solid ${themeStyles.sidebar.borderColor}`,
+          marginTop: 'var(--spacing-md, 12px)',
+          paddingTop: 'var(--spacing-md, 12px)',
+          borderTop: themeStyles.card.border,
         }}
       >
-        <h3 style={{ color: '#fbbf24', marginBottom: '16px', fontSize: '18px' }}>Job Details</h3>
-        <div style={{ display: 'grid', gap: '16px' }}>
+        <h3 style={{ color: '#fbbf24', marginBottom: 'var(--spacing-sm, 8px)', fontSize: 'var(--font-size, 14px)', fontWeight: '600' }}>Job Details</h3>
+        <div style={{ display: 'grid', gap: 'var(--spacing-sm, 8px)' }}>
           <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
-              padding: '12px',
+              padding: 'var(--spacing-sm, 8px)',
               background: themeStyles.container.background,
-              borderRadius: '8px',
+              borderRadius: 'var(--border-radius-sm, 4px)',
               alignItems: 'center',
             }}
           >
             <div>
               <p
-                style={{ color: themeStyles.textSecondary, fontSize: '12px', marginBottom: '4px' }}
+                style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size-small, 12px)', marginBottom: 'var(--spacing-xs, 4px)' }}
               >
                 Status
               </p>
-              <p style={{ color: themeStyles.text, fontWeight: 'bold' }}>
+              <p style={{ color: themeStyles.text, fontWeight: '500', fontSize: 'var(--font-size, 14px)' }}>
                 {job.status?.toUpperCase() || 'UNKNOWN'}
               </p>
             </div>
             <div
               style={{
-                padding: '8px 16px',
-                borderRadius: '20px',
+                padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+                borderRadius: 'var(--border-radius-sm, 4px)',
                 background:
                   getStatusColor(job.status || '', themeStyles) === themeStyles.success
-                    ? 'rgba(34, 197, 94, 0.2)'
+                    ? 'rgba(34, 197, 94, 0.1)'
                     : getStatusColor(job.status || '', themeStyles) === themeStyles.warning
-                    ? 'rgba(251, 158, 11, 0.2)'
+                    ? 'rgba(251, 158, 11, 0.1)'
                     : getStatusColor(job.status || '', themeStyles) === themeStyles.error
-                    ? 'rgba(239, 68, 68, 0.2)'
-                    : 'rgba(212, 212, 212, 0.2)',
+                    ? 'rgba(239, 68, 68, 0.1)'
+                    : 'rgba(212, 212, 212, 0.1)',
                 color: getStatusColor(job.status || '', themeStyles),
-                fontWeight: 'bold',
-                fontSize: '12px',
+                fontWeight: '500',
+                fontSize: 'var(--font-size-small, 12px)',
               }}
             >
               {job.status || 'unknown'}
@@ -137,43 +137,29 @@ export function JobDetails({ job }: JobDetailsProps) {
             style={{
               display: 'flex',
               justifyContent: 'space-between',
-              gap: '16px',
+              gap: 'var(--spacing-md, 12px)',
               alignItems: 'center',
-              paddingRight: '16px',
-              paddingLeft: '16px',
+              padding: 'var(--spacing-sm, 8px)',
             }}
           >
             <div>
               <p
-                style={{ color: themeStyles.textSecondary, fontSize: '12px', marginBottom: '6px' }}
+                style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size-small, 12px)', marginBottom: 'var(--spacing-xs, 4px)' }}
               >
                 Copies
               </p>
-              <p style={{ color: themeStyles.text, fontWeight: '600', fontSize: '16px' }}>
+              <p style={{ color: themeStyles.text, fontWeight: '500', fontSize: 'var(--font-size, 14px)' }}>
                 {job.copies || 1}
               </p>
             </div>
             <div>
               <p
-                style={{ color: themeStyles.textSecondary, fontSize: '12px', marginBottom: '6px' }}
+                style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size-small, 12px)', marginBottom: 'var(--spacing-xs, 4px)' }}
               >
                 Created
               </p>
-              <p style={{ color: themeStyles.text, fontSize: '14px' }}>
+              <p style={{ color: themeStyles.text, fontSize: 'var(--font-size, 14px)' }}>
                 {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : 'N/A'}
-              </p>
-            </div>
-            <div>
-              <p
-                style={{ color: themeStyles.textSecondary, fontSize: '12px', marginBottom: '6px' }}
-              >
-                Size
-              </p>
-              <p style={{ color: themeStyles.text, fontSize: '16px' }}>
-                height: {job.height as number}
-              </p>
-              <p style={{ color: themeStyles.text, fontSize: '16px' }}>
-                width: {job.width as number}
               </p>
             </div>
           </div>
@@ -181,25 +167,25 @@ export function JobDetails({ job }: JobDetailsProps) {
           {job.description && (
             <div>
               <p
-                style={{ color: themeStyles.textSecondary, fontSize: '12px', marginBottom: '6px' }}
+                style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size-small, 12px)', marginBottom: 'var(--spacing-xs, 4px)' }}
               >
                 Description
               </p>
-              <p style={{ color: themeStyles.text, lineHeight: '1.5' }}>{job.description}</p>
+              <p style={{ color: themeStyles.text, lineHeight: 'var(--line-height, 1.5)', fontSize: 'var(--font-size, 14px)' }}>{job.description}</p>
             </div>
           )}
 
           <div>
-            <p style={{ color: themeStyles.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
+            <p style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size-small, 12px)', marginBottom: 'var(--spacing-xs, 4px)' }}>
               File Path
             </p>
             <div
               style={{
-                padding: '10px',
+                padding: 'var(--spacing-sm, 8px)',
                 background: themeStyles.container.background,
-                borderRadius: '6px',
+                borderRadius: 'var(--border-radius-sm, 4px)',
                 wordBreak: 'break-all',
-                fontSize: '12px',
+                fontSize: 'var(--font-size-small, 12px)',
                 color: themeStyles.text,
                 fontFamily: 'monospace',
               }}
@@ -211,9 +197,9 @@ export function JobDetails({ job }: JobDetailsProps) {
 
         <div
           style={{
-            marginTop: '24px',
+            marginTop: 'var(--spacing-md, 12px)',
             display: 'flex',
-            gap: '12px',
+            gap: 'var(--spacing-sm, 8px)',
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -222,12 +208,15 @@ export function JobDetails({ job }: JobDetailsProps) {
             onClick={handleMarkAsCompleted}
             disabled={isUpdating || job.status === 'completed'}
             style={{
-              ...sharedStyles.actionButton,
-              ...themeStyles.primaryButton,
+              padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
+              borderRadius: 'var(--border-radius-sm, 4px)',
+              border: 'none',
+              background: themeStyles.primaryButton.background,
+              color: themeStyles.primaryButton.color,
+              fontSize: 'var(--font-size, 14px)',
+              fontWeight: '500',
               flex: 1,
               maxWidth: '500px',
-              minHeight: '44px',
-              fontSize: '15px',
               opacity: isUpdating || job.status === 'completed' ? 0.6 : 1,
               cursor: isUpdating || job.status === 'completed' ? 'not-allowed' : 'pointer',
             }}

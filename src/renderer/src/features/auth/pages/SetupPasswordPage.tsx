@@ -339,7 +339,6 @@ const darkStyles = {
   primaryButton: {
     backgroundColor: '#fbbf24',
     color: '#000000',
-    boxShadow: '0 2px 8px rgba(251, 191, 36, 0.4)',
   },
   error: '#f87171',
 };

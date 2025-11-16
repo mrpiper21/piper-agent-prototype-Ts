@@ -42,7 +42,7 @@ export default function UserManagementPage() {
     <>
       <div
         style={{
-          padding: '24px',
+          padding: 'var(--spacing-md, 12px)',
           height: '100%',
           overflow: 'auto',
           maxWidth: '1400px',

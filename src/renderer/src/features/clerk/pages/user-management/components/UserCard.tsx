@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../../../../context/ThemeContext';
 import { lightStyles, darkStyles, sharedStyles } from '../../../shared/clerkStyles';
 import {
@@ -8,6 +8,7 @@ import {
   AiOutlineSave,
   AiOutlineClose,
   AiOutlineCalendar,
+  AiOutlineMore,
 } from 'react-icons/ai';
 import { FaMapMarkerAlt } from 'react-icons/fa';
 
@@ -60,9 +61,44 @@ export default function UserCard({
 }: UserCardProps) {
   const { theme } = useTheme();
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        buttonRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   const handleChange = (field: keyof UserFormData, value: string | 'admin' | 'clerk') => {
     onFormDataChange({ [field]: value });
+  };
+
+  const handleEditClick = () => {
+    setIsDropdownOpen(false);
+    onStartEdit();
+  };
+
+  const handleDeleteClick = () => {
+    setIsDropdownOpen(false);
+    onDelete();
   };
 
   return (
@@ -70,24 +106,23 @@ export default function UserCard({
       style={{
         ...sharedStyles.card,
         ...themeStyles.card,
-        padding: '20px',
-        border: `1px solid ${themeStyles.card.border}`,
-        transition: 'all 0.2s ease',
+        padding: 'var(--spacing-md, 12px)',
+        border: themeStyles.card.border,
+        transition: 'background 0.15s ease',
         cursor: 'default',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px',
+        gap: 'var(--spacing-sm, 8px)',
+        boxShadow: 'none',
+        position: 'relative',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow =
-          theme === 'dark'
-            ? '0 6px 24px rgba(0, 0, 0, 0.5)'
-            : '0 4px 16px rgba(0, 0, 0, 0.12)';
+        e.currentTarget.style.background = theme === 'dark' 
+          ? 'rgba(255, 255, 255, 0.03)' 
+          : 'rgba(0, 0, 0, 0.02)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = 'none';
+        e.currentTarget.style.background = themeStyles.card.background;
       }}
     >
       {isEditing ? (
@@ -218,21 +253,30 @@ export default function UserCard({
         </form>
       ) : (
         <>
-          <div style={{ flex: 1 }}>
+          {/* Header with 3-dot menu */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: 'var(--spacing-sm, 8px)',
+              position: 'relative',
+            }}
+          >
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
-                marginBottom: '12px',
                 flexWrap: 'wrap',
+                flex: 1,
               }}
             >
               <h3
                 style={{
                   color: themeStyles.text,
-                  fontSize: '18px',
-                  fontWeight: '700',
+                  fontSize: 'var(--font-size-large, 16px)',
+                  fontWeight: '600',
                   margin: 0,
                 }}
               >
@@ -240,9 +284,9 @@ export default function UserCard({
               </h3>
               <span
                 style={{
-                  padding: '4px 12px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
+                  padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+                  borderRadius: 'var(--border-radius-sm, 4px)',
+                  fontSize: 'var(--font-size-small, 12px)',
                   fontWeight: '600',
                   background:
                     user.role === 'admin'
@@ -255,6 +299,123 @@ export default function UserCard({
                 {user.role === 'admin' ? 'Admin' : 'Clerk'}
               </span>
             </div>
+            {/* 3-dot action button */}
+            <button
+              ref={buttonRef}
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              style={{
+                padding: 'var(--spacing-xs, 4px)',
+                border: 'none',
+                borderRadius: 'var(--border-radius-sm, 4px)',
+                background: 'transparent',
+                color: themeStyles.textSecondary,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '28px',
+                height: '28px',
+                transition: 'all 0.2s ease',
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = themeStyles.button.background;
+                e.currentTarget.style.color = themeStyles.text;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = themeStyles.textSecondary;
+              }}
+              aria-label="More options"
+            >
+              <AiOutlineMore style={{ fontSize: 'var(--icon-size, 16px)' }} />
+            </button>
+            {/* Dropdown menu */}
+            {isDropdownOpen && (
+              <div
+                ref={dropdownRef}
+                style={{
+                  position: 'absolute',
+                  top: '32px',
+                  right: 0,
+                  background: themeStyles.card.background,
+                  border: themeStyles.card.border,
+                  borderRadius: 'var(--border-radius-md, 6px)',
+                  boxShadow: theme === 'dark'
+                    ? '0 4px 12px rgba(0, 0, 0, 0.3)'
+                    : '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  minWidth: '140px',
+                  zIndex: 1000,
+                  overflow: 'hidden',
+                }}
+              >
+                <button
+                  onClick={handleEditClick}
+                  style={{
+                    width: '100%',
+                    padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
+                    border: 'none',
+                    background: 'transparent',
+                    color: themeStyles.text,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-sm, 8px)',
+                    fontSize: 'var(--font-size, 14px)',
+                    transition: 'background 0.15s ease',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = theme === 'dark'
+                      ? 'rgba(255, 255, 255, 0.05)'
+                      : 'rgba(0, 0, 0, 0.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <AiOutlineEdit style={{ fontSize: 'var(--icon-size, 16px)' }} />
+                  Edit
+                </button>
+                {user.id !== currentUserId && (
+                  <button
+                    onClick={handleDeleteClick}
+                    disabled={isDeleting}
+                    style={{
+                      width: '100%',
+                      padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
+                      border: 'none',
+                      background: 'transparent',
+                      color: themeStyles.error || '#ef4444',
+                      cursor: isDeleting ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--spacing-sm, 8px)',
+                      fontSize: 'var(--font-size, 14px)',
+                      transition: 'background 0.15s ease',
+                      textAlign: 'left',
+                      opacity: isDeleting ? 0.6 : 1,
+                      borderTop: themeStyles.card.border,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isDeleting) {
+                        e.currentTarget.style.background = theme === 'dark'
+                          ? 'rgba(239, 68, 68, 0.1)'
+                          : 'rgba(239, 68, 68, 0.05)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <AiOutlineDelete style={{ fontSize: 'var(--icon-size, 16px)' }} />
+                    {isDeleting ? 'Deleting...' : 'Delete'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div style={{ flex: 1 }}>
             <div
               style={{
                 display: 'flex',
@@ -290,52 +451,6 @@ export default function UserCard({
                 </span>
               )}
             </div>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              paddingTop: '16px',
-              borderTop: `1px solid ${themeStyles.card.border}`,
-            }}
-          >
-            <button
-              onClick={onStartEdit}
-              style={{
-                ...sharedStyles.actionButton,
-                ...themeStyles.button,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '13px',
-                padding: '10px 16px',
-                flex: 1,
-                justifyContent: 'center',
-              }}
-            >
-              <AiOutlineEdit />
-              Edit
-            </button>
-            {user.id !== currentUserId && (
-              <button
-                onClick={onDelete}
-                disabled={isDeleting}
-                style={{
-                  ...sharedStyles.actionButton,
-                  ...themeStyles.dangerButton,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '13px',
-                  padding: '10px 16px',
-                  flex: 1,
-                  justifyContent: 'center',
-                }}
-              >
-                <AiOutlineDelete />
-                Delete
-              </button>
-            )}
           </div>
         </>
       )}

@@ -130,12 +130,10 @@ const styles = {
     bottom: 0,
   },
   card: {
-    padding: '30px',
-    borderRadius: '12px',
+    padding: 'var(--spacing-xl, 24px)',
+    borderRadius: 'var(--border-radius-lg, 8px)',
     width: '90%',
     maxWidth: '450px',
-    boxSizing: 'border-box' as const,
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
   },
   logoContainer: {
     display: 'flex',
@@ -155,7 +153,7 @@ const styles = {
     marginBottom: '30px',
   },
   title: {
-    fontSize: '28px',
+    fontSize: 'var(--font-size-xl, 18px)',
     fontWeight: '700',
   },
   themeButton: {
@@ -180,57 +178,55 @@ const styles = {
     gap: '8px',
   },
   input: {
-    padding: '12px',
-    borderRadius: '8px',
-    fontSize: '14px',
+    padding: 'var(--spacing-md, 12px)',
+    borderRadius: 'var(--border-radius-md, 6px)',
+    fontSize: 'var(--font-size, 14px)',
     boxSizing: 'border-box' as const,
     width: '100%',
     transition: 'all 0.2s ease',
   },
   button: {
-    padding: '14px',
+    padding: 'var(--spacing-md, 12px)',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
+    borderRadius: 'var(--border-radius-md, 6px)',
+    fontSize: 'var(--font-size, 14px)',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
     width: '100%',
   },
   error: {
-    fontSize: '14px',
+    fontSize: 'var(--font-size, 14px)',
     textAlign: 'center' as const,
-    padding: '10px',
-    borderRadius: '6px',
+    padding: 'var(--spacing-sm, 8px)',
+    borderRadius: 'var(--border-radius-md, 6px)',
   },
 };
 
 const lightStyles = {
-  container: { 
+  container: {
     backgroundColor: '#ffffff',
     background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
   },
   text: '#000000',
   accent: '#fbbf24',
-  card: { 
-    backgroundColor: '#ffffff', 
-    border: '1px solid #e1e1e1',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-  },
-  button: { 
-    backgroundColor: '#ffffff', 
-    color: '#000000', 
+  card: {
+    backgroundColor: '#ffffff',
     border: '1px solid #e1e1e1',
   },
-  input: { 
-    backgroundColor: '#ffffff', 
-    color: '#000000', 
-    border: '1px solid #e1e1e1',
-  },
-  primaryButton: { 
-    backgroundColor: '#fbbf24', 
+  button: {
+    backgroundColor: '#ffffff',
     color: '#000000',
-    boxShadow: '0 2px 8px rgba(251, 191, 36, 0.3)',
+    border: '1px solid #e1e1e1',
+  },
+  input: {
+    backgroundColor: '#ffffff',
+    color: '#000000',
+    border: '1px solid #e1e1e1',
+  },
+  primaryButton: {
+    backgroundColor: '#fbbf24',
+    color: '#000000',
   },
   error: '#ef4444',
 };
@@ -245,7 +241,6 @@ const darkStyles = {
   card: { 
     backgroundColor: '#262626', 
     border: '1px solid #404040',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
   },
   button: { 
     backgroundColor: '#333333', 
@@ -260,7 +255,6 @@ const darkStyles = {
   primaryButton: { 
     backgroundColor: '#fbbf24', 
     color: '#000000',
-    boxShadow: '0 2px 8px rgba(251, 191, 36, 0.4)',
   },
   error: '#f87171',
 };
