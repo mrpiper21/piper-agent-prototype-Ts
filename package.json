@@ -112,12 +112,15 @@
       "releaseType": "release"
     },
     "directories": {
-      "output": "release/${version}"
+      "output": "release/${version}",
+      "buildResources": "build"
     },
+    "icon": "build/icon.png",
     "files": [
       "out/**/*",
       "node_modules/**/*",
-      "package.json"
+      "package.json",
+      "build/icon.png"
     ],
     "win": {
       "target": [
@@ -135,6 +138,7 @@
         }
       ],
       "publisherName": "PrintMyFile",
+      "icon": "build/icon.png",
       "sign": null
     },
     "mac": {
@@ -143,6 +147,7 @@
         "dmg",
         "zip"
       ],
+      "icon": "build/icon.png",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "sign": null
@@ -152,6 +157,7 @@
         "AppImage",
         "deb"
       ],
+      "icon": "build/icon.png",
       "category": "Utility",
       "maintainer": "support@printmyfile.com"
     },

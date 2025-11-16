@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../../../context/ThemeContext';
 import { AiOutlineMoon, AiOutlineSun } from 'react-icons/ai';
+import printAgentLogo from '../../../assets/printAgentLogo.png';
 
 // Access store without hook to avoid rules of hooks violation
 const getAuthState = () => useAuthStore.getState();
@@ -53,17 +54,27 @@ export default function LoginPage() {
   return (
     <div style={{ ...styles.container, ...themeStyles.container }}>
       <div style={{ ...styles.card, ...themeStyles.card }}>
-       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-         <h1 style={{ ...styles.title, color: themeStyles.text }}>Uranius Print Agent</h1>
-         <button
-           type="button"
-           onClick={toggleTheme}
-           style={{ ...styles.themeButton, ...themeStyles.button }}
-           aria-label="Toggle theme"
-         >
-           {theme === 'light' ? <AiOutlineMoon /> : <AiOutlineSun />}
-         </button>
-       </div>
+        <div style={styles.logoContainer}>
+          <img src={printAgentLogo} alt="Print Agent Logo" style={styles.logo} />
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px',
+          }}
+        >
+          <h1 style={{ ...styles.title, color: themeStyles.text }}>Uranius Print Agent</h1>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            style={{ ...styles.themeButton, ...themeStyles.button }}
+            aria-label="Toggle theme"
+          >
+            {theme === 'light' ? <AiOutlineMoon /> : <AiOutlineSun />}
+          </button>
+        </div>
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.inputGroup}>
             <label style={{ color: themeStyles.text }}>Email</label>
@@ -88,7 +99,11 @@ export default function LoginPage() {
             />
           </div>
           {error && <div style={{ ...styles.error, color: themeStyles.error }}>{error}</div>}
-          <button type="submit" disabled={isLoading} style={{ ...styles.button, ...themeStyles.primaryButton }}>
+          <button
+            type="submit"
+            disabled={isLoading}
+            style={{ ...styles.button, ...themeStyles.primaryButton }}
+          >
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
@@ -121,6 +136,17 @@ const styles = {
     maxWidth: '450px',
     boxSizing: 'border-box' as const,
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+  },
+  logoContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: '20px',
+  },
+  logo: {
+    maxWidth: '200px',
+    height: 'auto',
+    objectFit: 'contain' as const,
   },
   header: {
     display: 'flex',

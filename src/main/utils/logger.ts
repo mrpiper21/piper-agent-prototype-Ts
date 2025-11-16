@@ -1,4 +1,5 @@
 import log from 'electron-log';
+import { app } from 'electron';
 
 // Configure electron-log to use proper user-writable directories
 // This automatically handles:
@@ -15,7 +16,6 @@ log.transports.file.format = '[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}';
 // In production, only log to file to avoid console spam
 // Check if we're in Electron context and if app is packaged
 try {
-  const { app } = require('electron');
   if (app && app.isPackaged) {
     log.transports.console.level = false;
   }
@@ -43,6 +43,9 @@ class Logger {
 
   debug(message: string, ...args: any[]): void {
     log.debug(message, ...args);
+  }
+  log(message: string, ...args: any[]): void {
+    log.info(message, ...args);
   }
 }
 

@@ -7,13 +7,13 @@ import { dbService } from './services/DatabaseService';
 import { updateService } from './services/UpdateService';
 import fs from 'fs';
 
-// Initialize update-electron-app with error handling
-// This is a separate auto-updater library that requires repository in package.json
 try {
-  // Only initialize if repository is configured in package.json
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const packageJson = require('../../package.json');
-  if (packageJson.repository || (packageJson.build?.publish?.owner && packageJson.build?.publish?.repo)) {
+  if (
+    packageJson.repository ||
+    (packageJson.build?.publish?.owner && packageJson.build?.publish?.repo)
+  ) {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const updateElectronApp = require('update-electron-app');
     updateElectronApp.updateElectronApp({
@@ -25,8 +25,7 @@ try {
     logger.warn('Skipping update-electron-app: repository not configured in package.json');
   }
 } catch (error) {
-  // Don't crash if update-electron-app fails - it's not critical
-  logger.warn('Failed to initialize update-electron-app (non-critical):', error instanceof Error ? error.message : String(error));
+  // Don't crash if update-electron-app fails - it's not critical  logger.warn('Failed to initialize update-electron-app (non-critical):', error instanceof Error ? error.message : String(error));
 }
 // Load environment variables from .env file if available
 try {
