@@ -2,7 +2,7 @@ import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../../../context/ThemeContext';
-import { AiOutlineMoon, AiOutlineSun } from 'react-icons/ai';
+// import { AiOutlineMoon, AiOutlineSun } from 'react-icons/ai';
 import printAgentLogo from '../../../assets/printAgentLogo.png';
 
 // Access store without hook to avoid rules of hooks violation
@@ -11,7 +11,7 @@ const getAuthState = () => useAuthStore.getState();
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login, error, isLoading } = useAuthStore();
-  const { theme, toggleTheme } = useTheme();
+  const { theme,/* toggleTheme */} = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -53,60 +53,47 @@ export default function LoginPage() {
 
   return (
     <div style={{ ...styles.container, ...themeStyles.container }}>
-      <div style={{ ...styles.card, ...themeStyles.card }}>
+      <div style={styles.contentWrapper}>
+        {/* Logo Section - Separated and Prominent */}
         <div style={styles.logoContainer}>
-          <img src={printAgentLogo} alt="Print Agent Logo" style={styles.logo} />
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '20px',
-          }}
-        >
-          <h1 style={{ ...styles.title, color: themeStyles.text }}>Uranius Print Agent</h1>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            style={{ ...styles.themeButton, ...themeStyles.button }}
-            aria-label="Toggle theme"
-          >
-            {theme === 'light' ? <AiOutlineMoon /> : <AiOutlineSun />}
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.inputGroup}>
-            <label style={{ color: themeStyles.text }}>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              required
-              style={{ ...styles.input, ...themeStyles.input }}
-            />
+            <img src={printAgentLogo} alt="Print Agent Logo" style={styles.logo} />
           </div>
-          <div style={styles.inputGroup}>
-            <label style={{ color: themeStyles.text }}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-              style={{ ...styles.input, ...themeStyles.input }}
-            />
-          </div>
-          {error && <div style={{ ...styles.error, color: themeStyles.error }}>{error}</div>}
-          <button
-            type="submit"
-            disabled={isLoading}
-            style={{ ...styles.button, ...themeStyles.primaryButton }}
-          >
-            {isLoading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
+
+        {/* Form Section - Separate Card */}
+        <div style={{ ...styles.card, ...themeStyles.card }}>
+          <form onSubmit={handleSubmit} style={styles.form}>
+            <div style={styles.inputGroup}>
+              <label style={{ color: themeStyles.text }}>Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+                style={{ ...styles.input, ...themeStyles.input }}
+              />
+            </div>
+            <div style={styles.inputGroup}>
+              <label style={{ color: themeStyles.text }}>Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                style={{ ...styles.input, ...themeStyles.input }}
+              />
+            </div>
+            {error && <div style={{ ...styles.error, color: themeStyles.error }}>{error}</div>}
+            <button
+              type="submit"
+              disabled={isLoading}
+              style={{ ...styles.button, ...themeStyles.primaryButton }}
+            >
+              {isLoading ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -129,32 +116,45 @@ const styles = {
     right: 0,
     bottom: 0,
   },
-  card: {
-    padding: 'var(--spacing-xl, 24px)',
-    borderRadius: 'var(--border-radius-lg, 8px)',
-    width: '90%',
-    maxWidth: '450px',
+  contentWrapper: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: 'var(--spacing-2xl, 32px)',
+    width: '100%',
+    maxWidth: '500px',
+  },
+  logoSection: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    // gap: 'var(--spacing-lg, 16px)',
+    width: '100%',
   },
   logoContainer: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: '20px',
+    // padding: 'var(--spacing-md, 12px)',
   },
   logo: {
-    maxWidth: '200px',
+    maxWidth: '280px',
+    width: '100%',
     height: 'auto',
     objectFit: 'contain' as const,
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: '30px',
+    filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1))',
   },
   title: {
-    fontSize: 'var(--font-size-xl, 18px)',
+    fontSize: 'var(--font-size-xl, 20px)',
     fontWeight: '700',
+    textAlign: 'center' as const,
+    letterSpacing: '0.5px',
+  },
+  card: {
+    padding: 'var(--spacing-xl, 24px)',
+    borderRadius: 'var(--border-radius-lg, 8px)',
+    width: '100%',
+    maxWidth: '450px',
   },
   themeButton: {
     padding: '8px 12px',
