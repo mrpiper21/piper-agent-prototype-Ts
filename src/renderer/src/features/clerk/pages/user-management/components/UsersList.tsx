@@ -121,23 +121,23 @@ export default function UsersList({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '24px',
+          marginBottom: 'var(--spacing-md, 12px)',
           flexWrap: 'wrap',
-          gap: '12px',
+          gap: 'var(--spacing-sm, 8px)',
         }}
       >
         <h2
           style={{
             color: themeStyles.text,
-            fontSize: '20px',
-            fontWeight: '700',
+            fontSize: 'var(--font-size-large, 16px)',
+            fontWeight: '600',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
+            gap: 'var(--spacing-sm, 8px)',
             margin: 0,
           }}
         >
-          <AiOutlineUser style={{ color: themeStyles.accent }} />
+          <AiOutlineUser style={{ color: themeStyles.accent, fontSize: 'var(--icon-size, 16px)' }} />
           My Clerks ({users.length})
         </h2>
       </div>
@@ -145,7 +145,7 @@ export default function UsersList({
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-          gap: '16px',
+          gap: 'var(--spacing-sm, 8px)',
         }}
       >
         {users.map((user) => (

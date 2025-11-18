@@ -81,6 +81,83 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  /* Use CSS variables for dynamic font size and spacing */
+  font-size: var(--font-size, 14px);
+  line-height: var(--line-height, 1.5);
+}
+
+/* Apply font size to all text elements */
+p, span, div, h1, h2, h3, h4, h5, h6, label, input, textarea, select, button, a {
+  font-size: inherit;
+  line-height: var(--line-height, 1.5);
+}
+
+/* Apply spacing multiplier to common spacing properties */
+* {
+  --spacing-unit: calc(1px * var(--spacing-multiplier, 1));
+}
+
+/* Custom Scrollbar Styles - Subtle and Less Visible */
+/* Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+/* Show scrollbar more prominently on hover over scrollable area */
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Dark theme scrollbar */
+[data-theme='dark'] ::-webkit-scrollbar-thumb,
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='dark'] *:hover::-webkit-scrollbar-thumb,
+.dark *:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover,
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Firefox - thin scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+[data-theme='dark'] *,
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Hide scrollbar but keep functionality - optional, can be applied to specific elements */
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 button:disabled {

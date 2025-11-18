@@ -125,27 +125,27 @@ export default function JobsPage() {
     return (
       <div
         style={{
-          padding: '20px',
+          padding: 'var(--spacing-xl, 24px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: '400px',
+          minHeight: '300px',
           color: themeStyles.textSecondary,
         }}
       >
         <div
           style={{
-            width: '48px',
-            height: '48px',
-            border: `4px solid ${themeStyles.sidebar.borderColor}`,
-            borderTop: `4px solid ${themeStyles.accent}`,
+            width: '32px',
+            height: '32px',
+            border: `3px solid ${themeStyles.sidebar.borderColor}`,
+            borderTop: `3px solid ${themeStyles.accent}`,
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
-            marginBottom: '16px',
+            marginBottom: 'var(--spacing-sm, 8px)',
           }}
         />
-        <p style={{ fontSize: '16px' }}>Loading jobs...</p>
+        <p style={{ fontSize: 'var(--font-size, 14px)' }}>Loading jobs...</p>
         <style>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -160,28 +160,44 @@ export default function JobsPage() {
     return (
       <div
         style={{
-          padding: '20px',
+          padding: 'var(--spacing-xl, 24px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: '400px',
+          minHeight: '300px',
           color: themeStyles.error,
         }}
       >
-        <p style={{ fontSize: '18px', marginBottom: '8px' }}>⚠️</p>
-        <p style={{ fontSize: '16px', marginBottom: '12px' }}>
+        <p
+          style={{
+            fontSize: 'var(--font-size-large, 16px)',
+            marginBottom: 'var(--spacing-xs, 4px)',
+          }}
+        >
+          ⚠️
+        </p>
+        <p style={{ fontSize: 'var(--font-size, 14px)', marginBottom: 'var(--spacing-sm, 8px)' }}>
           Error loading jobs: {(error as Error).message}
         </p>
         <button
           onClick={handleRefresh}
           style={{
-            ...sharedStyles.actionButton,
-            ...themeStyles.primaryButton,
-            marginTop: '12px',
+            padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+            borderRadius: 'var(--border-radius-sm, 4px)',
+            border: 'none',
+            background: themeStyles.primaryButton.background,
+            color: themeStyles.primaryButton.color,
+            fontSize: 'var(--font-size-small, 12px)',
+            fontWeight: '500',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--spacing-xs, 4px)',
+            marginTop: 'var(--spacing-sm, 8px)',
           }}
         >
-          <AiOutlineReload style={{ marginRight: '8px', display: 'inline' }} />
+          <AiOutlineReload style={{ fontSize: 'var(--icon-size-sm, 14px)' }} />
           Retry
         </button>
       </div>
@@ -189,306 +205,354 @@ export default function JobsPage() {
   }
 
   return (
-    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header */}
-      {!selectedJob && (
-        <div style={{ flexShrink: 0, marginBottom: '20px' }}>
-          <div
+    <div
+      style={{
+        padding: 'var(--spacing-md, 12px)',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header - Always visible */}
+      <div style={{ flexShrink: 0, marginBottom: 'var(--spacing-md, 12px)' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 'var(--spacing-sm, 8px)',
+          }}
+        >
+          <h2
             style={{
+              color: '#fbbf24',
+              fontWeight: '600',
+              fontSize: 'var(--font-size-large, 16px)',
+              margin: 0,
               display: 'flex',
-              justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '16px',
+              gap: 'var(--spacing-sm, 8px)',
             }}
           >
-            <h2
-              style={{
-                color: '#fbbf24',
-                fontWeight: '700',
-                fontSize: '24px',
-                margin: 0,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-              }}
-            >
-              Recent Print Jobs
-              {jobs && jobs.length > 0 && (
-                <span
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: themeStyles.textSecondary,
-                    background: themeStyles.card.background,
-                    padding: '4px 12px',
-                    borderRadius: '12px',
-                    border: themeStyles.card.border,
-                  }}
-                >
-                  {filteredAndSortedJobs.length} {filteredAndSortedJobs.length === 1 ? 'job' : 'jobs'}
-                </span>
-              )}
-            </h2>
-            <button
-              onClick={handleRefresh}
-              disabled={isRefetching || isLoading}
-              style={{
-                ...sharedStyles.actionButton,
-                ...themeStyles.primaryButton,
-                minWidth: '120px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                opacity: isRefetching || isLoading ? 0.6 : 1,
-              }}
-            >
-              <AiOutlineReload
+            Print Jobs
+            {jobs && jobs.length > 0 && (
+              <span
                 style={{
-                  display: 'inline',
-                  animation: isRefetching ? 'spin 1s linear infinite' : 'none',
-                }}
-              />
-              {isRefetching || isLoading ? 'Refreshing...' : 'Refresh'}
-            </button>
-          </div>
-
-          {/* Search and Filters Bar */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '12px',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              marginBottom: '16px',
-            }}
-          >
-            {/* Search Input */}
-            <div
-              style={{
-                position: 'relative',
-                flex: '1',
-                minWidth: '200px',
-              }}
-            >
-              <AiOutlineSearch
-                style={{
-                  position: 'absolute',
-                  left: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
+                  fontSize: 'var(--font-size-small, 12px)',
+                  fontWeight: '500',
                   color: themeStyles.textSecondary,
-                  fontSize: '18px',
+                  background: 'transparent',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
                 }}
-              />
-              <input
-                type="text"
-                placeholder="Search jobs by filename, printer, or description..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px 10px 40px',
-                  borderRadius: '8px',
-                  border: themeStyles.card.border,
-                  background: themeStyles.input.background,
-                  color: themeStyles.input.color,
-                  fontSize: '14px',
-                  outline: 'none',
-                  transition: 'border-color 0.2s ease',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = themeStyles.accent;
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = themeStyles.card.border;
-                }}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  style={{
-                    position: 'absolute',
-                    right: '8px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: themeStyles.textSecondary,
-                    padding: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    borderRadius: '4px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = themeStyles.card.background;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  <AiOutlineClose />
-                </button>
-              )}
-            </div>
-
-            {/* Filter Button */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
+              >
+                ({filteredAndSortedJobs.length})
+              </span>
+            )}
+          </h2>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefetching || isLoading}
+            style={{
+              padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+              borderRadius: 'var(--border-radius-sm, 4px)',
+              border: themeStyles.button.border,
+              background: themeStyles.button.background,
+              color: themeStyles.button.color,
+              fontSize: 'var(--font-size-small, 12px)',
+              fontWeight: '500',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-xs, 4px)',
+              opacity: isRefetching || isLoading ? 0.6 : 1,
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <AiOutlineReload
               style={{
-                ...sharedStyles.actionButton,
-                ...themeStyles.button,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                position: 'relative',
+                fontSize: 'var(--icon-size-sm, 14px)',
+                animation: isRefetching ? 'spin 1s linear infinite' : 'none',
               }}
-            >
-              <AiOutlineFilter />
-              Filters
-              {hasActiveFilters && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '-4px',
-                    right: '-4px',
-                    width: '8px',
-                    height: '8px',
-                    background: themeStyles.error,
-                    borderRadius: '50%',
-                  }}
-                />
-              )}
-            </button>
+            />
+            {isRefetching || isLoading ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
 
-            {/* Sort Dropdown */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
+        {/* Search and Filters Bar */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 'var(--spacing-sm, 8px)',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            marginBottom: 'var(--spacing-sm, 8px)',
+          }}
+        >
+          {/* Search Input */}
+          <div
+            style={{
+              position: 'relative',
+              flex: '1',
+              minWidth: '200px',
+            }}
+          >
+            <AiOutlineSearch
               style={{
-                padding: '10px 12px',
-                borderRadius: '8px',
+                position: 'absolute',
+                left: 'var(--spacing-sm, 8px)',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: themeStyles.textSecondary,
+                fontSize: 'var(--icon-size-sm, 14px)',
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Search jobs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding:
+                  'var(--spacing-xs, 4px) var(--spacing-sm, 8px) var(--spacing-xs, 4px) 32px',
+                borderRadius: 'var(--border-radius-sm, 4px)',
                 border: themeStyles.card.border,
                 background: themeStyles.input.background,
                 color: themeStyles.input.color,
-                fontSize: '14px',
-                cursor: 'pointer',
+                fontSize: 'var(--font-size, 14px)',
                 outline: 'none',
-                display: 'flex',
-                alignItems: 'center',
+                transition: 'border-color 0.2s ease',
+                height: '32px',
               }}
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="status">Sort by Status</option>
-              <option value="filename">Sort by Filename</option>
-            </select>
-
-            {hasActiveFilters && (
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = themeStyles.accent;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = themeStyles.card.border;
+              }}
+            />
+            {searchQuery && (
               <button
-                onClick={clearFilters}
+                onClick={() => setSearchQuery('')}
                 style={{
-                  ...sharedStyles.actionButton,
-                  ...themeStyles.button,
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: themeStyles.textSecondary,
+                  padding: '4px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  borderRadius: '4px',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = themeStyles.card.background;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
                 }}
               >
                 <AiOutlineClose />
-                Clear
               </button>
             )}
           </div>
 
-          {/* Filter Panel */}
-          {showFilters && (
-            <div
+          {/* Filter Button */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            style={{
+              padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+              borderRadius: 'var(--border-radius-sm, 4px)',
+              border: themeStyles.button.border,
+              background: themeStyles.button.background,
+              color: themeStyles.button.color,
+              fontSize: 'var(--font-size-small, 12px)',
+              fontWeight: '500',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-xs, 4px)',
+              position: 'relative',
+              height: '32px',
+            }}
+          >
+            <AiOutlineFilter style={{ fontSize: 'var(--icon-size-sm, 14px)' }} />
+            Filters
+            {hasActiveFilters && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  width: '8px',
+                  height: '8px',
+                  background: themeStyles.error,
+                  borderRadius: '50%',
+                }}
+              />
+            )}
+          </button>
+
+          {/* Sort Dropdown */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            style={{
+              padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+              borderRadius: 'var(--border-radius-sm, 4px)',
+              border: themeStyles.card.border,
+              background: themeStyles.input.background,
+              color: themeStyles.input.color,
+              fontSize: 'var(--font-size-small, 12px)',
+              cursor: 'pointer',
+              outline: 'none',
+              height: '32px',
+            }}
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="status">Sort by Status</option>
+            <option value="filename">Sort by Filename</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
               style={{
-                background: themeStyles.card.background,
-                border: themeStyles.card.border,
-                borderRadius: '12px',
-                padding: '16px',
-                marginBottom: '16px',
+                padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+                borderRadius: 'var(--border-radius-sm, 4px)',
+                border: themeStyles.button.border,
+                background: themeStyles.button.background,
+                color: themeStyles.button.color,
+                fontSize: 'var(--font-size-small, 12px)',
+                fontWeight: '500',
+                cursor: 'pointer',
                 display: 'flex',
-                gap: '12px',
-                flexWrap: 'wrap',
                 alignItems: 'center',
+                gap: 'var(--spacing-xs, 4px)',
+                height: '32px',
               }}
             >
-              <span style={{ color: themeStyles.textSecondary, fontSize: '14px', fontWeight: '600' }}>
-                Status:
-              </span>
-              {(['all', 'pending', 'processing', 'completed', 'failed'] as StatusFilter[]).map(
-                (status) => (
-                  <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    style={{
-                      padding: '6px 16px',
-                      borderRadius: '20px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      textTransform: 'capitalize',
-                      transition: 'all 0.2s ease',
-                      ...(statusFilter === status
-                        ? {
-                            background: themeStyles.accent,
-                            color: '#000000',
-                          }
-                        : {
-                            background: themeStyles.button.background,
-                            color: themeStyles.button.color,
-                            border: themeStyles.button.border,
-                          }),
-                    }}
-                  >
-                    {status === 'all' ? 'All Statuses' : status}
-                  </button>
-                )
-              )}
-            </div>
+              <AiOutlineClose style={{ fontSize: 'var(--icon-size-sm, 14px)' }} />
+              Clear
+            </button>
           )}
         </div>
-      )}
 
-      {/* Main Content */}
+        {/* Filter Panel */}
+        {showFilters && (
+          <div
+            style={{
+              background: themeStyles.card.background,
+              border: themeStyles.card.border,
+              borderRadius: 'var(--border-radius-sm, 4px)',
+              padding: 'var(--spacing-sm, 8px)',
+              marginBottom: 'var(--spacing-sm, 8px)',
+              display: 'flex',
+              gap: 'var(--spacing-sm, 8px)',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+            }}
+          >
+            <span
+              style={{
+                color: themeStyles.textSecondary,
+                fontSize: 'var(--font-size-small, 12px)',
+                fontWeight: '500',
+              }}
+            >
+              Status:
+            </span>
+            {(['all', 'pending', 'processing', 'completed', 'failed'] as StatusFilter[]).map(
+              (status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  style={{
+                    padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+                    borderRadius: 'var(--border-radius-sm, 4px)',
+                    border: statusFilter === status ? 'none' : themeStyles.button.border,
+                    cursor: 'pointer',
+                    fontSize: 'var(--font-size-small, 12px)',
+                    fontWeight: '500',
+                    textTransform: 'capitalize',
+                    transition: 'all 0.2s ease',
+                    height: '28px',
+                    ...(statusFilter === status
+                      ? {
+                          background: themeStyles.accent,
+                          color: '#000000',
+                        }
+                      : {
+                          background: themeStyles.button.background,
+                          color: themeStyles.button.color,
+                        }),
+                  }}
+                >
+                  {status === 'all' ? 'All Statuses' : status}
+                </button>
+              )
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Main Content - Split View */}
       <div
         style={{
           display: 'flex',
-          gap: selectedJob ? '24px' : '0',
           flex: 1,
           overflow: 'hidden',
-          transition: 'gap 0.3s ease',
+          gap: 0,
+          minHeight: 0,
         }}
       >
-        {/* Job List */}
-        {!selectedJob ? (
+        {/* Job List - Always visible, constrained width */}
+        <div
+          style={{
+            width: selectedJob ? '420px' : '100%',
+            maxWidth: selectedJob ? '420px' : '600px',
+            minWidth: selectedJob ? '420px' : 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            borderRight: selectedJob ? themeStyles.card.border : 'none',
+            background: themeStyles.container.background,
+          }}
+        >
           <div
             style={{
-              flex: selectedJob ? '0 0 380px' : '1',
-              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+              flex: 1,
               overflowY: 'auto',
               overflowX: 'hidden',
-              paddingRight: selectedJob ? '8px' : '0',
+              paddingRight: 'var(--spacing-xs, 4px)',
             }}
           >
-            <div style={sharedStyles.jobsList}>
+            <div style={{ ...sharedStyles.jobsList, gap: 'var(--spacing-xs, 4px)' }}>
               {!jobs || jobs.length === 0 ? (
                 <div
                   style={{
                     textAlign: 'center',
-                    padding: '60px 20px',
+                    padding: 'var(--spacing-xl, 24px) var(--spacing-md, 12px)',
                     color: themeStyles.textSecondary,
                   }}
                 >
-                  <p style={{ fontSize: '48px', marginBottom: '16px' }}>📋</p>
-                  <p style={{ fontSize: '18px', marginBottom: '8px', fontWeight: '600' }}>
+                  <p
+                    style={{
+                      fontSize: 'var(--font-size-xl, 18px)',
+                      marginBottom: 'var(--spacing-sm, 8px)',
+                      fontWeight: '500',
+                    }}
+                  >
                     No jobs found
                   </p>
-                  <p style={{ fontSize: '14px' }}>
+                  <p style={{ fontSize: 'var(--font-size-small, 12px)' }}>
                     Submit a print job to get started
                   </p>
                 </div>
@@ -496,22 +560,38 @@ export default function JobsPage() {
                 <div
                   style={{
                     textAlign: 'center',
-                    padding: '60px 20px',
+                    padding: 'var(--spacing-xl, 24px) var(--spacing-md, 12px)',
                     color: themeStyles.textSecondary,
                   }}
                 >
-                  <p style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</p>
-                  <p style={{ fontSize: '18px', marginBottom: '8px', fontWeight: '600' }}>
+                  <p
+                    style={{
+                      fontSize: 'var(--font-size-xl, 18px)',
+                      marginBottom: 'var(--spacing-sm, 8px)',
+                      fontWeight: '500',
+                    }}
+                  >
                     No jobs match your filters
                   </p>
-                  <p style={{ fontSize: '14px', marginBottom: '16px' }}>
+                  <p
+                    style={{
+                      fontSize: 'var(--font-size-small, 12px)',
+                      marginBottom: 'var(--spacing-sm, 8px)',
+                    }}
+                  >
                     Try adjusting your search or filter criteria
                   </p>
                   <button
                     onClick={clearFilters}
                     style={{
-                      ...sharedStyles.actionButton,
-                      ...themeStyles.primaryButton,
+                      padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+                      borderRadius: 'var(--border-radius-sm, 4px)',
+                      border: 'none',
+                      background: themeStyles.primaryButton.background,
+                      color: themeStyles.primaryButton.color,
+                      fontSize: 'var(--font-size-small, 12px)',
+                      fontWeight: '500',
+                      cursor: 'pointer',
                     }}
                   >
                     Clear Filters
@@ -529,8 +609,52 @@ export default function JobsPage() {
               )}
             </div>
           </div>
-        ) : (
-          <JobPreview job={selectedJob} onClose={() => setSelectedJob(null)} />
+        </div>
+
+        {/* Preview Panel - Shows when job is selected */}
+        {selectedJob && (
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              minWidth: 0,
+              animation: 'slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            <JobPreview job={selectedJob} onClose={() => setSelectedJob(null)} />
+          </div>
+        )}
+
+        {/* Empty State when no job selected but list is constrained */}
+        {!selectedJob && (
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: themeStyles.container.background,
+              color: themeStyles.textSecondary,
+              padding: 'var(--spacing-xl, 24px)',
+            }}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <p
+                style={{
+                  fontSize: 'var(--font-size-large, 16px)',
+                  marginBottom: 'var(--spacing-sm, 8px)',
+                  fontWeight: '500',
+                }}
+              >
+                Select a job to view details
+              </p>
+              <p style={{ fontSize: 'var(--font-size-small, 12px)' }}>
+                Click on any job from the list to see its preview and details
+              </p>
+            </div>
+          </div>
         )}
       </div>
 
@@ -538,6 +662,16 @@ export default function JobsPage() {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
         }
       `}</style>
     </div>

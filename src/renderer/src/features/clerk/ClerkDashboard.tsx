@@ -76,29 +76,49 @@ function JobsTab({ themeStyles }: { themeStyles: any }) {
   };
 
   return (
-    <div style={{ ...styles.card, ...themeStyles.card }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2 style={{ color: '#fbbf24', fontWeight: '700' }}>Recent Print Jobs</h2>
+    <div style={{ ...styles.card, ...themeStyles.card, padding: 'var(--spacing-md, 12px)', boxShadow: 'none' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md, 12px)' }}>
+        <h2 style={{ color: '#fbbf24', fontWeight: '600', fontSize: 'var(--font-size-large, 16px)' }}>Recent Print Jobs</h2>
         <button
           onClick={loadJobs}
           disabled={isLoading}
-          style={{ ...styles.actionButton, ...themeStyles.primaryButton }}
+          style={{ 
+            padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+            borderRadius: 'var(--border-radius-sm, 4px)',
+            border: themeStyles.button.border,
+            background: themeStyles.button.background,
+            color: themeStyles.button.color,
+            fontSize: 'var(--font-size-small, 12px)',
+            fontWeight: '500',
+            cursor: 'pointer',
+          }}
         >
           {isLoading ? 'Loading...' : 'Refresh'}
         </button>
       </div>
-      <div style={styles.jobsList}>
+      <div style={{ ...styles.jobsList, gap: 'var(--spacing-xs, 4px)' }}>
         {jobs.length === 0 ? (
           <p style={{ color: themeStyles.textSecondary }}>No jobs found</p>
         ) : (
           jobs.map((job) => (
             <div
               key={job.id || job._id || job.printJobId}
-              style={{ ...styles.jobItem, ...themeStyles.card }}
+              style={{ 
+                ...styles.jobItem, 
+                ...themeStyles.card,
+                padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
+                borderRadius: 0,
+                border: 'none',
+                borderBottom: themeStyles.card.border,
+                boxShadow: 'none',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
             >
-              <div>
-                <p style={{ color: themeStyles.text, fontWeight: 'bold' }}>{job.fileName}</p>
-                <p style={{ color: themeStyles.textSecondary, fontSize: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ color: themeStyles.text, fontWeight: '500', fontSize: 'var(--font-size, 14px)', margin: 0, marginBottom: 'var(--spacing-xs, 4px)' }}>{job.fileName}</p>
+                <p style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size-small, 12px)', margin: 0 }}>
                   {job.printerName} •{' '}
                   {new Date(job.submittedAt || job.submittedAt).toLocaleString()}
                 </p>
@@ -106,9 +126,12 @@ function JobsTab({ themeStyles }: { themeStyles: any }) {
               <span
                 style={{
                   color: getStatusColor(job.status),
-                  fontWeight: 'bold',
+                  fontWeight: '500',
                   textTransform: 'uppercase',
-                  fontSize: '12px',
+                  fontSize: 'var(--font-size-small, 12px)',
+                  padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+                  borderRadius: 'var(--border-radius-sm, 4px)',
+                  background: 'rgba(148, 163, 184, 0.1)',
                 }}
               >
                 {job.status}
@@ -215,7 +238,7 @@ function SubmitTab({ themeStyles }: { themeStyles: any }) {
 
   return (
     <div style={{ ...styles.card, ...themeStyles.card }}>
-        <h2 style={{ color: '#fbbf24', marginBottom: '24px', fontWeight: '700' }}>Submit New Print Job</h2>
+        <h2 style={{ color: '#fbbf24', marginBottom: 'var(--spacing-md, 12px)', fontWeight: '600', fontSize: 'var(--font-size-large, 16px)' }}>Submit New Print Job</h2>
         <div style={styles.form}>
           <div style={{ marginBottom: '20px' }}>
             <label
@@ -410,37 +433,55 @@ function StatusTab({ themeStyles }: { themeStyles: any }) {
 
   return (
       <div>
-      <div style={{ ...styles.card, ...themeStyles.card }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ color: '#fbbf24', fontWeight: '700' }}>Available Printers</h2>
+      <div style={{ ...styles.card, ...themeStyles.card, padding: 'var(--spacing-md, 12px)', boxShadow: 'none' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md, 12px)' }}>
+          <h2 style={{ color: '#fbbf24', fontWeight: '600', fontSize: 'var(--font-size-large, 16px)' }}>Available Printers</h2>
           <button
             onClick={loadPrinters}
             disabled={isLoading}
-            style={{ ...styles.actionButton, ...themeStyles.primaryButton }}
+            style={{ 
+              padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+              borderRadius: 'var(--border-radius-sm, 4px)',
+              border: themeStyles.button.border,
+              background: themeStyles.button.background,
+              color: themeStyles.button.color,
+              fontSize: 'var(--font-size-small, 12px)',
+              fontWeight: '500',
+              cursor: 'pointer',
+            }}
           >
             {isLoading ? 'Loading...' : 'Refresh'}
           </button>
         </div>
-        <div style={styles.printersList}>
+        <div style={{ ...styles.printersList, gap: 'var(--spacing-xs, 4px)' }}>
           {printers.length === 0 ? (
-            <p style={{ color: themeStyles.textSecondary }}>No printers available</p>
+            <p style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size-small, 12px)' }}>No printers available</p>
           ) : (
             printers.map((p, i) => (
-              <div key={i} style={{ ...styles.printerCard, ...themeStyles.card }}>
-                <div>
-                  <p style={{ color: themeStyles.text, fontWeight: 'bold' }}>
+              <div key={i} style={{ 
+                ...styles.printerCard, 
+                ...themeStyles.card,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ color: themeStyles.text, fontWeight: '500', fontSize: 'var(--font-size, 14px)', margin: 0, marginBottom: 'var(--spacing-xs, 4px)' }}>
                     {p.displayName || p.printerName}
                   </p>
-                  <p style={{ color: themeStyles.textSecondary, fontSize: '12px' }}>
+                  <p style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size-small, 12px)', margin: 0 }}>
                     {p.location || 'No location'} • {p.status}
                   </p>
                 </div>
                 <span
                   style={{
                     color: getStatusColor(p.status),
-                    fontWeight: 'bold',
+                    fontWeight: '500',
                     textTransform: 'uppercase',
-                    fontSize: '12px',
+                    fontSize: 'var(--font-size-small, 12px)',
+                    padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+                    borderRadius: 'var(--border-radius-sm, 4px)',
+                    background: 'rgba(148, 163, 184, 0.1)',
                   }}
                 >
                   {p.status}
@@ -542,61 +583,68 @@ const styles = {
     overflowX: 'hidden' as const,
   },
   card: {
-    padding: '24px',
-    borderRadius: '12px',
+    padding: 'var(--spacing-md, 12px)',
+    borderRadius: 0,
     width: '100%',
+    boxShadow: 'none',
   },
   jobsList: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '12px',
-    marginTop: '20px',
+    gap: 'var(--spacing-xs, 4px)',
+    marginTop: 'var(--spacing-sm, 8px)',
   },
   jobItem: {
-    padding: '16px',
-    borderRadius: '8px',
+    padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
+    borderRadius: 0,
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    transition: 'all 0.2s ease',
+    transition: 'background 0.15s ease',
+    border: 'none',
+    borderBottom: '1px solid',
+    boxShadow: 'none',
   },
   printersList: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '12px',
-    marginTop: '20px',
+    gap: 'var(--spacing-xs, 4px)',
+    marginTop: 'var(--spacing-sm, 8px)',
   },
   printerCard: {
-    padding: '16px',
-    borderRadius: '8px',
+    padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
+    borderRadius: 0,
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    transition: 'all 0.2s ease',
+    transition: 'background 0.15s ease',
+    border: 'none',
+    borderBottom: '1px solid',
+    boxShadow: 'none',
   },
   form: {
-    marginTop: '20px',
+    marginTop: 'var(--spacing-md, 12px)',
   },
   input: {
-    borderRadius: '6px',
-    fontSize: '14px',
+    borderRadius: 'var(--border-radius-sm, 4px)',
+    fontSize: 'var(--font-size, 14px)',
   },
   fileButton: {
-    padding: '12px',
+    padding: 'var(--spacing-sm, 8px)',
     border: 'none',
-    borderRadius: '6px',
+    borderRadius: 'var(--border-radius-sm, 4px)',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: 'var(--font-size, 14px)',
     fontWeight: '500',
   },
   actionButton: {
-    padding: '10px 20px',
+    padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
     border: 'none',
-    borderRadius: '6px',
+    borderRadius: 'var(--border-radius-sm, 4px)',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: 'var(--font-size, 14px)',
     transition: 'all 0.2s ease',
-    fontWeight: '600',
+    fontWeight: '500',
   },
 };
 

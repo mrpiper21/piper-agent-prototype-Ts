@@ -18,21 +18,21 @@ export default function UserManagementHeader({
   return (
     <div
       style={{
-        marginBottom: '32px',
+        marginBottom: 'var(--spacing-md, 12px)',
         display: 'flex',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        gap: '16px',
+        gap: 'var(--spacing-sm, 8px)',
       }}
     >
       <div>
         <h1
           style={{
             color: themeStyles.text,
-            fontSize: 'clamp(24px, 4vw, 32px)',
-            fontWeight: '700',
-            marginBottom: '8px',
+            fontSize: 'var(--font-size-xl, 18px)',
+            fontWeight: '600',
+            marginBottom: 'var(--spacing-xs, 4px)',
           }}
         >
           User Management
@@ -40,7 +40,7 @@ export default function UserManagementHeader({
         <p
           style={{
             color: themeStyles.textSecondary,
-            fontSize: '14px',
+            fontSize: 'var(--font-size-small, 12px)',
           }}
         >
           Manage system users and their permissions
@@ -50,15 +50,21 @@ export default function UserManagementHeader({
         <button
           onClick={onCreateClick}
           style={{
-            ...sharedStyles.actionButton,
-            ...themeStyles.primaryButton,
+            padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+            borderRadius: 'var(--border-radius-sm, 4px)',
+            border: 'none',
+            background: themeStyles.primaryButton.background,
+            color: themeStyles.primaryButton.color,
+            fontSize: 'var(--font-size-small, 12px)',
+            fontWeight: '500',
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            gap: 'var(--spacing-xs, 4px)',
             whiteSpace: 'nowrap',
           }}
         >
-          <AiOutlinePlus />
+          <AiOutlinePlus style={{ fontSize: 'var(--icon-size-sm, 14px)' }} />
           Add New User
         </button>
       )}
