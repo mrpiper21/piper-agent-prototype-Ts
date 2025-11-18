@@ -6,6 +6,9 @@ import { updateService } from '../services/UpdateService';
 import { logger } from '../utils/logger';
 import { sendClerkWelcomeEmail } from '../services/EmailService';
 import fs from 'fs';
+import https from 'https';
+import http from 'http';
+import { URL } from 'url';
 import type {
   LoginCredentials,
   AuthResponse,
@@ -533,6 +536,82 @@ export function setupIpcHandlers() {
       };
     } catch (error) {
       logger.error('File upload error', error);
+      throw error;
+    }
+  });
+
+  // File fetch handler - proxies file downloads through main process to bypass CORS
+  ipcMain.handle('files:fetch', async (_, fileUrl: string, headers?: Record<string, string>) => {
+    try {
+      const fetchFile = async (url: string, maxRedirects = 5): Promise<{ data: string; contentType: string }> => {
+        if (maxRedirects <= 0) {
+          throw new Error('Too many redirects');
+        }
+
+        return new Promise<{ data: string; contentType: string }>((resolve, reject) => {
+          const urlObj = new URL(url);
+          const isHttps = urlObj.protocol === 'https:';
+          const client = isHttps ? https : http;
+
+          const options = {
+            hostname: urlObj.hostname,
+            port: urlObj.port || (isHttps ? 443 : 80),
+            path: urlObj.pathname + urlObj.search,
+            method: 'GET',
+            headers: {
+              'User-Agent': 'PrintMyFile-Agent/1.0.0',
+              ...headers,
+            },
+          };
+
+          const req = client.request(options, async (res) => {
+            // Handle redirects
+            if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+              const redirectUrl = res.headers.location.startsWith('http')
+                ? res.headers.location
+                : `${urlObj.protocol}//${urlObj.hostname}${res.headers.location}`;
+              try {
+                const result = await fetchFile(redirectUrl, maxRedirects - 1);
+                return resolve(result);
+              } catch (error) {
+                return reject(error);
+              }
+            }
+
+            if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+              return reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
+            }
+
+            const chunks: Buffer[] = [];
+            res.on('data', (chunk: Buffer) => {
+              chunks.push(chunk);
+            });
+
+            res.on('end', () => {
+              const buffer = Buffer.concat(chunks);
+              const base64 = buffer.toString('base64');
+              const contentType = res.headers['content-type'] || 'application/octet-stream';
+              resolve({ data: base64, contentType });
+            });
+          });
+
+          req.on('error', (error) => {
+            logger.error('File fetch error', error);
+            reject(error);
+          });
+
+          req.setTimeout(30000, () => {
+            req.destroy();
+            reject(new Error('Request timeout'));
+          });
+
+          req.end();
+        });
+      };
+
+      return await fetchFile(fileUrl);
+    } catch (error) {
+      logger.error('File fetch error', error);
       throw error;
     }
   });

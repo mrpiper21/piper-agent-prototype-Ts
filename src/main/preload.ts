@@ -25,6 +25,7 @@ const electronAPI: IpcApi = {
     save: (path, content) => ipcRenderer.invoke('files:save', path, content),
     read: (path) => ipcRenderer.invoke('files:read', path),
     upload: (filePath) => ipcRenderer.invoke('files:upload', filePath),
+    fetch: (fileUrl, headers) => ipcRenderer.invoke('files:fetch', fileUrl, headers),
   },
   agent: {
     start: () => ipcRenderer.invoke('agent:start'),

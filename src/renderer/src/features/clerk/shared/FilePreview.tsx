@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTheme } from '../../../context/ThemeContext';
-import { useAuthStore } from '../../../features/auth/store/authStore';
 import { lightStyles, darkStyles } from './clerkStyles';
 import { getFileType } from './utils';
 
@@ -11,108 +10,14 @@ interface FilePreviewProps {
 
 export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
   const { theme } = useTheme();
-  const token = useAuthStore((state) => state.token);
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
   const fileType = getFileType(fileName);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
-  const [isLoadingPdf, setIsLoadingPdf] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
 
-  // Download handler that works with cross-origin URLs and authentication
-  const handleDownload = async () => {
-    if (!fileUrl || isDownloading) return;
-    
-    setIsDownloading(true);
-    try {
-      const headers: HeadersInit = {};
-      
-      // Add authorization header if token is available
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      // Fetch the file as a blob with authentication
-      const response = await fetch(fileUrl, {
-        method: 'GET',
-        headers,
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
-      }
-      
-      const blob = await response.blob();
-      
-      // Create a blob URL and trigger download
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      
-      // Cleanup
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-        setIsDownloading(false);
-      }, 100);
-    } catch (error) {
-      console.error('Download failed:', error);
-      alert(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setIsDownloading(false);
-    }
+  // Simple download handler - just opens the file URL
+  const handleDownload = () => {
+    if (!fileUrl) return;
+    window.open(fileUrl, '_blank');
   };
-
-  // Fetch PDF with authentication and create blob URL
-  useEffect(() => {
-    if (fileType === 'pdf' && fileUrl && !pdfBlobUrl && !isLoadingPdf) {
-      setIsLoadingPdf(true);
-      setPdfError(null);
-
-      const fetchPdf = async () => {
-        try {
-          const headers: HeadersInit = {};
-          
-          // Add authorization header if token is available
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-          }
-
-          const response = await fetch(fileUrl, {
-            method: 'GET',
-            headers,
-            credentials: 'include', // Include cookies if needed
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to load PDF: ${response.status} ${response.statusText}`);
-          }
-
-          const blob = await response.blob();
-          const blobUrl = window.URL.createObjectURL(blob);
-          setPdfBlobUrl(blobUrl);
-        } catch (error) {
-          console.error('Error loading PDF:', error);
-          setPdfError(error instanceof Error ? error.message : 'Failed to load PDF');
-        } finally {
-          setIsLoadingPdf(false);
-        }
-      };
-
-      fetchPdf();
-    }
-
-    // Cleanup blob URL on unmount or when fileUrl changes
-    return () => {
-      if (pdfBlobUrl) {
-        window.URL.revokeObjectURL(pdfBlobUrl);
-        setPdfBlobUrl(null);
-      }
-    };
-  }, [fileType, fileUrl, pdfBlobUrl, isLoadingPdf, token]);
 
   // Block print functionality
   useEffect(() => {
@@ -165,7 +70,7 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
         />
         <button
           onClick={handleDownload}
-          disabled={!fileUrl || isDownloading}
+          disabled={!fileUrl}
           style={{
             padding: '10px 24px',
             background: themeStyles.primaryButton.background,
@@ -173,90 +78,26 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
             border: 'none',
             borderRadius: '8px',
             fontWeight: '600',
-            cursor: isDownloading || !fileUrl ? 'not-allowed' : 'pointer',
+            cursor: !fileUrl ? 'not-allowed' : 'pointer',
             fontSize: '14px',
             transition: 'transform 0.2s ease',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            opacity: isDownloading || !fileUrl ? 0.6 : 1,
+            opacity: !fileUrl ? 0.6 : 1,
           }}
-          onMouseEnter={(e) => !isDownloading && fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
+          onMouseEnter={(e) => fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
           onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
-          {isDownloading ? '⏳ Downloading...' : '⬇️ Download'}
+          ⬇️ Download
         </button>
       </div>
     );
   }
   
   if (fileType === 'pdf' && fileUrl) {
-    // Use blob URL if available (fetched with authentication), otherwise show loading/error
-    const pdfUrl = pdfBlobUrl ? `${pdfBlobUrl}#toolbar=1&navpanes=0&scrollbar=1` : null;
-    
-    if (isLoadingPdf) {
-      return (
-        <div 
-          style={{
-            background: themeStyles.container.background,
-            padding: '16px',
-            borderRadius: '12px',
-            marginBottom: '24px',
-            height: '800px',
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'column',
-            gap: '16px',
-          }}
-        >
-          <div style={{ fontSize: '48px' }}>📄</div>
-          <p style={{ color: themeStyles.text, fontSize: '16px' }}>Loading PDF...</p>
-        </div>
-      );
-    }
-
-    if (pdfError || !pdfUrl) {
-      return (
-        <div 
-          style={{
-            background: themeStyles.container.background,
-            padding: '16px',
-            borderRadius: '12px',
-            marginBottom: '24px',
-            height: '800px',
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'column',
-            gap: '16px',
-          }}
-        >
-          <div style={{ fontSize: '48px' }}>⚠️</div>
-          <p style={{ color: themeStyles.error, fontSize: '16px', textAlign: 'center' }}>
-            {pdfError || 'Failed to load PDF'}
-          </p>
-          <button
-            onClick={handleDownload}
-            disabled={isDownloading}
-            style={{
-              padding: '10px 24px',
-              background: themeStyles.primaryButton.background,
-              color: themeStyles.primaryButton.color,
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: '600',
-              cursor: isDownloading ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-            }}
-          >
-            {isDownloading ? '⏳ Downloading...' : '⬇️ Download Instead'}
-          </button>
-        </div>
-      );
-    }
+    // Use fileUrl directly in iframe - no fetching needed
+    const pdfUrl = `${fileUrl}#toolbar=1&navpanes=0&scrollbar=1`;
     
     return (
       <div 
@@ -315,7 +156,7 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
         }}>
           <button
             onClick={handleDownload}
-            disabled={!fileUrl || isDownloading}
+            disabled={!fileUrl}
             style={{
               padding: '8px 16px',
               background: themeStyles.primaryButton.background,
@@ -323,18 +164,18 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
               border: 'none',
               borderRadius: '6px',
               fontWeight: '600',
-              cursor: isDownloading || !fileUrl ? 'not-allowed' : 'pointer',
+              cursor: !fileUrl ? 'not-allowed' : 'pointer',
               fontSize: '13px',
               transition: 'transform 0.2s ease',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              opacity: isDownloading || !fileUrl ? 0.6 : 1,
+              opacity: !fileUrl ? 0.6 : 1,
             }}
-            onMouseEnter={(e) => !isDownloading && fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
+            onMouseEnter={(e) => fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            {isDownloading ? '⏳ Downloading...' : '⬇️ Download'}
+            ⬇️ Download
           </button>
         </div>
         <div style={{
@@ -397,7 +238,7 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
         }}>
           <button
             onClick={handleDownload}
-            disabled={!fileUrl || isDownloading}
+            disabled={!fileUrl}
             style={{
               padding: '10px 24px',
               background: themeStyles.primaryButton.background,
@@ -405,18 +246,18 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
               border: 'none',
               borderRadius: '8px',
               fontWeight: '600',
-              cursor: isDownloading || !fileUrl ? 'not-allowed' : 'pointer',
+              cursor: !fileUrl ? 'not-allowed' : 'pointer',
               fontSize: '14px',
               transition: 'transform 0.2s ease',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              opacity: isDownloading || !fileUrl ? 0.6 : 1,
+              opacity: !fileUrl ? 0.6 : 1,
             }}
-            onMouseEnter={(e) => !isDownloading && fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
+            onMouseEnter={(e) => fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            {isDownloading ? '⏳ Downloading...' : '⬇️ Download'}
+            ⬇️ Download
           </button>
           <a 
             href={fileUrl} 

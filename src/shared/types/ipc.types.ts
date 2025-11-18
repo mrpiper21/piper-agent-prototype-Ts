@@ -104,6 +104,7 @@ export interface IpcApi {
     save: (path: string, content: string) => Promise<void>;
     read: (path: string) => Promise<string>;
     upload: (filePath: string) => Promise<{ fileId: string; fileName: string; fileSize: number }>;
+    fetch: (fileUrl: string, headers?: Record<string, string>) => Promise<{ data: string; contentType: string }>;
   };
   agent: {
     start: () => Promise<void>;
