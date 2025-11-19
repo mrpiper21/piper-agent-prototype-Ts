@@ -4,7 +4,6 @@ import { agentService } from '../services/AgentService';
 import { apiService } from '../services/api';
 import { updateService } from '../services/UpdateService';
 import { logger } from '../utils/logger';
-import { sendClerkWelcomeEmail } from '../services/EmailService';
 import fs from 'fs';
 import https from 'https';
 import http from 'http';
@@ -256,13 +255,7 @@ export function setupIpcHandlers() {
       const user = await apiService.createClerk(data);
       logger.info('Clerk created successfully via API', { userId: user.id });
 
-      // Send welcome email with temporary password
-      await sendClerkWelcomeEmail({
-        name: data.name,
-        email: data.email,
-        password: data.password,
-      });
-
+      // Email sending is now handled by the backend
       return user;
     } catch (error) {
       logger.error('Create clerk error', error);

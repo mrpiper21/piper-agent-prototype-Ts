@@ -165,7 +165,14 @@ export default function DashboardPage() {
               Print job overview
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs, 4px)', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-xs, 4px)',
+              flexWrap: 'wrap',
+            }}
+          >
             <button
               onClick={() => {
                 const today = new Date().toISOString().split('T')[0];
@@ -218,7 +225,9 @@ export default function DashboardPage() {
               boxShadow: 'none',
             }}
           >
-            <p style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size, 14px)' }}>Loading...</p>
+            <p style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size, 14px)' }}>
+              Loading...
+            </p>
           </div>
         ) : (
           <div
@@ -283,10 +292,20 @@ export default function DashboardPage() {
             }}
           >
             <div
-              style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs, 4px)', marginBottom: 'var(--spacing-sm, 8px)' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-xs, 4px)',
+                marginBottom: 'var(--spacing-sm, 8px)',
+              }}
             >
               <h3
-                style={{ color: themeStyles.text, margin: 0, fontWeight: '600', fontSize: 'var(--font-size, 14px)' }}
+                style={{
+                  color: themeStyles.text,
+                  margin: 0,
+                  fontWeight: '600',
+                  fontSize: 'var(--font-size, 14px)',
+                }}
               >
                 Job Status
               </h3>
@@ -503,8 +522,8 @@ export default function DashboardPage() {
                       background: isSelected
                         ? themeStyles.primaryButton.background
                         : isToday
-                        ? `${themeStyles.primaryButton.background}15`
-                        : themeStyles.card.background,
+                          ? `${themeStyles.primaryButton.background}15`
+                          : themeStyles.card.background,
                       color: isSelected ? '#000000' : themeStyles.text,
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
@@ -627,13 +646,8 @@ export default function DashboardPage() {
                   Clear Filter
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     try {
-                      console.log('Download button clicked');
-                      console.log('selectedDate:', selectedDate);
-                      console.log('jobsByDate:', jobsByDate);
-                      console.log('jobsByDate length:', jobsByDate?.length);
-
                       if (!selectedDate) {
                         alert('Please select a date first');
                         return;
@@ -656,17 +670,23 @@ export default function DashboardPage() {
                       const jobOrderNo =
                         selectedDate.replace(/-/g, '') || Date.now().toString().slice(-6);
 
+                      // Extract client name from first job if available
+                      const firstJob = jobsByDate[0] as unknown as Record<string, unknown>;
+                      const clientId = firstJob?.clientId as Record<string, unknown> | undefined;
+                      const extractedClientName = (clientId?.fullName as string) || '';
+
                       console.log('Generating PDF with:', {
                         date: formattedDate,
                         jobCount: jobsByDate.length,
                         jobOrderNo,
+                        clientName: extractedClientName,
                       });
 
-                      generateJobOrderPDF({
+                      await generateJobOrderPDF({
                         date: formattedDate,
                         jobs: jobsByDate,
                         companyName: '', // Can be added later
-                        clientName: '', // Can be added later
+                        clientName: extractedClientName,
                         material: 'Flexi', // Default material
                         jobOrderNo: jobOrderNo,
                       });
@@ -777,8 +797,8 @@ export default function DashboardPage() {
                           job.status === 'completed'
                             ? themeStyles.success
                             : job.status === 'failed'
-                            ? themeStyles.error
-                            : themeStyles.warning,
+                              ? themeStyles.error
+                              : themeStyles.warning,
                         color: '#ffffff',
                         letterSpacing: '0.5px',
                       }}

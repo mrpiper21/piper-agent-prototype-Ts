@@ -4,6 +4,8 @@ import {
   UsersList,
   UserManagementHeader,
   UserDrawer,
+  SuccessModal,
+  ErrorToast,
 } from './user-management/components';
 import { useUserManagement } from './user-management/hooks/useUserManagement';
 import { formatDate } from './user-management/utils';
@@ -26,6 +28,12 @@ export default function UserManagementPage() {
     setEditFormData,
     users,
     isLoading,
+    showSuccessModal,
+    setShowSuccessModal,
+    showErrorToast,
+    setShowErrorToast,
+    errorMessage,
+    createdUserData,
     createUserMutation,
     updateUserMutation,
     deleteUserMutation,
@@ -79,6 +87,26 @@ export default function UserManagementPage() {
         onGeneratePassword={generateTemporaryPassword}
         onSubmit={handleCreateUser}
         isSubmitting={createUserMutation.isPending}
+      />
+
+      {createdUserData && (
+        <SuccessModal
+          isOpen={showSuccessModal}
+          onClose={() => {
+            setShowSuccessModal(false);
+            setCreatedUserData(null);
+          }}
+          userName={createdUserData.name}
+          userEmail={createdUserData.email}
+          temporaryPassword={createdUserData.password}
+        />
+      )}
+
+      <ErrorToast
+        isOpen={showErrorToast}
+        onClose={() => setShowErrorToast(false)}
+        message={errorMessage}
+        duration={6000}
       />
     </>
   );

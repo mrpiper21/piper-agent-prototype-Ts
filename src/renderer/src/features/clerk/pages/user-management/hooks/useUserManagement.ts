@@ -22,6 +22,14 @@ export function useUserManagement() {
   const queryClient = useQueryClient();
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [createdUserData, setCreatedUserData] = useState<{
+    name: string;
+    email: string;
+    password: string;
+  } | null>(null);
   const [userFormData, setUserFormData] = useState<UserFormData>({
     name: '',
     email: '',
@@ -62,13 +70,32 @@ export function useUserManagement() {
     }) => {
       return await electronAPI.adminManagement.createClerk(data);
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['myClerks'] });
       setIsCreatingUser(false);
+      // Store user data and password for success modal
+      setCreatedUserData({
+        name: variables.name,
+        email: variables.email,
+        password: variables.password,
+      });
+      setShowSuccessModal(true);
       setUserFormData({ name: '', email: '', password: '', role: 'clerk', permissions: [] });
     },
     onError: (error: unknown) => {
       console.error('Failed to create user:', error);
+      // Extract error message
+      let errorMsg = 'Failed to create user. Please try again.';
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        const errorObj = error as { message?: string; response?: { data?: { message?: string } } };
+        errorMsg = errorObj.message || 
+                   errorObj.response?.data?.message || 
+                   errorMsg;
+      }
+      setErrorMessage(errorMsg);
+      setShowErrorToast(true);
     },
   });
 
@@ -176,6 +203,12 @@ export function useUserManagement() {
     setEditFormData,
     users,
     isLoading,
+    showSuccessModal,
+    setShowSuccessModal,
+    showErrorToast,
+    setShowErrorToast,
+    errorMessage,
+    createdUserData,
     // Mutations
     createUserMutation,
     updateUserMutation,

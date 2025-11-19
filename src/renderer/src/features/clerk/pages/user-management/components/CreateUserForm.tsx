@@ -213,13 +213,14 @@ export default function CreateUserForm({
             padding: '14px 16px',
             background: `${themeStyles.accent}15`,
             borderRadius: '8px',
-            marginBottom: '20px',
             fontSize: '13px',
             color: themeStyles.textSecondary,
             lineHeight: '1.5',
           }}
         >
-          <AiOutlineLock style={{ marginRight: '8px', verticalAlign: 'middle', fontSize: '14px' }} />
+          <AiOutlineLock
+            style={{ marginRight: '8px', verticalAlign: 'middle', fontSize: '14px' }}
+          />
           Note: The temporary password will be returned after creation. Make sure to save it
           securely.
         </div>

@@ -23,7 +23,7 @@ export default function PermissionsSelector({
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
 
   return (
-    <div style={{ marginBottom: '24px' }}>
+    <div>
       <label
         style={{
           color: themeStyles.text,
