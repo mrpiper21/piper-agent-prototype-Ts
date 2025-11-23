@@ -77,11 +77,43 @@ export function JobPreview({ job, onClose }: JobPreviewProps) {
         </button>
       </div>
 
-      {/* Scrollable Content */}
-      <div style={{ flex: 1, overflow: 'auto', padding: 'var(--spacing-md, 12px)' }}>
-        <FilePreview fileName={job.fileName} fileUrl={job?.cloudinaryUrl} />
-        {/* Print Dimensions - Show prominently right after preview */}
-        {job.height && job.width && (
+      {/* Scrollable Content - Side by Side Layout */}
+      <div
+        style={{
+          flex: 1,
+          overflow: 'hidden',
+          display: 'flex',
+          gap: 'var(--spacing-md, 12px)',
+          padding: 'var(--spacing-md, 12px)',
+        }}
+      >
+        {/* Left Side - File Preview */}
+        <div
+          style={{
+            flex: '1 1 60%',
+            minWidth: 0,
+            overflow: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <FilePreview fileName={job.fileName} fileUrl={job?.cloudinaryUrl} />
+        </div>
+
+        {/* Right Side - Job Details */}
+        <div
+          style={{
+            flex: '0 0 40%',
+            minWidth: '300px',
+            maxWidth: '500px',
+            overflow: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--spacing-md, 12px)',
+          }}
+        >
+          {/* Print Dimensions - Show prominently */}
+          {job.height && job.width && (
           <div
             style={{
               marginTop: 'var(--spacing-md, 12px)',
@@ -301,8 +333,9 @@ export function JobPreview({ job, onClose }: JobPreviewProps) {
               This is how many times the item will be printed
             </p>
           </div>
-        )}
-        <JobDetails job={job} />
+          )}
+          <JobDetails job={job} />
+        </div>
       </div>
     </div>
   );
