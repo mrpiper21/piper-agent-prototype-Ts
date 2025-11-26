@@ -5,7 +5,7 @@ module.exports = {
         config: {
           repository: {
             owner: 'mrpiper21',
-            name: 'piper-agent-prototype-Ts'
+            name: 'Agent-Releases'
           },
           prerelease: false,
           draft: true
