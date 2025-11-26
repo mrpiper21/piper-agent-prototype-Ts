@@ -1,8 +1,7 @@
-import { Suspense, lazy, useState, useEffect } from 'react';
+import { Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage, useAuthStore } from '../features/auth';
 import LoadingScreen from '../shared/components/LoadingScreen';
-import { OfflinePage } from '../shared/components/OfflinePage';
 
 const ClerkLayout = lazy(() => import('../features/clerk/layouts/ClerkLayout'));
 const DashboardPage = lazy(() => import('../features/clerk/pages/DashboardPage'));
@@ -72,29 +71,6 @@ function RoleBasedRoute() {
   return <Navigate to="/clerk/dashboard" replace />;
 }
 
-// Route wrapper that shows offline page when offline (except for login)
-function OfflineRoute({ children }: { children: React.ReactNode }) {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  if (!isOnline) {
-    return <OfflinePage />;
-  }
-
-  return <>{children}</>;
-}
 
 export default function App() {
   return (
@@ -107,39 +83,29 @@ export default function App() {
             <Route
               path="/setup-password"
               element={
-                <OfflineRoute>
-                  <SetupPasswordRoute>
-                    <SetupPasswordPage />
-                  </SetupPasswordRoute>
-                </OfflineRoute>
+                <SetupPasswordRoute>
+                  <SetupPasswordPage />
+                </SetupPasswordRoute>
               }
             />
             <Route
               path="/setup-location"
               element={
-                <OfflineRoute>
-                  <SetupLocationRoute>
-                    <SetupLocationPage />
-                  </SetupLocationRoute>
-                </OfflineRoute>
+                <SetupLocationRoute>
+                  <SetupLocationPage />
+                </SetupLocationRoute>
               }
             />
             <Route 
               path="/" 
-              element={
-                <OfflineRoute>
-                  <RoleBasedRoute />
-                </OfflineRoute>
-              } 
+              element={<RoleBasedRoute />} 
             />
             <Route
               path="/clerk"
               element={
-                <OfflineRoute>
-                  <ProtectedRoute>
-                    <ClerkLayout />
-                  </ProtectedRoute>
-                </OfflineRoute>
+                <ProtectedRoute>
+                  <ClerkLayout />
+                </ProtectedRoute>
               }
             >
               <Route path="dashboard" element={<DashboardPage />} />

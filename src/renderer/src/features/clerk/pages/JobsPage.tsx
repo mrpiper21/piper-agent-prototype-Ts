@@ -5,6 +5,8 @@ import { lightStyles, darkStyles, sharedStyles } from '../shared/clerkStyles';
 import { useQuery } from '@tanstack/react-query';
 import { electronAPI } from '../../../lib';
 import { JobListItem, JobPreview } from '../shared';
+import { ConnectivityIssue } from '../../../shared/components/ConnectivityIssue';
+import { useConnectivity } from '../../../shared/hooks';
 import {
   AiOutlineReload,
   AiOutlineSearch,
@@ -28,12 +30,14 @@ export default function JobsPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Use the same query key as the layout - shares cache
-  const { data: jobs, isLoading, error, isRefetching } = useQuery({
+  const { data: jobs, isLoading, error, isRefetching, refetch } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => electronAPI.jobs.getAll(),
     staleTime: 5000,
     refetchInterval: 10000, // Auto-refresh every 10 seconds
   });
+
+  const { hasConnectivityIssue } = useConnectivity();
 
   // Filter and sort jobs
   const filteredAndSortedJobs = useMemo(() => {
@@ -156,51 +160,20 @@ export default function JobsPage() {
     );
   }
 
-  if (error) {
+  // Show connectivity issue if offline or network error
+  if (hasConnectivityIssue || (error && !jobs)) {
     return (
-      <div
-        style={{
-          padding: 'var(--spacing-xl, 24px)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '300px',
-          color: themeStyles.error,
+      <ConnectivityIssue
+        message={
+          error
+            ? `Unable to load jobs: ${(error as Error).message}`
+            : undefined
+        }
+        onRetry={() => {
+          handleRefresh();
+          refetch();
         }}
-      >
-        <p
-          style={{
-            fontSize: 'var(--font-size-large, 16px)',
-            marginBottom: 'var(--spacing-xs, 4px)',
-          }}
-        >
-          ⚠️
-        </p>
-        <p style={{ fontSize: 'var(--font-size, 14px)', marginBottom: 'var(--spacing-sm, 8px)' }}>
-          Error loading jobs: {(error as Error).message}
-        </p>
-        <button
-          onClick={handleRefresh}
-          style={{
-            padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
-            borderRadius: 'var(--border-radius-sm, 4px)',
-            border: 'none',
-            background: themeStyles.primaryButton.background,
-            color: themeStyles.primaryButton.color,
-            fontSize: 'var(--font-size-small, 12px)',
-            fontWeight: '500',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--spacing-xs, 4px)',
-            marginTop: 'var(--spacing-sm, 8px)',
-          }}
-        >
-          <AiOutlineReload style={{ fontSize: 'var(--icon-size-sm, 14px)' }} />
-          Retry
-        </button>
-      </div>
+      />
     );
   }
 
@@ -279,6 +252,16 @@ export default function JobsPage() {
             {isRefetching || isLoading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
+
+        {/* Connectivity Indicator - Show when offline but have cached data */}
+        {hasConnectivityIssue && jobs && jobs.length > 0 && (
+          <ConnectivityIssue
+            compact
+            message="You're viewing cached data. Some information may be outdated."
+            showRetry={false}
+            style={{ marginBottom: 'var(--spacing-sm, 8px)' }}
+          />
+        )}
 
         {/* Search and Filters Bar */}
         <div

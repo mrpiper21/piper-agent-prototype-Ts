@@ -19,6 +19,8 @@ import { HiOutlineLogout } from 'react-icons/hi';
 import { JobListItem, JobPreview } from '../clerk/shared';
 import { sharedStyles } from '../clerk/shared/clerkStyles';
 import { useDebounce } from '../../shared/hooks/useDebounce';
+import { ConnectivityIssue } from '../../shared/components/ConnectivityIssue';
+import { useConnectivity } from '../../shared/hooks';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuthStore();
@@ -38,7 +40,7 @@ export default function AdminDashboard() {
   }, [theme]);
 
   // Fetch jobs globally - optimized query settings
-  const { data: jobs } = useQuery({
+  const { data: jobs, error: jobsError, refetch: refetchJobs } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => electronAPI.jobs.getAll(),
     staleTime: 30000, // 30 seconds - reduce refetch frequency
@@ -47,6 +49,8 @@ export default function AdminDashboard() {
     refetchOnWindowFocus: false, // Don't refetch on window focus
     refetchOnMount: false, // Don't refetch on mount if data exists
   });
+
+  const { hasConnectivityIssue } = useConnectivity();
 
   // Reset selected job when switching tabs
   useEffect(() => {
@@ -121,8 +125,29 @@ export default function AdminDashboard() {
     });
   }, [jobs, debouncedSearchQuery]);
 
+  // Show connectivity issue if offline or network error (and no cached data)
+  if (hasConnectivityIssue && jobsError && !jobs) {
+    return (
+      <ConnectivityIssue
+        onRetry={() => {
+          refetchJobs();
+        }}
+      />
+    );
+  }
+
   return (
     <div style={styles.wrapper}>
+      {/* Connectivity Indicator - Show when offline but have cached data */}
+      {hasConnectivityIssue && jobs && jobs.length > 0 && (
+        <div style={{ position: 'fixed', top: '40px', left: 0, right: 0, zIndex: 1000 }}>
+          <ConnectivityIssue
+            compact
+            message="You're viewing cached data. Some information may be outdated."
+            showRetry={false}
+          />
+        </div>
+      )}
       {/* Sidebar */}
       <div
         style={{
