@@ -33,6 +33,16 @@ jobs:
       - name: Install dependencies
         run: npm install --force
 
+      - name: Validate Personal Access Token
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.PERSONAL_ACCESS_TOKEN }}" ]; then
+            echo "::error::PERSONAL_ACCESS_TOKEN secret is required to publish to Agent-Releases repository"
+            echo "::error::Please create a Personal Access Token with 'repo' scope and add it as a secret"
+            exit 1
+          fi
+          echo "✅ Personal Access Token is configured"
+
       - name: Create .env file from secrets
         shell: bash
         run: |
@@ -54,22 +64,25 @@ jobs:
       - name: Build and Publish (Windows)
         if: matrix.os == 'windows-latest'
         env:
-          # Use Personal Access Token with write access to Agent-Releases repo
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
+          # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: npm run publish:win
 
       - name: Build and Publish (macOS)
         if: matrix.os == 'macos-latest'
         env:
-          # Use Personal Access Token with write access to Agent-Releases repo
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
+          # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: npm run publish:mac
 
       - name: Build and Publish (Linux)
         if: matrix.os == 'ubuntu-latest'
         env:
-          # Use Personal Access Token with write access to Agent-Releases repo
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
+          # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: npm run publish:linux
 
       # Artifacts are skipped to save storage quota
