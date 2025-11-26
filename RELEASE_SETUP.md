@@ -71,6 +71,16 @@ The token must have write access to the `Agent-Releases` repository. If the `Age
   }
   ```
 
+### Error: "Repository is empty" (422 Unprocessable Entity)
+- **This is now automatically handled!** The workflow will initialize the `Agent-Releases` repository with a README on the first run
+- If you see this error, it means the initialization step failed. Check that:
+  - The `PERSONAL_ACCESS_TOKEN` has write access to the `Agent-Releases` repository
+  - The repository exists and the token has the correct permissions
+- You can also manually initialize the repository by:
+  1. Going to https://github.com/mrpiper21/Agent-Releases
+  2. Clicking "Add a README" or creating any file
+  3. Committing it to the `main` branch
+
 ## Current Configuration
 
 - **Release Repository**: `mrpiper21/Agent-Releases`
