@@ -11,12 +11,15 @@ import type { AnalyticsData, PrinterAgent, PrinterLog, PrintJob, User } from '..
 //     : 'https://piper-server-prototype-ts.onrender.com/api'
 // );
 
+// const API_BASE_URL = "https://piper-server-api-production.up.railway.app/api"
+const API_BASE_URL_LOCAL = "http://localhost:3000/api"
+
 class ApiService {
   private axiosInstance: AxiosInstance;
 
   constructor() {
     this.axiosInstance = axios.create({
-      baseURL: 'https://piper-server-prototype-ts.onrender.com/api',
+      baseURL: API_BASE_URL_LOCAL,
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -230,15 +233,43 @@ class ApiService {
     name?: string;
     email?: string;
     location?: { latitude: number; longitude: number; address: string };
+    businessName?: string;
+    businessPhone?: string;
+    businessCoverImage?: File | string | null;
   }): Promise<User> {
     try {
       console.log(`Updating profile with data:`, JSON.stringify(updates, null, 2));
 
-      const response = await this.axiosInstance.put('/auth/profile', updates);
+      // If businessCoverImage is a File, we need to use FormData
+      if (updates.businessCoverImage instanceof File) {
+        const formData = new FormData();
+        
+        // Add all fields to FormData
+        if (updates.name) formData.append('name', updates.name);
+        if (updates.email) formData.append('email', updates.email);
+        if (updates.location) {
+          formData.append('location', JSON.stringify(updates.location));
+        }
+        if (updates.businessName) formData.append('businessName', updates.businessName);
+        if (updates.businessPhone) formData.append('businessPhone', updates.businessPhone);
+        formData.append('businessCoverImage', updates.businessCoverImage);
 
-      console.log(`Profile updated successfully:`, response.data.data.user);
+        // Use /users/:id endpoint for file uploads (need user ID)
+        // For now, try /auth/profile with FormData
+        const response = await this.axiosInstance.put('/auth/profile', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
 
-      return response.data.data.user;
+        console.log(`Profile updated successfully with file:`, response.data.data.user);
+        return response.data.data.user;
+      } else {
+        // Regular JSON update
+        const response = await this.axiosInstance.put('/auth/profile', updates);
+        console.log(`Profile updated successfully:`, response.data.data.user);
+        return response.data.data.user;
+      }
     } catch (error: any) {
       console.error(`Failed to update profile:`, error.response?.data || error.message);
       throw error;
@@ -388,15 +419,93 @@ class ApiService {
     return response.data.data.user;
   }
 
-  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+  async updateUser(id: string, updates: Partial<User> & { 
+    businessCoverImage?: File | string | null;
+    businessName?: string;
+    businessPhone?: string;
+    websiteUrl?: string;
+    isActive?: boolean;
+  }): Promise<User> {
     try {
       console.log(`Updating user ${id} with data:`, JSON.stringify(updates, null, 2));
 
-      const response = await this.axiosInstance.put(`/users/${id}`, updates);
+      // If businessCoverImage is a File or file path, use FormData
+      if (updates.businessCoverImage) {
+        // Use form-data package for Node.js FormData support
+        const FormData = (await import('form-data')).default;
+        const formData = new FormData();
+        
+        // Add all fields to FormData
+        if (updates.name) formData.append('name', updates.name);
+        if (updates.email) formData.append('email', updates.email);
+        if (updates.location) {
+          formData.append('location', JSON.stringify(updates.location));
+        }
+        if (updates.businessName) formData.append('businessName', updates.businessName);
+        if (updates.businessPhone) formData.append('businessPhone', updates.businessPhone);
+        if (updates.websiteUrl) formData.append('websiteUrl', updates.websiteUrl);
+        if (updates.isActive !== undefined) formData.append('isActive', String(updates.isActive));
+        
+        // Handle file - if it's a string (path), create a read stream
+        if (typeof updates.businessCoverImage === 'string') {
+          // It's a file path - create a read stream for the file
+          const fs = await import('fs');
+          const path = await import('path');
+          const filePath = updates.businessCoverImage;
+          
+          if (fs.default.existsSync(filePath)) {
+            // Create a read stream from the file
+            const fileStream = fs.default.createReadStream(filePath);
+            const fileName = path.default.basename(filePath);
+            
+            // Append file stream to FormData with the correct field name for multer
+            formData.append('businessCoverImage', fileStream, {
+              filename: fileName,
+              contentType: 'application/octet-stream', // Let multer detect the content type
+            });
+            
+            console.log(`[API] Appending file to FormData: ${filePath} as businessCoverImage`);
+          } else {
+            console.warn(`[API] File not found at path: ${filePath}`);
+          }
+        } else if (updates.businessCoverImage instanceof File) {
+          // In Electron main process, File objects from renderer should have been converted to paths
+          // But if we receive a File object, try to get its path
+          // @ts-ignore - path property exists in Electron File objects
+          const filePath = (updates.businessCoverImage as any).path;
+          if (filePath && typeof filePath === 'string') {
+            const fs = await import('fs');
+            const path = await import('path');
+            if (fs.default.existsSync(filePath)) {
+              const fileStream = fs.default.createReadStream(filePath);
+              const fileName = path.default.basename(filePath);
+              formData.append('businessCoverImage', fileStream, {
+                filename: fileName,
+                contentType: 'application/octet-stream',
+              });
+            }
+          } else {
+            console.warn('[API] File object does not have a valid path property');
+          }
+        }
 
-      console.log(`User ${id} updated successfully:`, response.data.data.user);
+        // Get form-data headers (includes boundary)
+        const formHeaders = formData.getHeaders();
 
-      return response.data.data.user;
+        const response = await this.axiosInstance.put(`/users/${id}`, formData, {
+          headers: {
+            ...formHeaders, // Include Content-Type with boundary from form-data
+          },
+        });
+
+        console.log(`User ${id} updated successfully with file:`, response.data.data.user);
+        return response.data.data.user;
+      } else {
+        // Regular JSON update
+        const response = await this.axiosInstance.put(`/users/${id}`, updates);
+        console.log(`User ${id} updated successfully:`, response.data.data.user);
+        return response.data.data.user;
+      }
     } catch (error: any) {
       console.error(`Failed to update user ${id}:`, error.response?.data || error.message);
       throw error;

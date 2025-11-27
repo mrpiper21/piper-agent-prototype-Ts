@@ -12,6 +12,7 @@ const ProfilePage = lazy(() => import('../features/clerk/pages/ProfilePage'));
 const UserManagementPage = lazy(() => import('../features/clerk/pages/UserManagementPage'));
 const SetupLocationPage = lazy(() => import('../features/auth/pages/SetupLocationPage'));
 const SetupPasswordPage = lazy(() => import('../features/auth/pages/SetupPasswordPage'));
+const BusinessInfoPage = lazy(() => import('../features/auth/pages/BusinessInfoPage'));
 import { OfflineBanner } from './../shared/components/OfflineBanner';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -38,6 +39,29 @@ function SetupPasswordRoute({ children }: { children: React.ReactNode }) {
   // If user is already authenticated (password already changed), redirect to dashboard
   if (isAuthenticated && user.isTemporaryPassword !== true) {
     return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// Route guard for setup business - allows access if user exists but is not authenticated (business info pending)
+function SetupBusinessRoute({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // Allow access if user exists but not authenticated (business info setup required)
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If user is already authenticated (has location), redirect to dashboard
+  if (isAuthenticated && user.location) {
+    return <Navigate to="/" replace />;
+  }
+
+  // If business info is already set, redirect to location setup
+  if (user.businessName && user.businessPhone) {
+    return <Navigate to="/setup-location" replace />;
   }
 
   return <>{children}</>;
@@ -71,7 +95,6 @@ function RoleBasedRoute() {
   return <Navigate to="/clerk/dashboard" replace />;
 }
 
-
 export default function App() {
   return (
     <>
@@ -89,6 +112,14 @@ export default function App() {
               }
             />
             <Route
+              path="/setup-business"
+              element={
+                <SetupBusinessRoute>
+                  <BusinessInfoPage />
+                </SetupBusinessRoute>
+              }
+            />
+            <Route
               path="/setup-location"
               element={
                 <SetupLocationRoute>
@@ -96,10 +127,7 @@ export default function App() {
                 </SetupLocationRoute>
               }
             />
-            <Route 
-              path="/" 
-              element={<RoleBasedRoute />} 
-            />
+            <Route path="/" element={<RoleBasedRoute />} />
             <Route
               path="/clerk"
               element={

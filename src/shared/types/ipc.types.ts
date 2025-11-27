@@ -11,6 +11,11 @@ export interface User {
     longitude: number;
     address: string;
   };
+  businessName?: string;
+  businessPhone?: string;
+  businessCoverImage?: string;
+  websiteUrl?: string;
+  isActive?: boolean;
   isTemporaryPassword?: boolean;
   createdAt: number;
   updatedAt: number;
@@ -47,6 +52,11 @@ export interface UpdateUserData {
     longitude: number;
     address: string;
   };
+  businessName?: string;
+  businessPhone?: string;
+  businessCoverImage?: string;
+  websiteUrl?: string;
+  isActive?: boolean;
 }
 
 // Agent types

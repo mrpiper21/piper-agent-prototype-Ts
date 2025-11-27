@@ -40,7 +40,14 @@ export default function LoginPage() {
       // Priority 2: If isTemporaryPassword is not present, user is an admin
       // Check if admin has location set
       if (!user?.location) {
-        navigate('/setup-location');
+        // Check if business info is already set
+        if (user?.businessName && user?.businessPhone) {
+          // Business info exists, go directly to location setup
+          navigate('/setup-location');
+        } else {
+          // Business info missing, start with business info page
+          navigate('/setup-business');
+        }
         return;
       }
 

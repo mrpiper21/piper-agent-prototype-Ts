@@ -13,7 +13,7 @@ export class CloudClient {
     console.log(apiKey, agentId);
     
     // Check if running in local mode
-    this.printApiUrl = "https://piper-server-prototype-ts.onrender.com/api/print";
+    this.printApiUrl = 'https://piper-server-api-production.up.railway.app/api/print';
     this.localMode = process.env['SKIP_CLOUD_CONNECTION'] === 'true';
     // Use environment variable with production default, fallback to localhost for development
     // if (process.env.PRINT_API_URL) {
@@ -108,7 +108,7 @@ export class CloudClient {
   /**
    * Download file from local storage (file already exists locally)
    */
-  async downloadFile(jobId: string, outputPath: string): Promise<void> {
+  async downloadFile(jobId: string, _: string): Promise<void> {
     if (this.localMode) {
       logger.debug(`📥 [LOCAL] Getting file path for job ${jobId}`);
       

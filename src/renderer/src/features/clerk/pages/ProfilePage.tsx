@@ -5,7 +5,11 @@ import { lightStyles, darkStyles, sharedStyles } from '../shared/clerkStyles';
 import { 
   FaKey,
   FaMapMarkerAlt,
-  FaUserTie
+  FaUserTie,
+  FaBuilding,
+  FaPhone,
+  FaGlobe,
+  FaImage
 } from 'react-icons/fa';
 import { 
   AiOutlineUser, 
@@ -437,6 +441,127 @@ export default function ProfilePage() {
           )}
         </div>
 
+        {/* Business Profile Card */}
+        <div style={{ 
+          ...sharedStyles.card, 
+          ...themeStyles.card,
+          padding: 'var(--spacing-md, 12px)',
+          boxShadow: 'none'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: 'var(--spacing-md, 12px)'
+          }}>
+            <h2 style={{ 
+              color: themeStyles.text, 
+              fontSize: 'var(--font-size-large, 16px)', 
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-sm, 8px)'
+            }}>
+              <FaBuilding style={{ color: themeStyles.accent, fontSize: 'var(--icon-size, 16px)' }} />
+              Business Profile
+            </h2>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Business Cover Image */}
+            {user?.businessCoverImage && (
+              <div style={{ 
+                width: '100%',
+                marginBottom: '16px'
+              }}>
+                <label style={{ 
+                  color: themeStyles.textSecondary,
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: 'var(--font-size-small, 12px)',
+                  fontWeight: '500'
+                }}>
+                  Business Cover Image
+                </label>
+                <div style={{
+                  width: '100%',
+                  height: '200px',
+                  borderRadius: 'var(--border-radius-md, 6px)',
+                  overflow: 'hidden',
+                  border: `1px solid ${themeStyles.card.border}`,
+                  background: themeStyles.card.background
+                }}>
+                  <img
+                    src={user.businessCoverImage}
+                    alt="Business cover"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover' as const,
+                      display: 'block'
+                    }}
+                    onError={(e) => {
+                      // Hide image if it fails to load
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Business Details */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <InfoRow 
+                label="Business Name" 
+                value={user?.businessName || 'Not set'} 
+                icon={<FaBuilding />}
+                themeStyles={themeStyles}
+              />
+              <InfoRow 
+                label="Business Phone" 
+                value={user?.businessPhone || 'Not set'} 
+                icon={<FaPhone />}
+                themeStyles={themeStyles}
+              />
+              {user?.websiteUrl && (
+                <InfoRow 
+                  label="Website" 
+                  value={
+                    <a 
+                      href={user.websiteUrl.startsWith('http') ? user.websiteUrl : `https://${user.websiteUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: themeStyles.accent,
+                        textDecoration: 'none',
+                        fontWeight: '600'
+                      }}
+                    >
+                      {user.websiteUrl}
+                    </a>
+                  } 
+                  icon={<FaGlobe />}
+                  themeStyles={themeStyles}
+                />
+              )}
+            </div>
+
+            {/* Show message if no business info */}
+            {!user?.businessName && !user?.businessPhone && (
+              <div style={{
+                padding: 'var(--spacing-md, 12px)',
+                background: `${themeStyles.textSecondary}15`,
+                borderRadius: 'var(--border-radius-md, 6px)',
+                textAlign: 'center' as const,
+                color: themeStyles.textSecondary,
+                fontSize: 'var(--font-size-small, 12px)'
+              }}>
+                No business information available. Complete your business setup to add details.
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Security Card */}
         <div style={{ 
           ...sharedStyles.card, 
@@ -627,7 +752,7 @@ export default function ProfilePage() {
 
 interface InfoRowProps {
   label: string;
-  value: string;
+  value: string | React.ReactNode;
   icon: React.ReactNode;
   themeStyles: any;
 }
@@ -654,9 +779,11 @@ function InfoRow({ label, value, icon, themeStyles }: InfoRowProps) {
       <span style={{ 
         color: themeStyles.text, 
         fontSize: '14px',
-        fontWeight: '600'
+        fontWeight: '600',
+        display: 'flex',
+        alignItems: 'center'
       }}>
-        {value}
+        {typeof value === 'string' ? value : value}
       </span>
     </div>
   );

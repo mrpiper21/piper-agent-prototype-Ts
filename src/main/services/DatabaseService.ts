@@ -70,6 +70,21 @@ class DatabaseService {
     if (data.location !== undefined) {
       user.location = data.location;
     }
+    if (data.businessName !== undefined) {
+      user.businessName = data.businessName;
+    }
+    if (data.businessPhone !== undefined) {
+      user.businessPhone = data.businessPhone;
+    }
+    if (data.businessCoverImage !== undefined) {
+      user.businessCoverImage = data.businessCoverImage;
+    }
+    if (data.websiteUrl !== undefined) {
+      user.websiteUrl = data.websiteUrl;
+    }
+    if (data.isActive !== undefined) {
+      user.isActive = data.isActive;
+    }
     
     user.updatedAt = Date.now();
     return user;

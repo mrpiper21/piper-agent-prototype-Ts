@@ -158,20 +158,73 @@ export function setupIpcHandlers() {
         name?: string;
         email?: string;
         location?: { latitude: number; longitude: number; address: string };
+        businessName?: string;
+        businessPhone?: string;
+        businessCoverImage?: File | string | null;
       }
     ) => {
       try {
-        logger.info('Updating profile with data:', updates);
+        logger.info('Updating profile with data:', {
+          ...updates,
+          businessCoverImage: updates.businessCoverImage instanceof File ? '[File]' : updates.businessCoverImage,
+        });
 
-        // Update profile via API using /auth/profile endpoint
-        const user = await apiService.updateProfile(updates);
+        // Handle File object - convert to path if it's a File
+        let filePath: string | undefined;
+        if (updates.businessCoverImage instanceof File) {
+          // In Electron, File objects from renderer have a path property
+          // @ts-ignore - path property exists in Electron File objects
+          filePath = updates.businessCoverImage.path;
+          if (!filePath) {
+            // If path is not available, we need to save the file temporarily
+            // For now, log a warning and continue without the file
+            logger.warn('File object does not have path property, skipping file upload');
+            updates.businessCoverImage = undefined;
+          } else {
+            // Convert File to path string for API
+            updates.businessCoverImage = filePath;
+          }
+        }
+
+        // Get current user to get user ID for file uploads
+        let user;
+        const hasFile = !!updates.businessCoverImage;
+        
+        if (hasFile) {
+          // For file uploads, we need to use /users/:id endpoint
+          // First, get current user profile to get the ID
+          try {
+            const currentUser = await apiService.getProfile();
+            if (currentUser.id) {
+              // Use updateUser endpoint for file uploads
+              user = await apiService.updateUser(currentUser.id, updates as any);
+            } else {
+              // Fallback to updateProfile if no ID
+              user = await apiService.updateProfile(updates);
+            }
+          } catch (profileError) {
+            logger.warn('Failed to get profile, using updateProfile endpoint', profileError);
+            user = await apiService.updateProfile(updates);
+          }
+        } else {
+          // Regular update without file - use /auth/profile endpoint
+          user = await apiService.updateProfile(updates);
+        }
 
         logger.info('Profile updated successfully via API');
 
         // Also update local database if user ID exists
         if (user.id) {
           try {
-            dbService.updateUser(user.id, updates);
+            const dbUpdates: any = {
+              ...(updates.name && { name: updates.name }),
+              ...(updates.email && { email: updates.email }),
+              ...(updates.location && { location: updates.location }),
+              ...(updates.businessName && { businessName: updates.businessName }),
+              ...(updates.businessPhone && { businessPhone: updates.businessPhone }),
+              ...(user.businessCoverImage && { businessCoverImage: user.businessCoverImage }),
+            };
+            dbService.updateUser(user.id, dbUpdates);
             logger.info('Profile updated in local database');
           } catch (dbError) {
             logger.warn('Failed to update profile in local database, continuing anyway', dbError);
@@ -218,17 +271,33 @@ export function setupIpcHandlers() {
     }
   });
 
-  ipcMain.handle('users:update', async (_, id: string, data: UpdateUserData) => {
+  ipcMain.handle('users:update', async (_, id: string, data: UpdateUserData & {
+    businessCoverImage?: File | string | null;
+    websiteUrl?: string;
+  }) => {
     try {
-      logger.info(`Updating user ${id} with data:`, data);
+      logger.info(`Updating user ${id} with data:`, {
+        ...data,
+        businessCoverImage: data.businessCoverImage instanceof File ? '[File]' : data.businessCoverImage,
+      });
 
       // Update via API to sync with backend first
+      // The API service will handle file uploads to Cloudinary
       const user = await apiService.updateUser(id, data);
 
       logger.info(`User ${id} updated successfully via API`);
 
       // Also update local database
-      dbService.updateUser(id, data);
+      const dbUpdateData: UpdateUserData = {
+        ...(data.name && { name: data.name }),
+        ...(data.email && { email: data.email }),
+        ...(data.location && { location: data.location }),
+        ...(data.businessName && { businessName: data.businessName }),
+        ...(data.businessPhone && { businessPhone: data.businessPhone }),
+        ...(user.businessCoverImage && { businessCoverImage: user.businessCoverImage }),
+        ...(data.websiteUrl && { websiteUrl: data.websiteUrl }),
+      };
+      dbService.updateUser(id, dbUpdateData);
 
       logger.info(`User ${id} updated in local database`);
 

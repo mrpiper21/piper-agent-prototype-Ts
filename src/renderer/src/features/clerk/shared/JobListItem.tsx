@@ -85,14 +85,15 @@ function JobListItemComponent({ job, isSelected, onSelect, compact = false }: Jo
           transition: 'all 0.15s ease',
           position: 'relative',
           borderLeft: isSelected ? `3px solid ${themeStyles.accent}` : '3px solid transparent',
+          borderTop: 'none',
+          borderRight: 'none',
+          borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
           background: isSelected
             ? theme === 'dark'
               ? 'rgba(251, 191, 36, 0.12)'
               : 'rgba(251, 191, 36, 0.08)'
             : themeStyles.card.background,
           padding: '8px 6px',
-          border: 'none',
-          borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
           borderRadius: 0,
           boxShadow: 'none',
         }}
@@ -244,14 +245,15 @@ function JobListItemComponent({ job, isSelected, onSelect, compact = false }: Jo
         transition: 'background 0.15s ease',
         position: 'relative',
         borderLeft: isSelected ? `3px solid ${themeStyles.accent}` : '3px solid transparent',
+        borderTop: 'none',
+        borderRight: 'none',
+        borderBottom: themeStyles.card.border,
         background: isSelected
           ? theme === 'dark'
             ? 'rgba(251, 191, 36, 0.08)'
             : 'rgba(251, 191, 36, 0.04)'
           : themeStyles.card.background,
         padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
-        border: 'none',
-        borderBottom: themeStyles.card.border,
         borderRadius: 0,
         boxShadow: 'none',
       }}

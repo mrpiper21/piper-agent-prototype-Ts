@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../../../context/ThemeContext';
 import { lightStyles, darkStyles } from '../../clerk/shared/clerkStyles';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
+import { businessInfoCache } from '../../../shared/utils/businessInfoCache';
 
 // Create a custom Google Maps-like marker icon
 const createGoogleMapsLikeIcon = () => {
@@ -99,7 +100,7 @@ function LocationMarker({
 
 export default function SetupLocationPage() {
   const navigate = useNavigate();
-  const { updateUserLocation } = useAuthStore();
+  const { user, updateUserLocation } = useAuthStore();
   const { theme } = useTheme();
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
   
@@ -352,29 +353,64 @@ export default function SetupLocationPage() {
       return;
     }
 
+    if (!user?.id) {
+      setError('User not found. Please log in again.');
+      return;
+    }
+
     setIsSaving(true);
     setError(null);
 
     try {
-      const location: Location = {
+      const locationData: Location = {
         latitude: position[0],
         longitude: position[1],
         address: address || `${position[0].toFixed(6)}, ${position[1].toFixed(6)}`,
       };
 
-      // Log location object before saving
-      console.log('Saving location:', location);
+      // Retrieve cached business info
+      const cachedBusinessInfo = businessInfoCache.get();
 
-      // Update user location via API (this will call the IPC handler which calls the API service)
-      // This will also authenticate the user and save to local database
-      await updateUserLocation(location);
-      
-      console.log('Location saved successfully, user authenticated');
+      // Prepare update data with location and business info
+      const updateData: any = {
+        location: locationData,
+      };
+
+      // Add business info from cache if available
+      if (cachedBusinessInfo) {
+        updateData.businessName = cachedBusinessInfo.businessName;
+        updateData.businessPhone = cachedBusinessInfo.businessPhone;
+        updateData.websiteUrl = cachedBusinessInfo.websiteUrl;
+        
+        // Add file path if available (file will be uploaded to Cloudinary at backend)
+        if (cachedBusinessInfo.businessCoverImagePath) {
+          updateData.businessCoverImage = cachedBusinessInfo.businessCoverImagePath;
+        }
+      }
+
+      console.log('Saving location and business info:', {
+        location: locationData,
+        businessInfo: cachedBusinessInfo,
+      });
+
+      // Use updateUser endpoint to save everything together
+      const updatedUser = await window.electron.users.update(user.id, updateData);
+
+      // Update auth store with new user data
+      useAuthStore.setState({
+        user: updatedUser,
+        isAuthenticated: true,
+      });
+
+      // Clear cache after successful save
+      businessInfoCache.clear();
+
+      console.log('Location and business info saved successfully, user authenticated');
       
       // User is now authenticated, navigate to dashboard
       navigate('/');
     } catch (err: any) {
-      console.error('Failed to save location:', err);
+      console.error('Failed to save location and business info:', err);
       setError(err?.message || 'Failed to save location. Please try again.');
       setIsSaving(false);
     }
