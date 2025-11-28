@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -14,8 +14,10 @@ const createGoogleMapsLikeIcon = () => {
   if (typeof window !== 'undefined') {
     delete (L.Icon.Default.prototype as any)._getIconUrl;
     L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+      iconRetinaUrl:
+        'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+      iconUrl:
+        'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
       iconSize: [25, 41],
       iconAnchor: [12, 41],
@@ -56,9 +58,9 @@ function MapController() {
   return null;
 }
 
-function LocationMarker({ 
-  position, 
-  setPosition, 
+function LocationMarker({
+  position,
+  setPosition,
   setAddress,
   reverseGeocode,
   setLocationWithLogging,
@@ -68,24 +70,30 @@ function LocationMarker({
   setPosition: (pos: [number, number]) => void;
   setAddress: (addr: string) => void;
   reverseGeocode: (lat: number, lng: number) => Promise<string>;
-  setLocationWithLogging: (lat: number, lng: number, addr: string, source: string, accuracy?: number) => void;
+  setLocationWithLogging: (
+    lat: number,
+    lng: number,
+    addr: string,
+    source: string,
+    accuracy?: number
+  ) => void;
   zoomLevel?: number;
 }) {
   const map = useMap();
-  
+
   // Center map on marker when position changes
   useEffect(() => {
     if (position && map) {
       map.setView(position, zoomLevel || map.getZoom());
     }
   }, [position, map, zoomLevel]);
-  
+
   useMapEvents({
     click(e) {
       const { lat, lng } = e.latlng;
       const newPosition: [number, number] = [lat, lng];
       setPosition(newPosition);
-      
+
       // Reverse geocode to get address (optimized)
       reverseGeocode(lat, lng).then((addr: string) => {
         setAddress(addr);
@@ -100,18 +108,20 @@ function LocationMarker({
 
 export default function SetupLocationPage() {
   const navigate = useNavigate();
-  const { user, updateUserLocation } = useAuthStore();
+  const { user } = useAuthStore();
   const { theme } = useTheme();
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
-  
+
   const [position, setPosition] = useState<[number, number] | null>(null);
   const [address, setAddress] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [locationPermission, setLocationPermission] = useState<'prompt' | 'granted' | 'denied'>('prompt');
+  const [locationPermission, setLocationPermission] = useState<'prompt' | 'granted' | 'denied'>(
+    'prompt'
+  );
   const [retryCount, setRetryCount] = useState(0);
-  
+
   // Search functionality
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -120,7 +130,7 @@ export default function SetupLocationPage() {
   const [mapZoom, setMapZoom] = useState<number>(13);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
-  
+
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   // Helper function to reverse geocode coordinates
@@ -134,9 +144,9 @@ export default function SetupLocationPage() {
           },
         }
       );
-      
+
       if (!response.ok) throw new Error('Geocoding failed');
-      
+
       const data = await response.json();
       return data.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
     } catch {
@@ -160,9 +170,9 @@ export default function SetupLocationPage() {
           },
         }
       );
-      
+
       if (!response.ok) throw new Error('Search failed');
-      
+
       const data = await response.json();
       return data || [];
     } catch (error) {
@@ -174,123 +184,145 @@ export default function SetupLocationPage() {
   }, []);
 
   // Helper function to log and set location
-  const setLocationWithLogging = useCallback((lat: number, lng: number, addr: string, source: string, accuracy?: number) => {
-    const location = {
-      latitude: lat,
-      longitude: lng,
-      address: addr,
-      source,
-      ...(accuracy !== undefined && { accuracy }),
-    };
-    console.log(`Location selected (${source}):`, location);
-    
-    setPosition([lat, lng]);
-    setAddress(addr);
-    setLocationPermission('granted');
-  }, []);
+  const setLocationWithLogging = useCallback(
+    (lat: number, lng: number, addr: string, source: string, accuracy?: number) => {
+      const location = {
+        latitude: lat,
+        longitude: lng,
+        address: addr,
+        source,
+        ...(accuracy !== undefined && { accuracy }),
+      };
+      console.log(`Location selected (${source}):`, location);
+
+      setPosition([lat, lng]);
+      setAddress(addr);
+      setLocationPermission('granted');
+    },
+    []
+  );
 
   // Function to request user's location with retry logic and fallback strategies
-  const requestUserLocation = useCallback(async (isRetry = false) => {
-    if (!navigator.geolocation) {
-      setError('Geolocation is not supported by your browser.');
-      const defaultCoords: [number, number] = [5.6037, -0.1870];
-      setPosition(defaultCoords);
-      setAddress('5.6037, -0.1870');
-      return;
-    }
+  const requestUserLocation = useCallback(
+    async (isRetry = false) => {
+      if (!navigator.geolocation) {
+        setError('Geolocation is not supported by your browser.');
+        const defaultCoords: [number, number] = [5.6037, -0.187];
+        setPosition(defaultCoords);
+        setAddress('5.6037, -0.1870');
+        return;
+      }
 
-    if (!isRetry) {
-      setIsLoadingLocation(true);
-      setError(null);
-      setRetryCount(0);
-    }
+      if (!isRetry) {
+        setIsLoadingLocation(true);
+        setError(null);
+        setRetryCount(0);
+      }
 
-    // Strategy 1: Try with high accuracy first (if not a retry)
-    const tryGetLocation = (options: PositionOptions, strategy = 'high_accuracy') => {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          
-          setIsLoadingLocation(false);
-          
-          // Get address asynchronously
-          const addr = await reverseGeocode(lat, lng);
-          setLocationWithLogging(lat, lng, addr, strategy === 'high_accuracy' ? 'geolocation' : 'geolocation_low', pos.coords.accuracy);
-        },
-        async (error) => {
-          console.error(`Geolocation error (${strategy}):`, error);
-          
-          // Strategy 2: If high accuracy fails with POSITION_UNAVAILABLE, try with lower accuracy
-          if (!isRetry && error.code === error.POSITION_UNAVAILABLE && strategy === 'high_accuracy') {
-            console.log('Retrying with lower accuracy settings...');
-            setTimeout(() => {
-              tryGetLocation({
-                enableHighAccuracy: false,
-                timeout: 10000,
-                maximumAge: 60000, // Accept cached location up to 1 minute old
-              }, 'low_accuracy');
-            }, 500);
-            return;
-          }
-          
-          setIsLoadingLocation(false);
-          
-          // Don't show error if this was an automatic retry - let user manually select
-          if (isRetry || retryCount > 0) {
-            setLocationPermission('denied');
-            return;
-          }
-          
-          let errorMessage = '';
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = 'Location permission denied. Please:\n1. Enable location services in system settings\n2. Grant location permission to this app\n3. Or click on the map to select your location';
-              setLocationPermission('denied');
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = 'Location services unavailable. This may be due to:\n• Location services being disabled\n• GPS not available\n• Network issues\n\nPlease select your location manually on the map.';
-              setLocationPermission('denied');
-              break;
-            case error.TIMEOUT:
-              errorMessage = 'Location request timed out. Please try again or select your location on the map.';
-              break;
-            default:
-              errorMessage = 'Unable to get your location. Please select it manually on the map.';
-              break;
-          }
-          
-          setError(errorMessage);
-          
-          // Set default location only if no position exists
-          setPosition((currentPosition) => {
-            if (!currentPosition) {
-              // Async set default - this will happen after error is shown
-              reverseGeocode(5.6037, -0.1870).then((addr) => {
-                setPosition([5.6037, -0.1870]);
-                setAddress(addr);
-              });
+      // Strategy 1: Try with high accuracy first (if not a retry)
+      const tryGetLocation = (options: PositionOptions, strategy = 'high_accuracy') => {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            setIsLoadingLocation(false);
+
+            // Get address asynchronously
+            const addr = await reverseGeocode(lat, lng);
+            setLocationWithLogging(
+              lat,
+              lng,
+              addr,
+              strategy === 'high_accuracy' ? 'geolocation' : 'geolocation_low',
+              pos.coords.accuracy
+            );
+          },
+          async (error) => {
+            console.error(`Geolocation error (${strategy}):`, error);
+
+            // Strategy 2: If high accuracy fails with POSITION_UNAVAILABLE, try with lower accuracy
+            if (
+              !isRetry &&
+              error.code === error.POSITION_UNAVAILABLE &&
+              strategy === 'high_accuracy'
+            ) {
+              console.log('Retrying with lower accuracy settings...');
+              setTimeout(() => {
+                tryGetLocation(
+                  {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 60000, // Accept cached location up to 1 minute old
+                  },
+                  'low_accuracy'
+                );
+              }, 500);
+              return;
             }
-            return currentPosition;
-          });
-        },
-        options
-      );
-    };
 
-    // Start with high accuracy
-    tryGetLocation({
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0,
-    });
-  }, [reverseGeocode, setLocationWithLogging, retryCount]);
+            setIsLoadingLocation(false);
+
+            // Don't show error if this was an automatic retry - let user manually select
+            if (isRetry || retryCount > 0) {
+              setLocationPermission('denied');
+              return;
+            }
+
+            let errorMessage = '';
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                errorMessage =
+                  'Location permission denied. Please:\n1. Enable location services in system settings\n2. Grant location permission to this app\n3. Or click on the map to select your location';
+                setLocationPermission('denied');
+                break;
+              case error.POSITION_UNAVAILABLE:
+                errorMessage =
+                  'Location services unavailable. This may be due to:\n• Location services being disabled\n• GPS not available\n• Network issues\n\nPlease select your location manually on the map.';
+                setLocationPermission('denied');
+                break;
+              case error.TIMEOUT:
+                errorMessage =
+                  'Location request timed out. Please try again or select your location on the map.';
+                break;
+              default:
+                errorMessage = 'Unable to get your location. Please select it manually on the map.';
+                break;
+            }
+
+            setError(errorMessage);
+
+            // Set default location only if no position exists
+            setPosition((currentPosition) => {
+              if (!currentPosition) {
+                // Async set default - this will happen after error is shown
+                reverseGeocode(5.6037, -0.187).then((addr) => {
+                  setPosition([5.6037, -0.187]);
+                  setAddress(addr);
+                });
+              }
+              return currentPosition;
+            });
+          },
+          options
+        );
+      };
+
+      // Start with high accuracy
+      tryGetLocation({
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      });
+    },
+    [reverseGeocode, setLocationWithLogging, retryCount]
+  );
 
   // Initialize map with default location - don't auto-request location on mount
   useEffect(() => {
     const initializeDefaultLocation = async () => {
       if (!position) {
-        const defaultCoords: [number, number] = [5.6037, -0.1870];
+        const defaultCoords: [number, number] = [5.6037, -0.187];
         const defaultAddr = await reverseGeocode(defaultCoords[0], defaultCoords[1]);
         setPosition(defaultCoords);
         setAddress(defaultAddr);
@@ -333,19 +365,22 @@ export default function SetupLocationPage() {
   }, []);
 
   // Handle search result selection
-  const handleSearchResultSelect = useCallback((result: SearchResult) => {
-    const lat = parseFloat(result.lat);
-    const lng = parseFloat(result.lon);
-    const newPosition: [number, number] = [lat, lng];
-    
-    setPosition(newPosition);
-    setAddress(result.display_name);
-    setLocationWithLogging(lat, lng, result.display_name, 'search');
-    setMapZoom(15); // Zoom in when selecting from search for better visibility
-    setSearchQuery('');
-    setSearchResults([]);
-    setShowSearchResults(false);
-  }, [setLocationWithLogging]);
+  const handleSearchResultSelect = useCallback(
+    (result: SearchResult) => {
+      const lat = parseFloat(result.lat);
+      const lng = parseFloat(result.lon);
+      const newPosition: [number, number] = [lat, lng];
+
+      setPosition(newPosition);
+      setAddress(result.display_name);
+      setLocationWithLogging(lat, lng, result.display_name, 'search');
+      setMapZoom(15); // Zoom in when selecting from search for better visibility
+      setSearchQuery('');
+      setSearchResults([]);
+      setShowSearchResults(false);
+    },
+    [setLocationWithLogging]
+  );
 
   const handleSave = async () => {
     if (!position) {
@@ -373,7 +408,7 @@ export default function SetupLocationPage() {
 
       // Prepare update data with location and business info
       const updateData: any = {
-        location: locationData,
+        location: locationData, // Location as object - will be sent as JSON when no file
       };
 
       // Add business info from cache if available
@@ -381,9 +416,13 @@ export default function SetupLocationPage() {
         updateData.businessName = cachedBusinessInfo.businessName;
         updateData.businessPhone = cachedBusinessInfo.businessPhone;
         updateData.websiteUrl = cachedBusinessInfo.websiteUrl;
-        
-        // Add file path if available (file will be uploaded to Cloudinary at backend)
-        if (cachedBusinessInfo.businessCoverImagePath) {
+
+        // Use uploaded image URL if available, otherwise use file path
+        if (cachedBusinessInfo.businessCoverImageUrl) {
+          // Image was already uploaded in BusinessInfoPage, use the URL (no file upload needed)
+          updateData.businessCoverImage = cachedBusinessInfo.businessCoverImageUrl;
+        } else if (cachedBusinessInfo.businessCoverImagePath) {
+          // Image wasn't uploaded yet, upload it now using the file path (will use FormData)
           updateData.businessCoverImage = cachedBusinessInfo.businessCoverImagePath;
         }
       }
@@ -393,8 +432,11 @@ export default function SetupLocationPage() {
         businessInfo: cachedBusinessInfo,
       });
 
-      // Use updateUser endpoint to save everything together
+      // Use updateUser endpoint - it will use JSON if no file, FormData if file exists
+      // Location will be sent as proper object in both cases
       const updatedUser = await window.electron.users.update(user.id, updateData);
+
+      console.log('Location and business info saved successfully');
 
       // Update auth store with new user data
       useAuthStore.setState({
@@ -406,7 +448,7 @@ export default function SetupLocationPage() {
       businessInfoCache.clear();
 
       console.log('Location and business info saved successfully, user authenticated');
-      
+
       // User is now authenticated, navigate to dashboard
       navigate('/');
     } catch (err: any) {
@@ -417,51 +459,63 @@ export default function SetupLocationPage() {
   };
 
   return (
-    <div style={{
-      width: '100vw',
-      height: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      background: themeStyles.container.background,
-      overflow: 'hidden',
-    }}>
-      {/* Header */}
-      <div style={{
-        padding: '20px',
-        background: themeStyles.card.background,
-        borderBottom: themeStyles.card.border,
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px',
-        flexShrink: 0,
-      }}>
-        <div style={{
+        background: themeStyles.container.background,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: '20px',
+          background: themeStyles.card.background,
+          borderBottom: themeStyles.card.border,
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <h1 style={{
-            color: themeStyles.text,
-            fontSize: '24px',
-            fontWeight: '700',
-            margin: 0,
-          }}>
+          flexDirection: 'column',
+          gap: '16px',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <h1
+            style={{
+              color: themeStyles.text,
+              fontSize: '24px',
+              fontWeight: '700',
+              margin: 0,
+            }}
+          >
             Set Your Location
           </h1>
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            alignItems: 'center',
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '12px',
+              alignItems: 'center',
+            }}
+          >
             {address && (
-              <div style={{
-                color: themeStyles.textSecondary,
-                fontSize: '14px',
-                maxWidth: '400px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}>
+              <div
+                style={{
+                  color: themeStyles.textSecondary,
+                  fontSize: '14px',
+                  maxWidth: '400px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 📍 {address}
               </div>
             )}
@@ -498,9 +552,9 @@ export default function SetupLocationPage() {
                 border: 'none',
                 borderRadius: '8px',
                 fontWeight: '600',
-                cursor: (!position || isSaving) ? 'not-allowed' : 'pointer',
+                cursor: !position || isSaving ? 'not-allowed' : 'pointer',
                 fontSize: '14px',
-                opacity: (!position || isSaving) ? 0.6 : 1,
+                opacity: !position || isSaving ? 0.6 : 1,
                 transition: 'opacity 0.2s ease',
               }}
             >
@@ -508,7 +562,7 @@ export default function SetupLocationPage() {
             </button>
           </div>
         </div>
-        
+
         {/* Search Input */}
         <div ref={searchContainerRef}>
           <input
@@ -547,33 +601,37 @@ export default function SetupLocationPage() {
             }}
           />
           {isSearching && (
-            <div style={{
-              position: 'absolute',
-              right: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: themeStyles.textSecondary,
-            }}>
+            <div
+              style={{
+                position: 'absolute',
+                right: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: themeStyles.textSecondary,
+              }}
+            >
               ⏳
             </div>
           )}
-          
+
           {/* Search Results Dropdown */}
           {showSearchResults && searchResults.length > 0 && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              right: 0,
-              marginTop: '8px',
-              background: themeStyles.card.background,
-              border: `1px solid ${themeStyles.card.border}`,
-              borderRadius: '8px',
-              maxHeight: '300px',
-              overflowY: 'auto',
-              zIndex: 1000,
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            }}>
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                marginTop: '8px',
+                background: themeStyles.card.background,
+                border: `1px solid ${themeStyles.card.border}`,
+                borderRadius: '8px',
+                maxHeight: '300px',
+                overflowY: 'auto',
+                zIndex: 1000,
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              }}
+            >
               {searchResults.map((result) => (
                 <div
                   key={result.place_id}
@@ -586,60 +644,73 @@ export default function SetupLocationPage() {
                     color: themeStyles.text,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = themeStyles.button?.background || themeStyles.card.background;
+                    e.currentTarget.style.background =
+                      themeStyles.button?.background || themeStyles.card.background;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'transparent';
                   }}
                 >
-                  <div style={{
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    marginBottom: '4px',
-                  }}>
+                  <div
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      marginBottom: '4px',
+                    }}
+                  >
                     {result.display_name.split(',').slice(0, 2).join(', ')}
                   </div>
-                  <div style={{
-                    fontSize: '12px',
-                    color: themeStyles.textSecondary,
-                  }}>
+                  <div
+                    style={{
+                      fontSize: '12px',
+                      color: themeStyles.textSecondary,
+                    }}
+                  >
                     {result.display_name}
                   </div>
                 </div>
               ))}
             </div>
           )}
-          
-          {showSearchResults && searchQuery.trim() && !isSearching && searchResults.length === 0 && debouncedSearchQuery.trim() && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              right: 0,
-              marginTop: '8px',
-              background: themeStyles.card.background,
-              border: `1px solid ${themeStyles.card.border}`,
-              borderRadius: '8px',
-              padding: '16px',
-              color: themeStyles.textSecondary,
-              fontSize: '14px',
-              zIndex: 1000,
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            }}>
-              No locations found
-            </div>
-          )}
+
+          {showSearchResults &&
+            searchQuery.trim() &&
+            !isSearching &&
+            searchResults.length === 0 &&
+            debouncedSearchQuery.trim() && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  marginTop: '8px',
+                  background: themeStyles.card.background,
+                  border: `1px solid ${themeStyles.card.border}`,
+                  borderRadius: '8px',
+                  padding: '16px',
+                  color: themeStyles.textSecondary,
+                  fontSize: '14px',
+                  zIndex: 1000,
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                }}
+              >
+                No locations found
+              </div>
+            )}
         </div>
       </div>
 
       {/* Map Container */}
-      <div style={{
-        flex: 1,
-        position: 'relative',
-        overflow: 'hidden',
-        minHeight: 0, // Important for flex children
-        width: '100%',
-      }}>
+      <div
+        style={{
+          flex: 1,
+          position: 'relative',
+          overflow: 'hidden',
+          minHeight: 0, // Important for flex children
+          width: '100%',
+        }}
+      >
         {position ? (
           <MapContainer
             key={`${position[0]}-${position[1]}-${mapZoom}`}
@@ -669,58 +740,64 @@ export default function SetupLocationPage() {
             />
           </MapContainer>
         ) : (
-          <div style={{
-            height: '100%',
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: themeStyles.textSecondary,
-          }}>
+          <div
+            style={{
+              height: '100%',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: themeStyles.textSecondary,
+            }}
+          >
             Loading map...
           </div>
         )}
       </div>
 
       {/* Instructions */}
-      <div style={{
-        padding: '16px 20px',
-        background: themeStyles.card.background,
-        borderTop: themeStyles.card.border,
-        color: themeStyles.textSecondary,
-        fontSize: '14px',
-        flexShrink: 0,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '12px',
-      }}>
+      <div
+        style={{
+          padding: '16px 20px',
+          background: themeStyles.card.background,
+          borderTop: themeStyles.card.border,
+          color: themeStyles.textSecondary,
+          fontSize: '14px',
+          flexShrink: 0,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '12px',
+        }}
+      >
         <span>
-          {locationPermission === 'granted' 
+          {locationPermission === 'granted'
             ? '✅ Location access granted. Click on the map to adjust your location if needed.'
             : locationPermission === 'denied'
-            ? '⚠️ Location access denied. Please click on the map to select your location, or click "Use My Location" to try again.'
-            : 'Click on the map to select your location, or click "Use My Location" to use your current position.'}
+              ? '⚠️ Location access denied. Please click on the map to select your location, or click "Use My Location" to try again.'
+              : 'Click on the map to select your location, or click "Use My Location" to use your current position.'}
         </span>
       </div>
 
       {error && (
-        <div style={{
-          position: 'absolute',
-          top: '80px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          padding: '16px 24px',
-          background: themeStyles.error,
-          color: '#ffffff',
-          borderRadius: '8px',
-          fontSize: '14px',
-          zIndex: 1000,
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-          maxWidth: '500px',
-          whiteSpace: 'pre-line',
-          textAlign: 'left',
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '16px 24px',
+            background: themeStyles.error,
+            color: '#ffffff',
+            borderRadius: '8px',
+            fontSize: '14px',
+            zIndex: 1000,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            maxWidth: '500px',
+            whiteSpace: 'pre-line',
+            textAlign: 'left',
+          }}
+        >
           {error}
         </div>
       )}

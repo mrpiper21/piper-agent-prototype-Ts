@@ -71,39 +71,70 @@ export default function BusinessInfoPage() {
   const handleNext = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsLoading(true);
 
     // Validate required fields
     if (!businessName.trim()) {
       setError('Business name is required');
+      setIsLoading(false);
       return;
     }
 
     if (!businessPhone.trim()) {
       setError('Business phone is required');
+      setIsLoading(false);
       return;
     }
 
-    // Get file path from File object (for caching)
-    let filePath: string | null = null;
-    if (businessImage instanceof File) {
-      // In Electron, File objects have a path property
-      // @ts-ignore - path property exists in Electron File objects
-      filePath = (businessImage as any).path || null;
-      if (!filePath) {
-        console.warn('File object does not have path property');
+    try {
+      let filePath: string | null = null;
+      let uploadedImageUrl: string | null = null;
+
+      if (businessImage instanceof File) {
+        filePath = (businessImage as File & { path?: string }).path || null;
+        
+        if (filePath && user?.id) {
+          try {
+            console.log('Uploading business cover image...');
+            const updatedUser = await window.electron.users.update(user.id, {
+              businessCoverImage: filePath,
+            });
+            
+            // Get the uploaded image URL from the response
+            uploadedImageUrl = updatedUser.businessCoverImage || null;
+            console.log('Business cover image uploaded successfully:', uploadedImageUrl);
+          } catch (uploadError: unknown) {
+            const errorMessage = uploadError instanceof Error ? uploadError.message : 'Unknown error';
+            console.error('Failed to upload business cover image:', uploadError);
+            // Continue without the image - user can retry later
+            setError(`Failed to upload image: ${errorMessage}. You can continue without it or try again.`);
+            setIsLoading(false);
+            return;
+          }
+        } else if (!filePath) {
+          console.warn('File object does not have path property');
+        } else if (!user?.id) {
+          console.warn('User ID not available, cannot upload image');
+        }
       }
+
+      // Cache business info before navigating
+      businessInfoCache.save({
+        businessName: businessName.trim(),
+        businessPhone: businessPhone.trim(),
+        businessCoverImagePath: filePath,
+        businessCoverImageUrl: uploadedImageUrl,
+        websiteUrl: websiteUrl.trim() || undefined,
+      });
+
+      // Navigate to location setup
+      navigate('/setup-location');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred. Please try again.';
+      console.error('Error in handleNext:', err);
+      setError(errorMessage);
+      setIsLoading(false);
     }
-
-    // Cache business info before navigating
-    businessInfoCache.save({
-      businessName: businessName.trim(),
-      businessPhone: businessPhone.trim(),
-      businessCoverImagePath: filePath,
-      websiteUrl: websiteUrl.trim() || undefined,
-    });
-
-    // Navigate to location setup
-    navigate('/setup-location');
   };
 
   return (

@@ -240,25 +240,63 @@ class ApiService {
     try {
       console.log(`Updating profile with data:`, JSON.stringify(updates, null, 2));
 
-      // If businessCoverImage is a File, we need to use FormData
-      if (updates.businessCoverImage instanceof File) {
+      // If businessCoverImage is a string (file path), we need to use FormData
+      // File objects get serialized when sent through IPC, so we only receive strings
+      if (updates.businessCoverImage && typeof updates.businessCoverImage === 'string') {
+        // Use form-data package for Node.js FormData support
+        const FormData = (await import('form-data')).default;
         const formData = new FormData();
+        const fs = await import('fs');
+        const path = await import('path');
+        const filePath = updates.businessCoverImage;
         
         // Add all fields to FormData
         if (updates.name) formData.append('name', updates.name);
         if (updates.email) formData.append('email', updates.email);
         if (updates.location) {
-          formData.append('location', JSON.stringify(updates.location));
+          // Send location fields separately for FormData (nested objects need bracket notation)
+          formData.append('location[latitude]', String(updates.location.latitude));
+          formData.append('location[longitude]', String(updates.location.longitude));
+          formData.append('location[address]', updates.location.address);
         }
         if (updates.businessName) formData.append('businessName', updates.businessName);
         if (updates.businessPhone) formData.append('businessPhone', updates.businessPhone);
-        formData.append('businessCoverImage', updates.businessCoverImage);
+        
+        // Add file if it exists
+        if (fs.default.existsSync(filePath)) {
+          const fileStream = fs.default.createReadStream(filePath);
+          const fileName = path.default.basename(filePath);
+          const fileExt = path.default.extname(filePath).toLowerCase();
+
+          // Map file extension to MIME type (required by multer)
+          const mimeTypeMap: { [key: string]: string } = {
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.bmp': 'image/bmp',
+          };
+
+          const contentType = mimeTypeMap[fileExt] || 'application/octet-stream';
+
+          formData.append('businessCoverImage', fileStream, {
+            filename: fileName,
+            contentType: contentType,
+          });
+          console.log(`[API] Appending file to FormData: ${filePath} as businessCoverImage with content type: ${contentType}`);
+        } else {
+          console.warn(`[API] File not found at path: ${filePath}`);
+        }
+
+        // Get form-data headers (includes boundary)
+        const formHeaders = formData.getHeaders();
 
         // Use /users/:id endpoint for file uploads (need user ID)
         // For now, try /auth/profile with FormData
         const response = await this.axiosInstance.put('/auth/profile', formData, {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            ...formHeaders,
           },
         });
 
@@ -429,8 +467,14 @@ class ApiService {
     try {
       console.log(`Updating user ${id} with data:`, JSON.stringify(updates, null, 2));
 
-      // If businessCoverImage is a File or file path, use FormData
-      if (updates.businessCoverImage) {
+      // If businessCoverImage is a file path (needs upload), use FormData
+      // If it's a URL (already uploaded), use regular JSON
+      const isFileUpload = updates.businessCoverImage && 
+        typeof updates.businessCoverImage === 'string' && 
+        !updates.businessCoverImage.startsWith('http') && 
+        !updates.businessCoverImage.startsWith('https');
+      
+      if (isFileUpload) {
         // Use form-data package for Node.js FormData support
         const FormData = (await import('form-data')).default;
         const formData = new FormData();
@@ -439,54 +483,57 @@ class ApiService {
         if (updates.name) formData.append('name', updates.name);
         if (updates.email) formData.append('email', updates.email);
         if (updates.location) {
-          formData.append('location', JSON.stringify(updates.location));
+          // Send location fields separately for FormData (nested objects need bracket notation)
+          formData.append('location[latitude]', String(updates.location.latitude));
+          formData.append('location[longitude]', String(updates.location.longitude));
+          formData.append('location[address]', updates.location.address);
         }
         if (updates.businessName) formData.append('businessName', updates.businessName);
         if (updates.businessPhone) formData.append('businessPhone', updates.businessPhone);
         if (updates.websiteUrl) formData.append('websiteUrl', updates.websiteUrl);
         if (updates.isActive !== undefined) formData.append('isActive', String(updates.isActive));
-        
+
         // Handle file - if it's a string (path), create a read stream
         if (typeof updates.businessCoverImage === 'string') {
           // It's a file path - create a read stream for the file
           const fs = await import('fs');
           const path = await import('path');
           const filePath = updates.businessCoverImage;
-          
+
           if (fs.default.existsSync(filePath)) {
             // Create a read stream from the file
             const fileStream = fs.default.createReadStream(filePath);
             const fileName = path.default.basename(filePath);
-            
-            // Append file stream to FormData with the correct field name for multer
+            const fileExt = path.default.extname(filePath).toLowerCase();
+
+            // Map file extension to MIME type (required by multer)
+            const mimeTypeMap: { [key: string]: string } = {
+              '.jpg': 'image/jpeg',
+              '.jpeg': 'image/jpeg',
+              '.png': 'image/png',
+              '.gif': 'image/gif',
+              '.webp': 'image/webp',
+              '.bmp': 'image/bmp',
+            };
+
+            const contentType = mimeTypeMap[fileExt] || 'application/octet-stream';
+
+            // Append file stream to FormData with the correct field name and MIME type for multer
             formData.append('businessCoverImage', fileStream, {
               filename: fileName,
-              contentType: 'application/octet-stream', // Let multer detect the content type
+              contentType: contentType,
             });
-            
-            console.log(`[API] Appending file to FormData: ${filePath} as businessCoverImage`);
+
+            console.log(
+              `[API] Appending file to FormData: ${filePath} as businessCoverImage with content type: ${contentType}`
+            );
           } else {
             console.warn(`[API] File not found at path: ${filePath}`);
           }
-        } else if (updates.businessCoverImage instanceof File) {
-          // In Electron main process, File objects from renderer should have been converted to paths
-          // But if we receive a File object, try to get its path
-          // @ts-ignore - path property exists in Electron File objects
-          const filePath = (updates.businessCoverImage as any).path;
-          if (filePath && typeof filePath === 'string') {
-            const fs = await import('fs');
-            const path = await import('path');
-            if (fs.default.existsSync(filePath)) {
-              const fileStream = fs.default.createReadStream(filePath);
-              const fileName = path.default.basename(filePath);
-              formData.append('businessCoverImage', fileStream, {
-                filename: fileName,
-                contentType: 'application/octet-stream',
-              });
-            }
-          } else {
-            console.warn('[API] File object does not have a valid path property');
-          }
+        } else {
+          // This should not happen - businessCoverImage should be a string path at this point
+          // File objects get serialized when sent through IPC, so we only receive strings
+          console.warn('[API] businessCoverImage is not a string path, skipping file upload');
         }
 
         // Get form-data headers (includes boundary)
@@ -508,6 +555,22 @@ class ApiService {
       }
     } catch (error: any) {
       console.error(`Failed to update user ${id}:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  async updateUserLocation(
+    id: string,
+    location: { latitude: number; longitude: number; address: string }
+  ): Promise<User> {
+    try {
+      const response = await this.axiosInstance.put(`/users/${id}`, {
+        location: location,
+      });
+      console.log(`User ${id} location updated successfully:`, response.data.data.user);
+      return response.data.data.user;
+    } catch (error: any) {
+      console.error(`Failed to update user ${id} location:`, error.response?.data || error.message);
       throw error;
     }
   }
@@ -555,6 +618,32 @@ class ApiService {
     const response = await this.axiosInstance.post('/print/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return response.data.data;
+  }
+
+  // Upload file from file path (for Node.js/Electron main process)
+  async uploadFileFromPath(filePath: string): Promise<{ fileId: string; fileName: string; fileSize: number }> {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found at path: ${filePath}`);
+    }
+
+    const FormData = (await import('form-data')).default;
+    const formData = new FormData();
+    const fileStream = fs.createReadStream(filePath);
+    const fileName = path.basename(filePath);
+    
+    formData.append('file', fileStream, {
+      filename: fileName,
+      contentType: 'application/octet-stream',
+    });
+
+    const formHeaders = formData.getHeaders();
+    const response = await this.axiosInstance.post('/print/upload', formData, {
+      headers: {
+        ...formHeaders,
       },
     });
 

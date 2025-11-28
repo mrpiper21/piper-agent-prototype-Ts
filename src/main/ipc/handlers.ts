@@ -15,6 +15,7 @@ import type {
   UpdateUserData,
   PrintOptions,
   createClerkData,
+  User,
 } from '../../shared/types/ipc.types';
 
 export function setupIpcHandlers() {
@@ -166,30 +167,20 @@ export function setupIpcHandlers() {
       try {
         logger.info('Updating profile with data:', {
           ...updates,
-          businessCoverImage: updates.businessCoverImage instanceof File ? '[File]' : updates.businessCoverImage,
+          businessCoverImage:
+            updates.businessCoverImage && typeof updates.businessCoverImage === 'string'
+              ? updates.businessCoverImage
+              : '[Non-string value]',
         });
-
-        // Handle File object - convert to path if it's a File
-        let filePath: string | undefined;
-        if (updates.businessCoverImage instanceof File) {
-          // In Electron, File objects from renderer have a path property
-          // @ts-ignore - path property exists in Electron File objects
-          filePath = updates.businessCoverImage.path;
-          if (!filePath) {
-            // If path is not available, we need to save the file temporarily
-            // For now, log a warning and continue without the file
-            logger.warn('File object does not have path property, skipping file upload');
-            updates.businessCoverImage = undefined;
-          } else {
-            // Convert File to path string for API
-            updates.businessCoverImage = filePath;
-          }
+        if (updates.businessCoverImage && typeof updates.businessCoverImage !== 'string') {
+          logger.warn('businessCoverImage is not a string, skipping file upload');
+          updates.businessCoverImage = undefined;
         }
 
         // Get current user to get user ID for file uploads
         let user;
         const hasFile = !!updates.businessCoverImage;
-        
+
         if (hasFile) {
           // For file uploads, we need to use /users/:id endpoint
           // First, get current user profile to get the ID
@@ -216,13 +207,15 @@ export function setupIpcHandlers() {
         // Also update local database if user ID exists
         if (user.id) {
           try {
-            const dbUpdates: any = {
+            const dbUpdates: UpdateUserData = {
               ...(updates.name && { name: updates.name }),
               ...(updates.email && { email: updates.email }),
               ...(updates.location && { location: updates.location }),
               ...(updates.businessName && { businessName: updates.businessName }),
               ...(updates.businessPhone && { businessPhone: updates.businessPhone }),
-              ...(user.businessCoverImage && { businessCoverImage: user.businessCoverImage }),
+              ...((user as User).businessCoverImage && {
+                businessCoverImage: (user as User).businessCoverImage,
+              }),
             };
             dbService.updateUser(user.id, dbUpdates);
             logger.info('Profile updated in local database');
@@ -271,42 +264,82 @@ export function setupIpcHandlers() {
     }
   });
 
-  ipcMain.handle('users:update', async (_, id: string, data: UpdateUserData & {
-    businessCoverImage?: File | string | null;
-    websiteUrl?: string;
-  }) => {
-    try {
-      logger.info(`Updating user ${id} with data:`, {
-        ...data,
-        businessCoverImage: data.businessCoverImage instanceof File ? '[File]' : data.businessCoverImage,
-      });
+  ipcMain.handle(
+    'users:update',
+    async (
+      _,
+      id: string,
+      data: UpdateUserData & {
+        businessCoverImage?: File | string | null;
+        websiteUrl?: string;
+      }
+    ) => {
+      try {
+        logger.info(`Updating user ${id} with data:`, {
+          ...data,
+          businessCoverImage:
+            data.businessCoverImage && typeof data.businessCoverImage !== 'string'
+              ? '[File]'
+              : data.businessCoverImage,
+        });
 
-      // Update via API to sync with backend first
-      // The API service will handle file uploads to Cloudinary
-      const user = await apiService.updateUser(id, data);
+        // Update via API to sync with backend first
+        // The API service will handle file uploads to Cloudinary
+        const user = await apiService.updateUser(id, data);
 
-      logger.info(`User ${id} updated successfully via API`);
+        logger.info(`User ${id} updated successfully via API`);
 
-      // Also update local database
-      const dbUpdateData: UpdateUserData = {
-        ...(data.name && { name: data.name }),
-        ...(data.email && { email: data.email }),
-        ...(data.location && { location: data.location }),
-        ...(data.businessName && { businessName: data.businessName }),
-        ...(data.businessPhone && { businessPhone: data.businessPhone }),
-        ...(user.businessCoverImage && { businessCoverImage: user.businessCoverImage }),
-        ...(data.websiteUrl && { websiteUrl: data.websiteUrl }),
-      };
-      dbService.updateUser(id, dbUpdateData);
+        // Also update local database
+        const dbUpdateData: UpdateUserData = {
+          ...(data.name && { name: data.name }),
+          ...(data.email && { email: data.email }),
+          ...(data.location && { location: data.location }),
+          ...(data.businessName && { businessName: data.businessName }),
+          ...(data.businessPhone && { businessPhone: data.businessPhone }),
+          ...((user as User).businessCoverImage && {
+            businessCoverImage: (user as User).businessCoverImage,
+          }),
+          ...(data.websiteUrl && { websiteUrl: data.websiteUrl }),
+        };
+        dbService.updateUser(id, dbUpdateData);
 
-      logger.info(`User ${id} updated in local database`);
+        logger.info(`User ${id} updated in local database`);
 
-      return user;
-    } catch (error) {
-      logger.error('Update user error', error);
-      throw error;
+        return user;
+      } catch (error) {
+        logger.error('Update user error', error);
+        throw error;
+      }
     }
-  });
+  );
+
+  ipcMain.handle(
+    'users:updateLocation',
+    async (
+      _,
+      id: string,
+      location: { latitude: number; longitude: number; address: string }
+    ) => {
+      try {
+        logger.info(`Updating user ${id} location:`, location);
+
+        // Update location via API
+        const user = await apiService.updateUserLocation(id, location);
+
+        logger.info(`User ${id} location updated successfully via API`);
+
+        // Also update local database
+        dbService.updateUser(id, { location });
+
+        logger.info(`User ${id} location updated in local database`);
+
+        return user;
+      } catch (error) {
+        logger.error('Update user location error', error);
+        throw error;
+      }
+    }
+  );
 
   ipcMain.handle('users:delete', async (_, id: string) => {
     try {
@@ -590,12 +623,9 @@ export function setupIpcHandlers() {
   // File upload handler
   ipcMain.handle('files:upload', async (_, filePath: string) => {
     try {
-      // For file upload, return a mock response since this is running in Node.js context
-      return {
-        fileId: `file-${Date.now()}`,
-        fileName: filePath.split('/').pop() || 'file',
-        fileSize: 0,
-      };
+      const result = await apiService.uploadFileFromPath(filePath);
+      logger.info(`File uploaded successfully: ${result.fileName}`);
+      return result;
     } catch (error) {
       logger.error('File upload error', error);
       throw error;
@@ -605,7 +635,10 @@ export function setupIpcHandlers() {
   // File fetch handler - proxies file downloads through main process to bypass CORS
   ipcMain.handle('files:fetch', async (_, fileUrl: string, headers?: Record<string, string>) => {
     try {
-      const fetchFile = async (url: string, maxRedirects = 5): Promise<{ data: string; contentType: string }> => {
+      const fetchFile = async (
+        url: string,
+        maxRedirects = 5
+      ): Promise<{ data: string; contentType: string }> => {
         if (maxRedirects <= 0) {
           throw new Error('Too many redirects');
         }
@@ -628,7 +661,12 @@ export function setupIpcHandlers() {
 
           const req = client.request(options, async (res) => {
             // Handle redirects
-            if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            if (
+              res.statusCode &&
+              res.statusCode >= 300 &&
+              res.statusCode < 400 &&
+              res.headers.location
+            ) {
               const redirectUrl = res.headers.location.startsWith('http')
                 ? res.headers.location
                 : `${urlObj.protocol}//${urlObj.hostname}${res.headers.location}`;

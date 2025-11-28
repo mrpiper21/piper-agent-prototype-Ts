@@ -9,6 +9,7 @@ export interface BusinessInfoCache {
   businessName: string;
   businessPhone: string;
   businessCoverImagePath?: string | null;
+  businessCoverImageUrl?: string | null;
   websiteUrl?: string;
 }
 

@@ -13,6 +13,7 @@ const electronAPI: IpcApi = {
     getById: (id) => ipcRenderer.invoke('users:getById', id),
     create: (data) => ipcRenderer.invoke('users:create', data),
     update: (id, data) => ipcRenderer.invoke('users:update', id, data),
+    updateLocation: (id, location) => ipcRenderer.invoke('users:updateLocation', id, location),
     delete: (id) => ipcRenderer.invoke('users:delete', id),
   },
   adminManagement: {

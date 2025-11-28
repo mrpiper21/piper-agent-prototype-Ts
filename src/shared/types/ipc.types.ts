@@ -103,6 +103,7 @@ export interface IpcApi {
     getById: (id: string) => Promise<User>;
     create: (data: CreateUserData) => Promise<User>;
     update: (id: string, data: UpdateUserData) => Promise<User>;
+    updateLocation: (id: string, location: { latitude: number; longitude: number; address: string }) => Promise<User>;
     delete: (id: string) => Promise<void>;
   };
   adminManagement: {

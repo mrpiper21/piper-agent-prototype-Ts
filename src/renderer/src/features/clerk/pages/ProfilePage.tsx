@@ -2,15 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuthStore } from '../../auth/store/authStore';
 import { useTheme } from '../../../context/ThemeContext';
 import { lightStyles, darkStyles, sharedStyles } from '../shared/clerkStyles';
-import { 
-  FaKey,
-  FaMapMarkerAlt,
-  FaUserTie,
-  FaBuilding,
-  FaPhone,
-  FaGlobe,
-  FaImage
-} from 'react-icons/fa';
+import { FaKey, FaMapMarkerAlt, FaUserTie, FaBuilding, FaPhone, FaGlobe } from 'react-icons/fa';
 import { 
   AiOutlineUser, 
   AiOutlineMail, 
