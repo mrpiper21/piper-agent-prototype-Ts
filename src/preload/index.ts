@@ -13,6 +13,7 @@ const electronAPI: IpcApi = {
     getById: (id) => ipcRenderer.invoke('users:getById', id),
     create: (data) => ipcRenderer.invoke('users:create', data),
     update: (id, data) => ipcRenderer.invoke('users:update', id, data),
+    updateLocation: (id, location) => ipcRenderer.invoke('users:updateLocation', id, location),
     delete: (id) => ipcRenderer.invoke('users:delete', id),
   },
   adminManagement: {
@@ -75,6 +76,14 @@ const electronAPI: IpcApi = {
   },
   location: {
     getCurrentPosition: () => ipcRenderer.invoke('location:getCurrentPosition'),
+  },
+  categories: {
+    getAll: (adminId: string) => ipcRenderer.invoke('categories:getAll', adminId),
+    create: (data: { name: string; unitPrice: number; description?: string }) =>
+      ipcRenderer.invoke('categories:create', data),
+    update: (id: string, data: { name?: string; unitPrice?: number; description?: string }) =>
+      ipcRenderer.invoke('categories:update', id, data),
+    delete: (id: string) => ipcRenderer.invoke('categories:delete', id),
   },
 };
 

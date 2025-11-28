@@ -315,11 +315,7 @@ export function setupIpcHandlers() {
 
   ipcMain.handle(
     'users:updateLocation',
-    async (
-      _,
-      id: string,
-      location: { latitude: number; longitude: number; address: string }
-    ) => {
+    async (_, id: string, location: { latitude: number; longitude: number; address: string }) => {
       try {
         logger.info(`Updating user ${id} location:`, location);
 
@@ -774,6 +770,60 @@ export function setupIpcHandlers() {
     // This is a fallback - browser geolocation should work with proper permissions
     // For now, we'll return an error to use browser geolocation
     throw new Error('Please use browser geolocation API. Ensure location permissions are granted.');
+  });
+
+  // Category handlers
+  ipcMain.handle('categories:getAll', async (_, adminId: string) => {
+    try {
+      logger.info(`Fetching all categories for admin ${adminId}`);
+      const categories = await apiService.getCategories(adminId);
+      logger.info(`Successfully fetched ${categories.length} categories`);
+      return categories;
+    } catch (error) {
+      logger.error('Get categories error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle(
+    'categories:create',
+    async (_, data: { name: string; unitPrice: number; description?: string }) => {
+      try {
+        logger.info('Creating category', { name: data.name, unitPrice: data.unitPrice });
+        const category = await apiService.createCategory(data);
+        logger.info(`Successfully created category ${category.id}`);
+        return category;
+      } catch (error) {
+        logger.error('Create category error', error);
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'categories:update',
+    async (_, id: string, data: { name?: string; unitPrice?: number; description?: string }) => {
+      try {
+        logger.info(`Updating category ${id}`, data);
+        const category = await apiService.updateCategory(id, data);
+        logger.info(`Successfully updated category ${id}`);
+        return category;
+      } catch (error) {
+        logger.error(`Update category ${id} error`, error);
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle('categories:delete', async (_, id: string) => {
+    try {
+      logger.info(`Deleting category ${id}`);
+      await apiService.deleteCategory(id);
+      logger.info(`Successfully deleted category ${id}`);
+    } catch (error) {
+      logger.error(`Delete category ${id} error`, error);
+      throw error;
+    }
   });
 
   logger.info('IPC handlers registered');

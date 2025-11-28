@@ -19,6 +19,7 @@ import {
   AiOutlineFileText,
   AiOutlineSearch,
   AiOutlineClose,
+  AiOutlineAppstore,
 } from 'react-icons/ai';
 import { HiOutlineLogout } from 'react-icons/hi';
 import { lightStyles, darkStyles, sharedStyles } from '../shared/clerkStyles';
@@ -367,20 +368,36 @@ export default function ClerkLayout() {
                   {!isSidebarCollapsed && 'Profile'}
                 </NavLink>
                 {user?.role === 'admin' && (
-                  <NavLink
-                    to="/clerk/user-management"
-                    style={({ isActive }) => ({
-                      ...styles.navItem,
-                      ...(isActive ? themeStyles.activeNav : {}),
-                      color: isActive ? '#000000' : themeStyles.text,
-                      fontWeight: isActive ? '700' : '500',
-                    })}
-                  >
-                    <AiOutlineUser
-                      style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
-                    />
-                    {!isSidebarCollapsed && 'User Management'}
-                  </NavLink>
+                  <>
+                    <NavLink
+                      to="/clerk/user-management"
+                      style={({ isActive }) => ({
+                        ...styles.navItem,
+                        ...(isActive ? themeStyles.activeNav : {}),
+                        color: isActive ? '#000000' : themeStyles.text,
+                        fontWeight: isActive ? '700' : '500',
+                      })}
+                    >
+                      <AiOutlineUser
+                        style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
+                      />
+                      {!isSidebarCollapsed && 'User Management'}
+                    </NavLink>
+                    <NavLink
+                      to="/clerk/services"
+                      style={({ isActive }) => ({
+                        ...styles.navItem,
+                        ...(isActive ? themeStyles.activeNav : {}),
+                        color: isActive ? '#000000' : themeStyles.text,
+                        fontWeight: isActive ? '700' : '500',
+                      })}
+                    >
+                      <AiOutlineAppstore
+                        style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
+                      />
+                      {!isSidebarCollapsed && 'Services'}
+                    </NavLink>
+                  </>
                 )}
               </nav>
             ) : (

@@ -86,6 +86,28 @@ export interface PrintOptions {
   duplex?: boolean;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  unitPrice: number;
+  description?: string;
+  adminId: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export interface CreateCategoryData {
+  name: string;
+  unitPrice: number;
+  description?: string;
+}
+
+export interface UpdateCategoryData {
+  name?: string;
+  unitPrice?: number;
+  description?: string;
+}
+
 // IPC API interface
 export interface IpcApi {
   auth: {
@@ -103,7 +125,10 @@ export interface IpcApi {
     getById: (id: string) => Promise<User>;
     create: (data: CreateUserData) => Promise<User>;
     update: (id: string, data: UpdateUserData) => Promise<User>;
-    updateLocation: (id: string, location: { latitude: number; longitude: number; address: string }) => Promise<User>;
+    updateLocation: (
+      id: string,
+      location: { latitude: number; longitude: number; address: string }
+    ) => Promise<User>;
     delete: (id: string) => Promise<void>;
   };
   adminManagement: {
@@ -115,7 +140,10 @@ export interface IpcApi {
     save: (path: string, content: string) => Promise<void>;
     read: (path: string) => Promise<string>;
     upload: (filePath: string) => Promise<{ fileId: string; fileName: string; fileSize: number }>;
-    fetch: (fileUrl: string, headers?: Record<string, string>) => Promise<{ data: string; contentType: string }>;
+    fetch: (
+      fileUrl: string,
+      headers?: Record<string, string>
+    ) => Promise<{ data: string; contentType: string }>;
   };
   agent: {
     start: () => Promise<void>;
@@ -168,6 +196,12 @@ export interface IpcApi {
   };
   location: {
     getCurrentPosition: () => Promise<{ latitude: number; longitude: number; accuracy?: number }>;
+  };
+  categories: {
+    getAll: (adminId: string) => Promise<Category[]>;
+    create: (data: CreateCategoryData) => Promise<Category>;
+    update: (id: string, data: UpdateCategoryData) => Promise<Category>;
+    delete: (id: string) => Promise<void>;
   };
 }
 

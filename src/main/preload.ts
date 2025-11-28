@@ -75,6 +75,13 @@ const electronAPI: IpcApi = {
   location: {
     getCurrentPosition: () => ipcRenderer.invoke('location:getCurrentPosition'),
   },
+  categories: {
+    getAll: (adminId: string) => ipcRenderer.invoke('categories:getAll', adminId),
+    create: (data: { name: string; unitPrice: number; description?: string }) => ipcRenderer.invoke('categories:create', data),
+    update: (id: string, data: { name?: string; unitPrice?: number; description?: string }) =>
+      ipcRenderer.invoke('categories:update', id, data),
+    delete: (id: string) => ipcRenderer.invoke('categories:delete', id),
+  },
 };
 
 contextBridge.exposeInMainWorld('electron', electronAPI);

@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
 import type { AnalyticsData, PrinterAgent, PrinterLog, PrintJob, User } from '../types';
+import type { Category } from '../../shared/types/ipc.types';
 
 // Use environment variable with production default, fallback to localhost for development
 // const API_BASE_URL = process.env.API_BASE_URL || (
@@ -12,7 +13,7 @@ import type { AnalyticsData, PrinterAgent, PrinterLog, PrintJob, User } from '..
 // );
 
 // const API_BASE_URL = "https://piper-server-api-production.up.railway.app/api"
-const API_BASE_URL_LOCAL = "http://localhost:3000/api"
+const API_BASE_URL_LOCAL = 'http://localhost:3000/api';
 
 class ApiService {
   private axiosInstance: AxiosInstance;
@@ -36,7 +37,9 @@ class ApiService {
             `[API] Adding Authorization header for ${config.method?.toUpperCase()} ${config.url}`
           );
         } else {
-          console.warn(`[API] No token found for ${config.method?.toUpperCase()} ${config.url}`);
+          console.warn(
+            `[API] No token found for ${config.method?.toUpperCase()} ${config.url}. Request will likely fail with 401.`
+          );
         }
         return config;
       },
@@ -71,10 +74,14 @@ class ApiService {
       const tokenPath = path.join(userDataPath, '.auth-token');
       if (fs.existsSync(tokenPath)) {
         const token = fs.readFileSync(tokenPath, 'utf8').trim();
-        console.log('[API] Token retrieved from:', tokenPath);
-        return token;
+        if (token) {
+          console.log('[API] Token retrieved from:', tokenPath);
+          return token;
+        } else {
+          console.warn('[API] Token file exists but is empty at:', tokenPath);
+        }
       } else {
-        console.log('[API] Token file not found at:', tokenPath);
+        console.warn('[API] Token file not found at:', tokenPath, 'userDataPath:', userDataPath);
       }
     } catch (error) {
       console.error('[API] Error reading token:', error);
@@ -249,7 +256,7 @@ class ApiService {
         const fs = await import('fs');
         const path = await import('path');
         const filePath = updates.businessCoverImage;
-        
+
         // Add all fields to FormData
         if (updates.name) formData.append('name', updates.name);
         if (updates.email) formData.append('email', updates.email);
@@ -261,7 +268,7 @@ class ApiService {
         }
         if (updates.businessName) formData.append('businessName', updates.businessName);
         if (updates.businessPhone) formData.append('businessPhone', updates.businessPhone);
-        
+
         // Add file if it exists
         if (fs.default.existsSync(filePath)) {
           const fileStream = fs.default.createReadStream(filePath);
@@ -284,7 +291,9 @@ class ApiService {
             filename: fileName,
             contentType: contentType,
           });
-          console.log(`[API] Appending file to FormData: ${filePath} as businessCoverImage with content type: ${contentType}`);
+          console.log(
+            `[API] Appending file to FormData: ${filePath} as businessCoverImage with content type: ${contentType}`
+          );
         } else {
           console.warn(`[API] File not found at path: ${filePath}`);
         }
@@ -339,7 +348,9 @@ class ApiService {
         status: error.response?.status,
       });
 
-      throw new Error(error.response?.data?.message || error.message || 'Failed to change clerk password');
+      throw new Error(
+        error.response?.data?.message || error.message || 'Failed to change clerk password'
+      );
     }
   }
 
@@ -457,28 +468,32 @@ class ApiService {
     return response.data.data.user;
   }
 
-  async updateUser(id: string, updates: Partial<User> & { 
-    businessCoverImage?: File | string | null;
-    businessName?: string;
-    businessPhone?: string;
-    websiteUrl?: string;
-    isActive?: boolean;
-  }): Promise<User> {
+  async updateUser(
+    id: string,
+    updates: Partial<User> & {
+      businessCoverImage?: File | string | null;
+      businessName?: string;
+      businessPhone?: string;
+      websiteUrl?: string;
+      isActive?: boolean;
+    }
+  ): Promise<User> {
     try {
       console.log(`Updating user ${id} with data:`, JSON.stringify(updates, null, 2));
 
       // If businessCoverImage is a file path (needs upload), use FormData
       // If it's a URL (already uploaded), use regular JSON
-      const isFileUpload = updates.businessCoverImage && 
-        typeof updates.businessCoverImage === 'string' && 
-        !updates.businessCoverImage.startsWith('http') && 
+      const isFileUpload =
+        updates.businessCoverImage &&
+        typeof updates.businessCoverImage === 'string' &&
+        !updates.businessCoverImage.startsWith('http') &&
         !updates.businessCoverImage.startsWith('https');
-      
+
       if (isFileUpload) {
         // Use form-data package for Node.js FormData support
         const FormData = (await import('form-data')).default;
         const formData = new FormData();
-        
+
         // Add all fields to FormData
         if (updates.name) formData.append('name', updates.name);
         if (updates.email) formData.append('email', updates.email);
@@ -625,7 +640,9 @@ class ApiService {
   }
 
   // Upload file from file path (for Node.js/Electron main process)
-  async uploadFileFromPath(filePath: string): Promise<{ fileId: string; fileName: string; fileSize: number }> {
+  async uploadFileFromPath(
+    filePath: string
+  ): Promise<{ fileId: string; fileName: string; fileSize: number }> {
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found at path: ${filePath}`);
     }
@@ -634,7 +651,7 @@ class ApiService {
     const formData = new FormData();
     const fileStream = fs.createReadStream(filePath);
     const fileName = path.basename(filePath);
-    
+
     formData.append('file', fileStream, {
       filename: fileName,
       contentType: 'application/octet-stream',
@@ -689,6 +706,104 @@ class ApiService {
   }> {
     const response = await this.axiosInstance.get('/health');
     return response.data;
+  }
+
+  // Categories
+  async getCategories(adminId: string): Promise<Category[]> {
+    try {
+      const response = await this.axiosInstance.get(`/categories/admin/${adminId}`);
+      return response.data.data || response.data || [];
+    } catch (error: unknown) {
+      const err = error as {
+        message?: string;
+        response?: { data?: { message?: string }; status?: number };
+      };
+      console.error('Get categories API Error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
+      throw new Error(err.response?.data?.message || err.message || 'Failed to get categories');
+    }
+  }
+
+  async createCategory(data: {
+    name: string;
+    unitPrice: number;
+    description?: string;
+  }): Promise<Category> {
+    try {
+      // Verify token exists before making request
+      const token = this.getToken();
+      if (!token) {
+        const userDataPath = app?.getPath('userData') || process.cwd();
+        const tokenPath = path.join(userDataPath, '.auth-token');
+        console.error('[API] Cannot create category: No authentication token found.', {
+          tokenPath,
+          tokenFileExists: fs.existsSync(tokenPath),
+          userDataPath,
+        });
+        throw new Error('Authentication required. Please log in again.');
+      }
+
+      const response = await this.axiosInstance.post('/categories', data);
+      return response.data.data || response.data;
+    } catch (error: unknown) {
+      const err = error as {
+        message?: string;
+        response?: { data?: { message?: string }; status?: number };
+      };
+      console.error('Create category API Error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        hasToken: !!this.getToken(),
+      });
+
+      if (err.response?.status === 401) {
+        throw new Error('Authentication failed. Please log in again.');
+      }
+
+      throw new Error(err.response?.data?.message || err.message || 'Failed to create category');
+    }
+  }
+
+  async updateCategory(
+    id: string,
+    data: { name?: string; unitPrice?: number; description?: string }
+  ): Promise<Category> {
+    try {
+      const response = await this.axiosInstance.put(`/categories/admin/${id}`, data);
+      return response.data.data || response.data;
+    } catch (error: unknown) {
+      const err = error as {
+        message?: string;
+        response?: { data?: { message?: string }; status?: number };
+      };
+      console.error('Update category API Error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
+      throw new Error(err.response?.data?.message || err.message || 'Failed to update category');
+    }
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    try {
+      await this.axiosInstance.delete(`/categories/admin/${id}`);
+    } catch (error: unknown) {
+      const err = error as {
+        message?: string;
+        response?: { data?: { message?: string }; status?: number };
+      };
+      console.error('Delete category API Error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
+      throw new Error(err.response?.data?.message || err.message || 'Failed to delete category');
+    }
   }
 }
 

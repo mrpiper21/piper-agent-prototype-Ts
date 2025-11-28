@@ -1,6 +1,7 @@
 import { useAuthStore } from '../auth/store/authStore';
 import { useTheme } from '../../context/ThemeContext';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { electronAPI } from '../../lib';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -14,6 +15,7 @@ import {
   AiOutlineFileText,
   AiOutlineSearch,
   AiOutlineClose,
+  AiOutlineAppstore,
 } from 'react-icons/ai';
 import { HiOutlineLogout } from 'react-icons/hi';
 import { JobListItem, JobPreview } from '../clerk/shared';
@@ -25,10 +27,11 @@ import { useConnectivity } from '../../shared/hooks';
 export default function AdminDashboard() {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
   const [sidebarTab, setSidebarTab] = useState<'home' | 'jobs'>('home');
-  const [contentTab, setContentTab] = useState<'overview' | 'users' | 'agents' | 'analytics'>(
-    'overview'
-  );
+  const [contentTab, setContentTab] = useState<
+    'overview' | 'users' | 'agents' | 'analytics' | 'services'
+  >('overview');
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [jobSearchQuery, setJobSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(jobSearchQuery, 300); // Debounce search by 300ms
@@ -40,7 +43,11 @@ export default function AdminDashboard() {
   }, [theme]);
 
   // Fetch jobs globally - optimized query settings
-  const { data: jobs, error: jobsError, refetch: refetchJobs } = useQuery({
+  const {
+    data: jobs,
+    error: jobsError,
+    refetch: refetchJobs,
+  } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => electronAPI.jobs.getAll(),
     staleTime: 30000, // 30 seconds - reduce refetch frequency
@@ -288,6 +295,17 @@ export default function AdminDashboard() {
               >
                 <AiOutlineBarChart style={{ marginRight: '8px' }} />
                 Analytics
+              </button>
+              <button
+                onClick={() => navigate('/clerk/services')}
+                style={{
+                  ...styles.navItem,
+                  color: themeStyles.text,
+                  fontWeight: '500',
+                }}
+              >
+                <AiOutlineAppstore style={{ marginRight: '8px' }} />
+                Services
               </button>
             </nav>
           ) : (

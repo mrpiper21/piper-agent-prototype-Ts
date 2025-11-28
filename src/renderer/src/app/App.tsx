@@ -10,6 +10,7 @@ const SubmitPage = lazy(() => import('../features/clerk/pages/SubmitPage'));
 const StatusPage = lazy(() => import('../features/clerk/pages/StatusPage'));
 const ProfilePage = lazy(() => import('../features/clerk/pages/ProfilePage'));
 const UserManagementPage = lazy(() => import('../features/clerk/pages/UserManagementPage'));
+const ServicesPage = lazy(() => import('../features/clerk/pages/ServicesPage'));
 const SetupLocationPage = lazy(() => import('../features/auth/pages/SetupLocationPage'));
 const SetupPasswordPage = lazy(() => import('../features/auth/pages/SetupPasswordPage'));
 const BusinessInfoPage = lazy(() => import('../features/auth/pages/BusinessInfoPage'));
@@ -142,6 +143,7 @@ export default function App() {
               <Route path="status" element={<StatusPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="user-management" element={<UserManagementPage />} />
+              <Route path="services" element={<ServicesPage />} />
             </Route>
           </Routes>
         </Suspense>
