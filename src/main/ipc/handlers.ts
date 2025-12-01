@@ -15,6 +15,7 @@ import type {
   UpdateUserData,
   PrintOptions,
   createClerkData,
+  User,
 } from '../../shared/types/ipc.types';
 
 export function setupIpcHandlers() {
@@ -158,20 +159,65 @@ export function setupIpcHandlers() {
         name?: string;
         email?: string;
         location?: { latitude: number; longitude: number; address: string };
+        businessName?: string;
+        businessPhone?: string;
+        businessCoverImage?: File | string | null;
       }
     ) => {
       try {
-        logger.info('Updating profile with data:', updates);
+        logger.info('Updating profile with data:', {
+          ...updates,
+          businessCoverImage:
+            updates.businessCoverImage && typeof updates.businessCoverImage === 'string'
+              ? updates.businessCoverImage
+              : '[Non-string value]',
+        });
+        if (updates.businessCoverImage && typeof updates.businessCoverImage !== 'string') {
+          logger.warn('businessCoverImage is not a string, skipping file upload');
+          updates.businessCoverImage = undefined;
+        }
 
-        // Update profile via API using /auth/profile endpoint
-        const user = await apiService.updateProfile(updates);
+        // Get current user to get user ID for file uploads
+        let user;
+        const hasFile = !!updates.businessCoverImage;
+
+        if (hasFile) {
+          // For file uploads, we need to use /users/:id endpoint
+          // First, get current user profile to get the ID
+          try {
+            const currentUser = await apiService.getProfile();
+            if (currentUser.id) {
+              // Use updateUser endpoint for file uploads
+              user = await apiService.updateUser(currentUser.id, updates as any);
+            } else {
+              // Fallback to updateProfile if no ID
+              user = await apiService.updateProfile(updates);
+            }
+          } catch (profileError) {
+            logger.warn('Failed to get profile, using updateProfile endpoint', profileError);
+            user = await apiService.updateProfile(updates);
+          }
+        } else {
+          // Regular update without file - use /auth/profile endpoint
+          user = await apiService.updateProfile(updates);
+        }
 
         logger.info('Profile updated successfully via API');
 
         // Also update local database if user ID exists
         if (user.id) {
           try {
-            dbService.updateUser(user.id, updates);
+            const dbUpdates: UpdateUserData = {
+              ...(updates.name && { name: updates.name }),
+              ...(updates.email && { email: updates.email }),
+              ...(updates.location && { location: updates.location }),
+              ...(updates.businessName && { businessName: updates.businessName }),
+              ...(updates.businessPhone && { businessPhone: updates.businessPhone }),
+              ...((user as User).businessCoverImage && {
+                businessCoverImage: (user as User).businessCoverImage,
+              }),
+            };
+            dbService.updateUser(user.id, dbUpdates);
             logger.info('Profile updated in local database');
           } catch (dbError) {
             logger.warn('Failed to update profile in local database, continuing anyway', dbError);
@@ -218,26 +264,78 @@ export function setupIpcHandlers() {
     }
   });
 
-  ipcMain.handle('users:update', async (_, id: string, data: UpdateUserData) => {
-    try {
-      logger.info(`Updating user ${id} with data:`, data);
+  ipcMain.handle(
+    'users:update',
+    async (
+      _,
+      id: string,
+      data: UpdateUserData & {
+        businessCoverImage?: File | string | null;
+        websiteUrl?: string;
+      }
+    ) => {
+      try {
+        logger.info(`Updating user ${id} with data:`, {
+          ...data,
+          businessCoverImage:
+            data.businessCoverImage && typeof data.businessCoverImage !== 'string'
+              ? '[File]'
+              : data.businessCoverImage,
+        });
 
-      // Update via API to sync with backend first
-      const user = await apiService.updateUser(id, data);
+        // Update via API to sync with backend first
+        // The API service will handle file uploads to Cloudinary
+        const user = await apiService.updateUser(id, data);
 
-      logger.info(`User ${id} updated successfully via API`);
+        logger.info(`User ${id} updated successfully via API`);
 
-      // Also update local database
-      dbService.updateUser(id, data);
+        // Also update local database
+        const dbUpdateData: UpdateUserData = {
+          ...(data.name && { name: data.name }),
+          ...(data.email && { email: data.email }),
+          ...(data.location && { location: data.location }),
+          ...(data.businessName && { businessName: data.businessName }),
+          ...(data.businessPhone && { businessPhone: data.businessPhone }),
+          ...((user as User).businessCoverImage && {
+            businessCoverImage: (user as User).businessCoverImage,
+          }),
+          ...(data.websiteUrl && { websiteUrl: data.websiteUrl }),
+        };
+        dbService.updateUser(id, dbUpdateData);
 
-      logger.info(`User ${id} updated in local database`);
+        logger.info(`User ${id} updated in local database`);
 
-      return user;
-    } catch (error) {
-      logger.error('Update user error', error);
-      throw error;
+        return user;
+      } catch (error) {
+        logger.error('Update user error', error);
+        throw error;
+      }
     }
-  });
+  );
+
+  ipcMain.handle(
+    'users:updateLocation',
+    async (_, id: string, location: { latitude: number; longitude: number; address: string }) => {
+      try {
+        logger.info(`Updating user ${id} location:`, location);
+
+        // Update location via API
+        const user = await apiService.updateUserLocation(id, location);
+
+        logger.info(`User ${id} location updated successfully via API`);
+
+        // Also update local database
+        dbService.updateUser(id, { location });
+
+        logger.info(`User ${id} location updated in local database`);
+
+        return user;
+      } catch (error) {
+        logger.error('Update user location error', error);
+        throw error;
+      }
+    }
+  );
 
   ipcMain.handle('users:delete', async (_, id: string) => {
     try {
@@ -521,12 +619,9 @@ export function setupIpcHandlers() {
   // File upload handler
   ipcMain.handle('files:upload', async (_, filePath: string) => {
     try {
-      // For file upload, return a mock response since this is running in Node.js context
-      return {
-        fileId: `file-${Date.now()}`,
-        fileName: filePath.split('/').pop() || 'file',
-        fileSize: 0,
-      };
+      const result = await apiService.uploadFileFromPath(filePath);
+      logger.info(`File uploaded successfully: ${result.fileName}`);
+      return result;
     } catch (error) {
       logger.error('File upload error', error);
       throw error;
@@ -536,7 +631,10 @@ export function setupIpcHandlers() {
   // File fetch handler - proxies file downloads through main process to bypass CORS
   ipcMain.handle('files:fetch', async (_, fileUrl: string, headers?: Record<string, string>) => {
     try {
-      const fetchFile = async (url: string, maxRedirects = 5): Promise<{ data: string; contentType: string }> => {
+      const fetchFile = async (
+        url: string,
+        maxRedirects = 5
+      ): Promise<{ data: string; contentType: string }> => {
         if (maxRedirects <= 0) {
           throw new Error('Too many redirects');
         }
@@ -559,7 +657,12 @@ export function setupIpcHandlers() {
 
           const req = client.request(options, async (res) => {
             // Handle redirects
-            if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            if (
+              res.statusCode &&
+              res.statusCode >= 300 &&
+              res.statusCode < 400 &&
+              res.headers.location
+            ) {
               const redirectUrl = res.headers.location.startsWith('http')
                 ? res.headers.location
                 : `${urlObj.protocol}//${urlObj.hostname}${res.headers.location}`;
@@ -667,6 +770,94 @@ export function setupIpcHandlers() {
     // This is a fallback - browser geolocation should work with proper permissions
     // For now, we'll return an error to use browser geolocation
     throw new Error('Please use browser geolocation API. Ensure location permissions are granted.');
+  });
+
+  // Category handlers
+  ipcMain.handle('categories:getAll', async (_, adminId: string) => {
+    try {
+      logger.info(`Fetching all categories for admin ${adminId}`);
+      const categories = await apiService.getCategories(adminId);
+      logger.info(`Successfully fetched ${categories.length} categories`);
+      return categories;
+    } catch (error) {
+      logger.error('Get categories error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle(
+    'categories:create',
+    async (
+      _,
+      data: {
+        name: string;
+        unitPrice: number;
+        description?: string;
+        categoryType?:
+          | 'wassce_result'
+          | 'bece_result'
+          | 'novdec_result'
+          | 'large_format'
+          | 'regular_format';
+        regularFormatProperties?: 'front_only' | 'front_and_back';
+      }
+    ) => {
+      try {
+        logger.info('Creating category', {
+          name: data.name,
+          unitPrice: data.unitPrice,
+          categoryType: data.categoryType,
+          regularFormatProperties: data.regularFormatProperties,
+        });
+        const category = await apiService.createCategory(data);
+        logger.info(`Successfully created category ${category.id}`);
+        return category;
+      } catch (error) {
+        logger.error('Create category error', error);
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'categories:update',
+    async (
+      _,
+      id: string,
+      data: {
+        name?: string;
+        unitPrice?: number;
+        description?: string;
+        categoryType?:
+          | 'wassce_result'
+          | 'bece_result'
+          | 'novdec_result'
+          | 'large_format'
+          | 'regular_format';
+        regularFormatProperties?: 'front_only' | 'front_and_back';
+      }
+    ) => {
+      try {
+        logger.info(`Updating category ${id}`, data);
+        const category = await apiService.updateCategory(id, data);
+        logger.info(`Successfully updated category ${id}`);
+        return category;
+      } catch (error) {
+        logger.error(`Update category ${id} error`, error);
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle('categories:delete', async (_, id: string) => {
+    try {
+      logger.info(`Deleting category ${id}`);
+      await apiService.deleteCategory(id);
+      logger.info(`Successfully deleted category ${id}`);
+    } catch (error) {
+      logger.error(`Delete category ${id} error`, error);
+      throw error;
+    }
   });
 
   logger.info('IPC handlers registered');

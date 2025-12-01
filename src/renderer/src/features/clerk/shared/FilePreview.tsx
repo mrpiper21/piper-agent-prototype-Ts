@@ -44,29 +44,31 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
 
   if (fileType === 'image' && fileUrl) {
     return (
-      <div style={{
-        background: themeStyles.container.background,
-        padding: '12px',
-        borderRadius: '12px',
-        marginBottom: '10px',
-        textAlign: 'center',
-        minHeight: '800px',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '16px'
-      }}>
-        <img 
-          src={fileUrl} 
+      <div
+        style={{
+          background: themeStyles.container.background,
+          padding: '12px',
+          borderRadius: '12px',
+          textAlign: 'center',
+          minHeight: '600px',
+          height: '100%',
+          overflow: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '16px',
+        }}
+      >
+        <img
+          src={fileUrl}
           alt={fileName}
-          style={{ 
-            maxWidth: '100%', 
-            maxHeight: 'calc(100% - 60px)', 
+          style={{
+            maxWidth: '100%',
+            maxHeight: 'calc(100% - 60px)',
             objectFit: 'contain',
             borderRadius: '8px',
-          }} 
+          }}
         />
         <button
           onClick={handleDownload}
@@ -87,30 +89,30 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
             opacity: !fileUrl ? 0.6 : 1,
           }}
           onMouseEnter={(e) => fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
         >
           ⬇️ Download
         </button>
       </div>
     );
   }
-  
+
   if (fileType === 'pdf' && fileUrl) {
     // Use fileUrl directly in iframe - no fetching needed
     const pdfUrl = `${fileUrl}#toolbar=1&navpanes=0&scrollbar=1`;
-    
+
     return (
-      <div 
+      <div
         style={{
           background: themeStyles.container.background,
           padding: '16px',
           borderRadius: '12px',
-          marginBottom: '24px',
-          height: '800px',
+          height: '100%',
+          minHeight: '600px',
           overflow: 'hidden',
           display: 'flex',
           position: 'relative',
-          userSelect: 'none'
+          userSelect: 'none',
         }}
         onContextMenu={(e) => e.preventDefault()}
       >
@@ -131,29 +133,34 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
   if (fileType === 'document' && fileUrl) {
     // Use Microsoft Office Online Viewer for Word documents
     // This works with publicly accessible URLs
-    const isDocx = fileName.toLowerCase().endsWith('.docx') || fileName.toLowerCase().endsWith('.doc');
-    const viewerUrl = isDocx 
+    const isDocx =
+      fileName.toLowerCase().endsWith('.docx') || fileName.toLowerCase().endsWith('.doc');
+    const viewerUrl = isDocx
       ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`
       : fileUrl;
-    
+
     return (
-      <div 
+      <div
         style={{
           background: themeStyles.container.background,
           padding: '16px',
           borderRadius: '12px',
-          marginBottom: '24px',
+          height: '100%',
+          minHeight: '600px',
           display: 'flex',
           flexDirection: 'column',
           gap: '12px',
         }}
         onContextMenu={(e) => e.preventDefault()}
       >
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: '8px',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '8px',
+            flexShrink: 0,
+          }}
+        >
           <button
             onClick={handleDownload}
             disabled={!fileUrl}
@@ -173,20 +180,23 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
               opacity: !fileUrl ? 0.6 : 1,
             }}
             onMouseEnter={(e) => fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
             ⬇️ Download
           </button>
         </div>
-        <div style={{
-          height: '750px',
-          overflow: 'hidden',
-          display: 'flex',
-          position: 'relative',
-          userSelect: 'none',
-          borderRadius: '8px',
-          border: themeStyles.card.border,
-        }}>
+        <div
+          style={{
+            flex: 1,
+            overflow: 'hidden',
+            display: 'flex',
+            position: 'relative',
+            userSelect: 'none',
+            borderRadius: '8px',
+            border: themeStyles.card.border,
+            minHeight: 0,
+          }}
+        >
           <iframe
             src={viewerUrl}
             style={{
@@ -202,40 +212,55 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
       </div>
     );
   }
-  
+
   // Default/Unknown file type
   const fileIcon = fileType === 'document' ? '📝' : '📄';
   const fileTypeLabel = getFileType(fileName) === 'document' ? 'DOCUMENT' : 'FILE';
-  
+
   return (
-    <div style={{ 
-      padding: '60px 40px',
-      textAlign: 'center',
-      background: themeStyles.container.background,
-      border: themeStyles.card.border,
-      borderRadius: '12px',
-      marginBottom: '24px'
-    }}>
-      <div style={{ 
-        fontSize: '72px', 
-        marginBottom: '16px',
-        filter: 'opacity(0.6)'
-      }}>
+    <div
+      style={{
+        padding: '60px 40px',
+        textAlign: 'center',
+        background: themeStyles.container.background,
+        border: themeStyles.card.border,
+        borderRadius: '12px',
+        height: '100%',
+        minHeight: '400px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+      }}
+    >
+      <div
+        style={{
+          fontSize: '72px',
+          marginBottom: '16px',
+          filter: 'opacity(0.6)',
+        }}
+      >
         {fileIcon}
       </div>
-      <p style={{ color: themeStyles.text, fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
+      <p
+        style={{
+          color: themeStyles.text,
+          fontSize: '18px',
+          fontWeight: 'bold',
+          marginBottom: '8px',
+        }}
+      >
         {fileName}
       </p>
-      <p style={{ color: themeStyles.textSecondary }}>
-        {fileTypeLabel}
-      </p>
+      <p style={{ color: themeStyles.textSecondary }}>{fileTypeLabel}</p>
       {fileUrl && (
-        <div style={{
-          display: 'flex',
-          gap: '12px',
-          justifyContent: 'center',
-          marginTop: '16px',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: '12px',
+            justifyContent: 'center',
+            marginTop: '16px',
+          }}
+        >
           <button
             onClick={handleDownload}
             disabled={!fileUrl}
@@ -255,13 +280,13 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
               opacity: !fileUrl ? 0.6 : 1,
             }}
             onMouseEnter={(e) => fileUrl && (e.currentTarget.style.transform = 'scale(1.05)')}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
             ⬇️ Download
           </button>
-          <a 
-            href={fileUrl} 
-            target="_blank" 
+          <a
+            href={fileUrl}
+            target="_blank"
             rel="noopener noreferrer"
             style={{
               display: 'inline-flex',
@@ -276,8 +301,8 @@ export function FilePreview({ fileName, fileUrl }: FilePreviewProps) {
               fontWeight: '600',
               transition: 'transform 0.2s ease',
             }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
             🔗 Open File
           </a>

@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../auth/store/authStore';
 import { useTheme } from '../../../context/ThemeContext';
 import { useSettings } from '../../../context/SettingsContext';
@@ -15,19 +15,33 @@ import {
   AiOutlineClockCircle,
   AiOutlineUser,
   AiOutlineSetting,
+  AiOutlineHome,
+  AiOutlineFileText,
+  AiOutlineSearch,
+  AiOutlineClose,
+  AiOutlineAppstore,
 } from 'react-icons/ai';
 import { HiOutlineLogout } from 'react-icons/hi';
-import { lightStyles, darkStyles } from '../shared/clerkStyles';
+import { lightStyles, darkStyles, sharedStyles } from '../shared/clerkStyles';
 import { FaUserTie } from 'react-icons/fa';
 import { SettingsModal } from '../../../shared/components/SettingsModal';
+import { JobListItem, JobPreview } from '../shared';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
 
 export default function ClerkLayout() {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useTheme();
   const { getFontSize, getSpacing, getIconSize } = useSettings();
+  const location = useLocation();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [activeTab, setActiveTab] = useState<'home' | 'jobs'>('home');
+  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [jobSearchQuery, setJobSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(jobSearchQuery, 300); // Debounce search by 300ms
+  const [sidebarWidth, setSidebarWidth] = useState<number | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -35,28 +49,73 @@ export default function ClerkLayout() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Fetch jobs globally
+  // Handle sidebar resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      const newWidth = e.clientX;
+      const minWidth = 200;
+      const maxWidth = window.innerWidth * 0.5; // Max 50% of window width
+      const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+      setSidebarWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
+
+  // Fetch jobs globally - optimized query settings
   const { data: jobs } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => electronAPI.jobs.getAll(),
-    staleTime: 5000, // 5 seconds for real-time updates
-    refetchInterval: 10000, // Refetch every 10 seconds
+    staleTime: 30000, // 30 seconds - reduce refetch frequency
+    gcTime: 300000, // 5 minutes cache (formerly cacheTime)
+    refetchInterval: 30000, // Refetch every 30 seconds instead of 10
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: false, // Don't refetch on mount if data exists
   });
 
-  // Count pending jobs
-  const pendingCount =
-    jobs?.filter((job: any) => job.status === 'pending' || job.status === 'queued').length || 0;
+  // Memoize pending jobs count
+  const pendingCount = useMemo(() => {
+    if (!jobs) return 0;
+    return jobs.filter((job: any) => job.status === 'pending' || job.status === 'queued').length;
+  }, [jobs]);
 
-  // Fetch printers for status
+  // Fetch printers for status - optimized query settings
   const { data: printers } = useQuery({
     queryKey: ['printers'],
     queryFn: () => electronAPI.agent.getPrinters(),
-    staleTime: 5000,
-    refetchInterval: 10000,
+    staleTime: 30000, // 30 seconds
+    gcTime: 300000, // 5 minutes cache (formerly cacheTime)
+    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
-  const onlinePrintersCount = printers?.filter((p: any) => p.status === 'online').length || 0;
-  const totalPrintersCount = printers?.length || 0;
+  // Memoize printer counts
+  const onlinePrintersCount = useMemo(() => {
+    if (!printers) return 0;
+    return printers.filter((p: any) => p.status === 'online').length;
+  }, [printers]);
+
+  const totalPrintersCount = useMemo(() => {
+    return printers?.length || 0;
+  }, [printers]);
 
   // Current time state
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -73,10 +132,59 @@ export default function ClerkLayout() {
     return theme === 'dark' ? darkStyles : lightStyles;
   }, [theme]);
 
-  // Calculate dynamic sizes based on settings
+  // Memoize dynamic sizes based on settings to prevent recalculation
+  // Note: getFontSize, getSpacing, getIconSize are already memoized in context
   const fontSize = getFontSize();
   const spacing = getSpacing();
   const iconSize = 16 * getIconSize();
+
+  // Reset selected job when switching tabs or routes
+  useEffect(() => {
+    if (activeTab === 'home') {
+      setSelectedJob(null);
+    }
+  }, [activeTab, location.pathname]);
+
+  // Memoize job selection check function
+  const isJobSelected = useCallback(
+    (job: any) => {
+      if (!selectedJob) return false;
+      return (
+        (selectedJob.id && selectedJob.id === job.id) ||
+        (selectedJob._id && selectedJob._id === job._id) ||
+        (selectedJob.printJobId && selectedJob.printJobId === job.printJobId)
+      );
+    },
+    [selectedJob]
+  );
+
+  // Filter jobs based on search query (using debounced value)
+  const filteredJobs = useMemo(() => {
+    if (!jobs) return [];
+    if (!debouncedSearchQuery.trim()) return jobs;
+
+    const query = debouncedSearchQuery.toLowerCase().trim();
+    return jobs.filter((job: any) => {
+      // Get client fullName from populated clientId
+      const clientName = job.clientId && typeof job.clientId === 'object' 
+        ? (job.clientId.fullName || '').toLowerCase() 
+        : '';
+      const fileName = (job.fileName || '').toLowerCase();
+      const artwork = (job.artwork || '').toLowerCase();
+      const printerName = (job.printerName || '').toLowerCase();
+      const status = (job.status || '').toLowerCase();
+      const description = (job.description || '').toLowerCase();
+
+      return (
+        clientName.includes(query) ||
+        fileName.includes(query) ||
+        artwork.includes(query) ||
+        printerName.includes(query) ||
+        status.includes(query) ||
+        description.includes(query)
+      );
+    });
+  }, [jobs, debouncedSearchQuery]);
 
   return (
     <div style={styles.wrapper}>
@@ -86,8 +194,12 @@ export default function ClerkLayout() {
           style={{
             ...styles.sidebar,
             ...themeStyles.sidebar,
-            width: isSidebarCollapsed ? '60px' : `${Math.max(200, 200 * spacing)}px`,
-            transition: 'width 0.2s ease',
+            width: isSidebarCollapsed
+              ? '60px'
+              : sidebarWidth !== null
+                ? `${sidebarWidth}px`
+                : `${Math.max(200, 200 * spacing)}px`,
+            transition: isResizing ? 'none' : 'width 0.2s ease',
             position: windowWidth < 768 ? 'absolute' : 'relative',
             zIndex: windowWidth < 768 ? 1000 : 'auto',
             height: windowWidth < 768 ? '100%' : 'auto',
@@ -95,134 +207,387 @@ export default function ClerkLayout() {
               windowWidth < 768 && !isSidebarCollapsed ? '2px 0 8px rgba(0,0,0,0.1)' : 'none',
           }}
         >
-          <div 
-            style={{ 
-              ...styles.sidebarHeader, 
+          {/* Tab Switcher - VS Code style */}
+          <div
+            style={{
+              ...styles.tabContainer,
               ...themeStyles.sidebarHeader,
-              padding: `var(--spacing-sm, ${8 * spacing}px) var(--spacing-md, ${12 * spacing}px)`,
-              minHeight: `${40 * spacing}px`,
-              height: `${40 * spacing}px`,
+              padding: 0,
+              borderBottom: themeStyles.sidebar.borderColor
+                ? `1px solid ${themeStyles.sidebar.borderColor}`
+                : '1px solid',
+              minHeight: `${48 * spacing}px`,
+              height: `${48 * spacing}px`,
             }}
           >
-            {!isSidebarCollapsed && (
-              <h2
+            <div style={styles.tabsWrapper}>
+              <button
+                onClick={() => setActiveTab('home')}
+                onMouseEnter={(e) => {
+                  if (activeTab !== 'home') {
+                    e.currentTarget.style.background =
+                      theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== 'home') {
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
                 style={{
-                  color: '#fbbf24',
-                  margin: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: `${8 * spacing}px`,
-                  fontWeight: '600',
-                  fontSize: `${fontSize + 2}px`,
-                  lineHeight: `${(fontSize + 2) * 1.2}px`,
+                  ...styles.tabButton,
+                  ...(activeTab === 'home' ? styles.tabButtonActive : {}),
+                  background:
+                    activeTab === 'home'
+                      ? theme === 'dark'
+                        ? 'rgba(251, 191, 36, 0.15)'
+                        : 'rgba(251, 191, 36, 0.1)'
+                      : 'transparent',
+                  color: activeTab === 'home' ? '#fbbf24' : themeStyles.textSecondary,
+                  borderBottom:
+                    activeTab === 'home' ? `2px solid #fbbf24` : '2px solid transparent',
+                  padding: `${8 * spacing}px`,
+                  minHeight: `${48 * spacing}px`,
+                }}
+                title="Home"
+              >
+                <AiOutlineHome style={{ fontSize: `${iconSize}px` }} />
+              </button>
+              <button
+                onClick={() => setActiveTab('jobs')}
+                onMouseEnter={(e) => {
+                  if (activeTab !== 'jobs') {
+                    e.currentTarget.style.background =
+                      theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== 'jobs') {
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+                style={{
+                  ...styles.tabButton,
+                  ...(activeTab === 'jobs' ? styles.tabButtonActive : {}),
+                  background:
+                    activeTab === 'jobs'
+                      ? theme === 'dark'
+                        ? 'rgba(251, 191, 36, 0.15)'
+                        : 'rgba(251, 191, 36, 0.1)'
+                      : 'transparent',
+                  color: activeTab === 'jobs' ? '#fbbf24' : themeStyles.textSecondary,
+                  borderBottom:
+                    activeTab === 'jobs' ? `2px solid #fbbf24` : '2px solid transparent',
+                  position: 'relative' as const,
+                  padding: `${8 * spacing}px`,
+                  minHeight: `${48 * spacing}px`,
+                }}
+                title="Jobs"
+              >
+                <AiOutlineFileText style={{ fontSize: `${iconSize}px` }} />
+                {pendingCount > 0 && (
+                  <span
+                    style={{
+                      ...badgeStyles,
+                      position: 'absolute',
+                      top: '4px',
+                      right: '4px',
+                      minWidth: '16px',
+                      height: '16px',
+                      fontSize: '10px',
+                      padding: '0 4px',
+                    }}
+                  >
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+          {/* Dynamic Sidebar Content */}
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {activeTab === 'home' ? (
+              <nav
+                style={{
+                  ...styles.nav,
+                  padding: `${10 * spacing}px`,
+                  gap: `${5 * spacing}px`,
+                  flex: 1,
+                  overflowY: 'auto',
                 }}
               >
-                <AiOutlinePrinter style={{ fontSize: `${iconSize}px` }} /> Print Station
-              </h2>
-            )}
-            {isSidebarCollapsed && (
-              <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-                <AiOutlinePrinter style={{ fontSize: `${iconSize}px`, color: '#fbbf24' }} />
+                <NavLink
+                  to="/clerk/dashboard"
+                  style={({ isActive }) => ({
+                    ...styles.navItem,
+                    ...(isActive ? themeStyles.activeNav : {}),
+                    color: isActive ? '#000000' : themeStyles.text,
+                    fontWeight: isActive ? '700' : '500',
+                  })}
+                >
+                  <AiOutlineDashboard
+                    style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
+                  />
+                  {!isSidebarCollapsed && 'Dashboard'}
+                </NavLink>
+                <NavLink
+                  to="/clerk/submit"
+                  style={({ isActive }) => ({
+                    ...styles.navItem,
+                    ...(isActive ? themeStyles.activeNav : {}),
+                    color: isActive ? '#000000' : themeStyles.text,
+                    fontWeight: isActive ? '700' : '500',
+                  })}
+                >
+                  <AiOutlineFileAdd
+                    style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
+                  />
+                  {!isSidebarCollapsed && 'Submit Print'}
+                </NavLink>
+                <NavLink
+                  to="/clerk/status"
+                  style={({ isActive }) => ({
+                    ...styles.navItem,
+                    ...(isActive ? themeStyles.activeNav : {}),
+                    color: isActive ? '#000000' : themeStyles.text,
+                    fontWeight: isActive ? '700' : '500',
+                  })}
+                >
+                  <AiOutlinePrinter
+                    style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
+                  />
+                  {!isSidebarCollapsed && 'Printer Status'}
+                </NavLink>
+                <NavLink
+                  to="/clerk/profile"
+                  style={({ isActive }) => ({
+                    ...styles.navItem,
+                    ...(isActive ? themeStyles.activeNav : {}),
+                    color: isActive ? '#000000' : themeStyles.text,
+                    fontWeight: isActive ? '700' : '500',
+                  })}
+                >
+                  <FaUserTie
+                    style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
+                  />
+                  {!isSidebarCollapsed && 'Profile'}
+                </NavLink>
+                {user?.role === 'admin' && (
+                  <>
+                    <NavLink
+                      to="/clerk/user-management"
+                      style={({ isActive }) => ({
+                        ...styles.navItem,
+                        ...(isActive ? themeStyles.activeNav : {}),
+                        color: isActive ? '#000000' : themeStyles.text,
+                        fontWeight: isActive ? '700' : '500',
+                      })}
+                    >
+                      <AiOutlineUser
+                        style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
+                      />
+                      {!isSidebarCollapsed && 'User Management'}
+                    </NavLink>
+                    <NavLink
+                      to="/clerk/services"
+                      style={({ isActive }) => ({
+                        ...styles.navItem,
+                        ...(isActive ? themeStyles.activeNav : {}),
+                        color: isActive ? '#000000' : themeStyles.text,
+                        fontWeight: isActive ? '700' : '500',
+                      })}
+                    >
+                      <AiOutlineAppstore
+                        style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
+                      />
+                      {!isSidebarCollapsed && 'Services'}
+                    </NavLink>
+                  </>
+                )}
+              </nav>
+            ) : (
+              <div
+                style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+              >
+                {/* Search Bar */}
+                <div
+                  style={{
+                    padding: `${8 * spacing}px ${8 * spacing}px ${6 * spacing}px`,
+                    borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
+                    flexShrink: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <AiOutlineSearch
+                      style={{
+                        position: 'absolute',
+                        left: `${8 * spacing}px`,
+                        color: themeStyles.textSecondary,
+                        fontSize: `${iconSize * 0.75}px`,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Search jobs..."
+                      value={jobSearchQuery}
+                      onChange={(e) => setJobSearchQuery(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: `${6 * spacing}px ${8 * spacing}px ${6 * spacing}px ${28 * spacing}px`,
+                        borderRadius: '4px',
+                        border: `1px solid ${themeStyles.card.border}`,
+                        background: themeStyles.input.background,
+                        color: themeStyles.input.color,
+                        fontSize: `${fontSize * 0.9}px`,
+                        outline: 'none',
+                        transition: 'border-color 0.2s ease',
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = themeStyles.accent;
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = themeStyles.card.border;
+                      }}
+                    />
+                    {jobSearchQuery && (
+                      <button
+                        onClick={() => setJobSearchQuery('')}
+                        style={{
+                          position: 'absolute',
+                          right: `${6 * spacing}px`,
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: themeStyles.textSecondary,
+                          padding: `${2 * spacing}px`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          borderRadius: '3px',
+                          transition: 'background 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = themeStyles.card.background;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <AiOutlineClose style={{ fontSize: `${iconSize * 0.75}px` }} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Jobs List */}
+                <div
+                  style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    padding: `${4 * spacing}px 0`,
+                  }}
+                >
+                  {!jobs || jobs.length === 0 ? (
+                    <div
+                      style={{
+                        padding: `${24 * spacing}px ${12 * spacing}px`,
+                        textAlign: 'center',
+                        color: themeStyles.textSecondary,
+                      }}
+                    >
+                      <p style={{ fontSize: `${fontSize}px`, margin: 0 }}>No jobs found</p>
+                    </div>
+                  ) : filteredJobs.length === 0 ? (
+                    <div
+                      style={{
+                        padding: `${24 * spacing}px ${12 * spacing}px`,
+                        textAlign: 'center',
+                        color: themeStyles.textSecondary,
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: `${fontSize}px`,
+                          margin: 0,
+                          marginBottom: `${4 * spacing}px`,
+                        }}
+                      >
+                        No jobs match your search
+                      </p>
+                      <p style={{ fontSize: `${fontSize * 0.85}px`, margin: 0, opacity: 0.7 }}>
+                        Try a different search term
+                      </p>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        ...sharedStyles.jobsList,
+                        gap: `${2 * spacing}px`,
+                        padding: `0 ${4 * spacing}px`,
+                      }}
+                    >
+                      {filteredJobs.map((job: any) => (
+                        <JobListItem
+                          key={job.id || job._id || job.printJobId}
+                          job={job}
+                          isSelected={isJobSelected(job)}
+                          onSelect={() => setSelectedJob(isJobSelected(job) ? null : job)}
+                          compact={true}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
-          <nav style={{ ...styles.nav, padding: `${10 * spacing}px`, gap: `${5 * spacing}px` }}>
-            <NavLink
-              to="/clerk/dashboard"
-              style={({ isActive }) => ({
-                ...styles.navItem,
-                ...(isActive ? themeStyles.activeNav : {}),
-                color: isActive ? '#000000' : themeStyles.text,
-                fontWeight: isActive ? '700' : '500',
-              })}
-            >
-              <AiOutlineDashboard
-                style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
-              />
-              {!isSidebarCollapsed && 'Dashboard'}
-            </NavLink>
-            <NavLink
-              to="/clerk/jobs"
-              style={({ isActive }) => ({
-                ...styles.navItem,
-                ...(isActive ? themeStyles.activeNav : {}),
-                color: isActive ? '#000000' : themeStyles.text,
-                fontWeight: isActive ? '700' : '500',
-              })}
-            >
-              <AiOutlineFileAdd
-                style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
-              />
-              {!isSidebarCollapsed && (
-                <>
-                  Print Jobs
-                  {pendingCount > 0 && <span style={badgeStyles}>{pendingCount}</span>}
-                </>
-              )}
-              {isSidebarCollapsed && pendingCount > 0 && (
-                <span style={{ ...badgeStyles, position: 'absolute', right: '8px' }}>
-                  {pendingCount}
-                </span>
-              )}
-            </NavLink>
-            <NavLink
-              to="/clerk/submit"
-              style={({ isActive }) => ({
-                ...styles.navItem,
-                ...(isActive ? themeStyles.activeNav : {}),
-                color: isActive ? '#000000' : themeStyles.text,
-                fontWeight: isActive ? '700' : '500',
-              })}
-            >
-              <AiOutlineFileAdd
-                style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
-              />
-              {!isSidebarCollapsed && 'Submit Print'}
-            </NavLink>
-            <NavLink
-              to="/clerk/status"
-              style={({ isActive }) => ({
-                ...styles.navItem,
-                ...(isActive ? themeStyles.activeNav : {}),
-                color: isActive ? '#000000' : themeStyles.text,
-                fontWeight: isActive ? '700' : '500',
-              })}
-            >
-              <AiOutlinePrinter
-                style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
-              />
-              {!isSidebarCollapsed && 'Printer Status'}
-            </NavLink>
-            <NavLink
-              to="/clerk/profile"
-              style={({ isActive }) => ({
-                ...styles.navItem,
-                ...(isActive ? themeStyles.activeNav : {}),
-                color: isActive ? '#000000' : themeStyles.text,
-                fontWeight: isActive ? '700' : '500',
-              })}
-            >
-              <FaUserTie style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }} />
-              {!isSidebarCollapsed && 'Profile'}
-            </NavLink>
-            {user?.role === 'admin' && (
-              <NavLink
-                to="/clerk/user-management"
-                style={({ isActive }) => ({
-                  ...styles.navItem,
-                  ...(isActive ? themeStyles.activeNav : {}),
-                  color: isActive ? '#000000' : themeStyles.text,
-                  fontWeight: isActive ? '700' : '500',
-                })}
-              >
-                <AiOutlineUser
-                  style={{ marginRight: `${8 * spacing}px`, fontSize: `${iconSize}px` }}
-                />
-                {!isSidebarCollapsed && 'User Management'}
-              </NavLink>
-            )}
-          </nav>
         </div>
+
+        {/* Resize Handle */}
+        {!isSidebarCollapsed && windowWidth >= 768 && (
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizing(true);
+            }}
+            style={{
+              width: '4px',
+              cursor: 'col-resize',
+              background: 'transparent',
+              position: 'relative',
+              flexShrink: 0,
+              zIndex: 10,
+              transition: 'background 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = themeStyles.accent;
+            }}
+            onMouseLeave={(e) => {
+              if (!isResizing) {
+                e.currentTarget.style.background = 'transparent';
+              }
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                left: '-2px',
+                top: 0,
+                bottom: 0,
+                width: '4px',
+                background: isResizing ? themeStyles.accent : 'transparent',
+                transition: 'background 0.2s ease',
+              }}
+            />
+          </div>
+        )}
 
         {/* Main Content */}
         <div style={styles.main}>
@@ -231,9 +596,16 @@ export default function ClerkLayout() {
             style={{
               ...styles.header,
               ...themeStyles.header,
-              padding: `var(--spacing-sm, ${8 * spacing}px) var(--spacing-md, ${12 * spacing}px)`,
-              minHeight: `${40 * spacing}px`,
-              height: `${40 * spacing}px`,
+              padding: `0 var(--spacing-md, ${12 * spacing}px)`,
+              minHeight: `${48 * spacing}px`,
+              height: `${48 * spacing}px`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              boxSizing: 'border-box' as const,
+              borderBottom: themeStyles.sidebar.borderColor
+                ? `1px solid ${themeStyles.sidebar.borderColor}`
+                : themeStyles.header.borderBottom || '1px solid',
             }}
           >
             <div style={{ ...styles.userInfo, gap: `${8 * spacing}px` }}>
@@ -291,12 +663,40 @@ export default function ClerkLayout() {
           </div>
 
           {/* Content */}
-          <div
-            style={{ ...styles.content, padding: `${12 * spacing}px`, fontSize: `${fontSize}px` }}
-            key={theme}
-          >
-            <Outlet />
-          </div>
+          {activeTab === 'jobs' && selectedJob ? (
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <JobPreview job={selectedJob} onClose={() => setSelectedJob(null)} />
+            </div>
+          ) : (
+            <div
+              style={{ ...styles.content, padding: `${12 * spacing}px`, fontSize: `${fontSize}px` }}
+              key={theme}
+            >
+              {activeTab === 'jobs' && !selectedJob ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                    color: themeStyles.textSecondary,
+                    flexDirection: 'column',
+                    gap: `${8 * spacing}px`,
+                  }}
+                >
+                  <AiOutlineFileText style={{ fontSize: `${48 * spacing}px`, opacity: 0.3 }} />
+                  <p style={{ fontSize: `${fontSize + 2}px`, margin: 0, fontWeight: '500' }}>
+                    Select a job to view details
+                  </p>
+                  <p style={{ fontSize: `${fontSize}px`, margin: 0, opacity: 0.7 }}>
+                    Click on any job from the sidebar to see its preview
+                  </p>
+                </div>
+              ) : (
+                <Outlet />
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -407,8 +807,8 @@ const styles = {
     display: 'flex',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    minHeight: '40px',
-    height: '40px',
+    minHeight: '48px',
+    height: '48px',
   },
   userInfo: {
     display: 'flex',
@@ -469,6 +869,30 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
   },
+  tabContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    borderBottom: '1px solid',
+  },
+  tabsWrapper: {
+    display: 'flex',
+    width: '100%',
+    height: '100%',
+  },
+  tabButton: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    position: 'relative' as const,
+  },
+  tabButtonActive: {
+    fontWeight: '600',
+  },
 };
 
 const badgeStyles: React.CSSProperties = {
@@ -484,5 +908,6 @@ const badgeStyles: React.CSSProperties = {
   fontWeight: 'bold',
   marginLeft: '8px',
 };
+
 
 

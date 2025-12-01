@@ -117,10 +117,14 @@ function JobsTab({ themeStyles }: { themeStyles: any }) {
               }}
             >
               <div style={{ flex: 1 }}>
-                <p style={{ color: themeStyles.text, fontWeight: '500', fontSize: 'var(--font-size, 14px)', margin: 0, marginBottom: 'var(--spacing-xs, 4px)' }}>{job.fileName}</p>
+                <p style={{ color: themeStyles.text, fontWeight: '500', fontSize: 'var(--font-size, 14px)', margin: 0, marginBottom: 'var(--spacing-xs, 4px)' }}>
+                  {job.clientId && typeof job.clientId === 'object' 
+                    ? job.clientId.fullName 
+                    : job.artwork || job.fileName || 'Untitled Job'}
+                </p>
                 <p style={{ color: themeStyles.textSecondary, fontSize: 'var(--font-size-small, 12px)', margin: 0 }}>
                   {job.printerName} •{' '}
-                  {new Date(job.submittedAt || job.submittedAt).toLocaleString()}
+                  {new Date(job.submittedAt || job.createdAt).toLocaleString()}
                 </p>
               </div>
               <span

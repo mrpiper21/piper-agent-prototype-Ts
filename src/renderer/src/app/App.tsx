@@ -1,8 +1,7 @@
-import { Suspense, lazy, useState, useEffect } from 'react';
+import { Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage, useAuthStore } from '../features/auth';
 import LoadingScreen from '../shared/components/LoadingScreen';
-import { OfflinePage } from '../shared/components/OfflinePage';
 
 const ClerkLayout = lazy(() => import('../features/clerk/layouts/ClerkLayout'));
 const DashboardPage = lazy(() => import('../features/clerk/pages/DashboardPage'));
@@ -11,8 +10,10 @@ const SubmitPage = lazy(() => import('../features/clerk/pages/SubmitPage'));
 const StatusPage = lazy(() => import('../features/clerk/pages/StatusPage'));
 const ProfilePage = lazy(() => import('../features/clerk/pages/ProfilePage'));
 const UserManagementPage = lazy(() => import('../features/clerk/pages/UserManagementPage'));
+const ServicesPage = lazy(() => import('../features/clerk/pages/ServicesPage'));
 const SetupLocationPage = lazy(() => import('../features/auth/pages/SetupLocationPage'));
 const SetupPasswordPage = lazy(() => import('../features/auth/pages/SetupPasswordPage'));
+const BusinessInfoPage = lazy(() => import('../features/auth/pages/BusinessInfoPage'));
 import { OfflineBanner } from './../shared/components/OfflineBanner';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -39,6 +40,29 @@ function SetupPasswordRoute({ children }: { children: React.ReactNode }) {
   // If user is already authenticated (password already changed), redirect to dashboard
   if (isAuthenticated && user.isTemporaryPassword !== true) {
     return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// Route guard for setup business - allows access if user exists but is not authenticated (business info pending)
+function SetupBusinessRoute({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // Allow access if user exists but not authenticated (business info setup required)
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If user is already authenticated (has location), redirect to dashboard
+  if (isAuthenticated && user.location) {
+    return <Navigate to="/" replace />;
+  }
+
+  // If business info is already set, redirect to location setup
+  if (user.businessName && user.businessPhone) {
+    return <Navigate to="/setup-location" replace />;
   }
 
   return <>{children}</>;
@@ -72,30 +96,6 @@ function RoleBasedRoute() {
   return <Navigate to="/clerk/dashboard" replace />;
 }
 
-// Route wrapper that shows offline page when offline (except for login)
-function OfflineRoute({ children }: { children: React.ReactNode }) {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  if (!isOnline) {
-    return <OfflinePage />;
-  }
-
-  return <>{children}</>;
-}
-
 export default function App() {
   return (
     <>
@@ -107,39 +107,34 @@ export default function App() {
             <Route
               path="/setup-password"
               element={
-                <OfflineRoute>
-                  <SetupPasswordRoute>
-                    <SetupPasswordPage />
-                  </SetupPasswordRoute>
-                </OfflineRoute>
+                <SetupPasswordRoute>
+                  <SetupPasswordPage />
+                </SetupPasswordRoute>
+              }
+            />
+            <Route
+              path="/setup-business"
+              element={
+                <SetupBusinessRoute>
+                  <BusinessInfoPage />
+                </SetupBusinessRoute>
               }
             />
             <Route
               path="/setup-location"
               element={
-                <OfflineRoute>
-                  <SetupLocationRoute>
-                    <SetupLocationPage />
-                  </SetupLocationRoute>
-                </OfflineRoute>
+                <SetupLocationRoute>
+                  <SetupLocationPage />
+                </SetupLocationRoute>
               }
             />
-            <Route 
-              path="/" 
-              element={
-                <OfflineRoute>
-                  <RoleBasedRoute />
-                </OfflineRoute>
-              } 
-            />
+            <Route path="/" element={<RoleBasedRoute />} />
             <Route
               path="/clerk"
               element={
-                <OfflineRoute>
-                  <ProtectedRoute>
-                    <ClerkLayout />
-                  </ProtectedRoute>
-                </OfflineRoute>
+                <ProtectedRoute>
+                  <ClerkLayout />
+                </ProtectedRoute>
               }
             >
               <Route path="dashboard" element={<DashboardPage />} />
@@ -148,6 +143,7 @@ export default function App() {
               <Route path="status" element={<StatusPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="user-management" element={<UserManagementPage />} />
+              <Route path="services" element={<ServicesPage />} />
             </Route>
           </Routes>
         </Suspense>

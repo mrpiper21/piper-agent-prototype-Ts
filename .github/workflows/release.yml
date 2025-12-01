@@ -33,6 +33,68 @@ jobs:
       - name: Install dependencies
         run: npm install --force
 
+      - name: Validate Personal Access Token
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.PERSONAL_ACCESS_TOKEN }}" ]; then
+            echo "::error::PERSONAL_ACCESS_TOKEN secret is required to publish to Agent-Releases repository"
+            echo "::error::Please create a Personal Access Token with 'repo' scope and add it as a secret"
+            exit 1
+          fi
+          echo "✅ Personal Access Token is configured"
+
+      - name: Initialize Agent-Releases Repository (if empty)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        run: |
+          REPO_OWNER="mrpiper21"
+          REPO_NAME="Agent-Releases"
+          
+          # Check if repository is empty using GitHub API
+          # If repo has no default branch, it's empty
+          DEFAULT_BRANCH=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME" \
+            | grep -o '"default_branch":"[^"]*"' | cut -d'"' -f4 || echo "")
+          
+          if [ -z "$DEFAULT_BRANCH" ]; then
+            echo "Repository is empty. Initializing with README..."
+            
+            # Create a temporary directory
+            TEMP_DIR=$(mktemp -d)
+            cd "$TEMP_DIR"
+            
+            # Initialize git repo
+            git init
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            
+            # Create README
+            echo "# Agent Releases" > README.md
+            echo "" >> README.md
+            echo "This repository contains release builds for the PrintMyFile Agent." >> README.md
+            echo "" >> README.md
+            echo "## Releases" >> README.md
+            echo "" >> README.md
+            echo "All releases are available in the [Releases](https://github.com/mrpiper21/Agent-Releases/releases) section." >> README.md
+            echo "" >> README.md
+            echo "## Installation" >> README.md
+            echo "" >> README.md
+            echo "Download the appropriate installer for your platform from the latest release." >> README.md
+            
+            # Commit and push
+            git add README.md
+            git commit -m "Initial commit: Add README"
+            git remote add origin "https://$GH_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git"
+            git branch -M main
+            git push -u origin main
+            
+            echo "✅ Repository initialized successfully"
+          else
+            echo "✅ Repository already has commits (default branch: $DEFAULT_BRANCH), skipping initialization"
+          fi
+
       - name: Create .env file from secrets
         shell: bash
         run: |
@@ -54,19 +116,25 @@ jobs:
       - name: Build and Publish (Windows)
         if: matrix.os == 'windows-latest'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: npm run publish:win
 
       - name: Build and Publish (macOS)
         if: matrix.os == 'macos-latest'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: npm run publish:mac
 
       - name: Build and Publish (Linux)
         if: matrix.os == 'ubuntu-latest'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: npm run publish:linux
 
       # Artifacts are skipped to save storage quota

@@ -16,6 +16,12 @@ interface AuthActions {
   refreshToken: () => Promise<void>;
   clearError: () => void;
   updateUserLocation: (location: { latitude: number; longitude: number; address: string }) => Promise<void>;
+  updateUserProfile: (updates: {
+    location?: { latitude: number; longitude: number; address: string };
+    businessName?: string;
+    businessPhone?: string;
+    businessCoverImage?: File | string | null;
+  }) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState & AuthActions>()(
@@ -127,6 +133,34 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           });
         } catch (error: any) {
           set({ error: error?.message || 'Failed to update location' });
+          throw error;
+        }
+      },
+
+      updateUserProfile: async (updates) => {
+        try {
+          const { user } = get();
+          if (!user) throw new Error('User not found');
+          
+          // Update user profile via API using /auth/profile endpoint
+          const updatedUser = await window.electron.auth.updateProfile(updates);
+          
+          // The IPC handler will automatically save to local database
+          // We just need to update the local state and authenticate
+          
+          // Update local user state and authenticate
+          set({
+            user: {
+              ...updatedUser,
+              ...(updates.location && { location: updates.location }),
+              ...(updates.businessName && { businessName: updates.businessName }),
+              ...(updates.businessPhone && { businessPhone: updates.businessPhone }),
+              ...(updates.businessCoverImage && typeof updates.businessCoverImage === 'string' && { businessCoverImage: updates.businessCoverImage }),
+            },
+            isAuthenticated: true, // Now authenticate the user since profile is set
+          });
+        } catch (error: any) {
+          set({ error: error?.message || 'Failed to update profile' });
           throw error;
         }
       },

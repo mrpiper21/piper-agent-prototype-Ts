@@ -5,6 +5,8 @@ import { lightStyles, darkStyles, sharedStyles } from '../shared/clerkStyles';
 import { useQuery } from '@tanstack/react-query';
 import { electronAPI } from '../../../lib';
 import { JobListItem, JobPreview } from '../shared';
+import { ConnectivityIssue } from '../../../shared/components/ConnectivityIssue';
+import { useConnectivity } from '../../../shared/hooks';
 import {
   AiOutlineReload,
   AiOutlineSearch,
@@ -28,12 +30,14 @@ export default function JobsPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Use the same query key as the layout - shares cache
-  const { data: jobs, isLoading, error, isRefetching } = useQuery({
+  const { data: jobs, isLoading, error, isRefetching, refetch } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => electronAPI.jobs.getAll(),
     staleTime: 5000,
     refetchInterval: 10000, // Auto-refresh every 10 seconds
   });
+
+  const { hasConnectivityIssue } = useConnectivity();
 
   // Filter and sort jobs
   const filteredAndSortedJobs = useMemo(() => {
@@ -44,13 +48,20 @@ export default function JobsPage() {
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (job: any) =>
+      filtered = filtered.filter((job: any) => {
+        // Get client fullName from populated clientId
+        const clientName = job.clientId && typeof job.clientId === 'object' 
+          ? job.clientId.fullName?.toLowerCase() 
+          : '';
+        
+        return (
+          clientName?.includes(query) ||
           job.fileName?.toLowerCase().includes(query) ||
           job.artwork?.toLowerCase().includes(query) ||
           job.printerName?.toLowerCase().includes(query) ||
           job.description?.toLowerCase().includes(query)
-      );
+        );
+      });
     }
 
     // Apply status filter
@@ -90,8 +101,12 @@ export default function JobsPage() {
           const bIndex = statusOrder.indexOf(b.status?.toLowerCase() || '');
           return aIndex - bIndex;
         }
-        case 'filename':
-          return (a.fileName || '').localeCompare(b.fileName || '');
+        case 'filename': {
+          // Sort by client fullName, fallback to fileName
+          const aName = (a.clientId && typeof a.clientId === 'object' ? a.clientId.fullName : null) || a.fileName || '';
+          const bName = (b.clientId && typeof b.clientId === 'object' ? b.clientId.fullName : null) || b.fileName || '';
+          return aName.localeCompare(bName);
+        }
         default:
           return 0;
       }
@@ -156,51 +171,20 @@ export default function JobsPage() {
     );
   }
 
-  if (error) {
+  // Show connectivity issue if offline or network error
+  if (hasConnectivityIssue || (error && !jobs)) {
     return (
-      <div
-        style={{
-          padding: 'var(--spacing-xl, 24px)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '300px',
-          color: themeStyles.error,
+      <ConnectivityIssue
+        message={
+          error
+            ? `Unable to load jobs: ${(error as Error).message}`
+            : undefined
+        }
+        onRetry={() => {
+          handleRefresh();
+          refetch();
         }}
-      >
-        <p
-          style={{
-            fontSize: 'var(--font-size-large, 16px)',
-            marginBottom: 'var(--spacing-xs, 4px)',
-          }}
-        >
-          ⚠️
-        </p>
-        <p style={{ fontSize: 'var(--font-size, 14px)', marginBottom: 'var(--spacing-sm, 8px)' }}>
-          Error loading jobs: {(error as Error).message}
-        </p>
-        <button
-          onClick={handleRefresh}
-          style={{
-            padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
-            borderRadius: 'var(--border-radius-sm, 4px)',
-            border: 'none',
-            background: themeStyles.primaryButton.background,
-            color: themeStyles.primaryButton.color,
-            fontSize: 'var(--font-size-small, 12px)',
-            fontWeight: '500',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--spacing-xs, 4px)',
-            marginTop: 'var(--spacing-sm, 8px)',
-          }}
-        >
-          <AiOutlineReload style={{ fontSize: 'var(--icon-size-sm, 14px)' }} />
-          Retry
-        </button>
-      </div>
+      />
     );
   }
 
@@ -279,6 +263,16 @@ export default function JobsPage() {
             {isRefetching || isLoading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
+
+        {/* Connectivity Indicator - Show when offline but have cached data */}
+        {hasConnectivityIssue && jobs && jobs.length > 0 && (
+          <ConnectivityIssue
+            compact
+            message="You're viewing cached data. Some information may be outdated."
+            showRetry={false}
+            style={{ marginBottom: 'var(--spacing-sm, 8px)' }}
+          />
+        )}
 
         {/* Search and Filters Bar */}
         <div

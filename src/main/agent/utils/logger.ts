@@ -38,13 +38,6 @@ export enum LogLevel {
   ERROR = 3,
 }
 
-interface LogEntry {
-  timestamp: string;
-  level: string;
-  message: string;
-  data?: any;
-}
-
 class Logger {
   private logLevel: LogLevel;
 
@@ -54,11 +47,16 @@ class Logger {
 
   private parseLogLevel(level: string): LogLevel {
     switch (level.toLowerCase()) {
-      case 'debug': return LogLevel.DEBUG;
-      case 'info': return LogLevel.INFO;
-      case 'warn': return LogLevel.WARN;
-      case 'error': return LogLevel.ERROR;
-      default: return LogLevel.INFO;
+      case 'debug':
+        return LogLevel.DEBUG;
+      case 'info':
+        return LogLevel.INFO;
+      case 'warn':
+        return LogLevel.WARN;
+      case 'error':
+        return LogLevel.ERROR;
+      default:
+        return LogLevel.INFO;
     }
   }
 
@@ -66,7 +64,7 @@ class Logger {
     return level >= this.logLevel;
   }
 
-  private log(level: LogLevel, levelName: string, message: string, data?: any): void {
+  private logInternal(level: LogLevel, levelName: string, message: string, data?: any): void {
     if (!this.shouldLog(level)) return;
 
     // Format message with data if provided
@@ -91,19 +89,29 @@ class Logger {
   }
 
   debug(message: string, data?: any): void {
-    this.log(LogLevel.DEBUG, 'debug', message, data);
+    this.logInternal(LogLevel.DEBUG, 'debug', message, data);
   }
 
   info(message: string, data?: any): void {
-    this.log(LogLevel.INFO, 'info', message, data);
+    this.logInternal(LogLevel.INFO, 'info', message, data);
   }
 
   warn(message: string, data?: any): void {
-    this.log(LogLevel.WARN, 'warn', message, data);
+    this.logInternal(LogLevel.WARN, 'warn', message, data);
   }
 
   error(message: string, data?: any): void {
-    this.log(LogLevel.ERROR, 'error', message, data);
+    this.logInternal(LogLevel.ERROR, 'error', message, data);
+  }
+
+  // Public log method for compatibility with main logger API
+  log(message: string, ...args: any[]): void {
+    // If args are provided, treat them as data
+    if (args.length > 0) {
+      this.info(message, args.length === 1 ? args[0] : args);
+    } else {
+      this.info(message);
+    }
   }
 
   // Convenience methods for structured logging

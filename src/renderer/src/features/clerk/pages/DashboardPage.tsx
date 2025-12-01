@@ -14,6 +14,8 @@ import {
 } from 'react-icons/ai';
 import { useDashboardStats, useWeeklyActivity, useJobsByDate } from '../../users/api/dashboardApi';
 import { generateJobOrderPDF } from '../utils/generateReportPDF';
+import { ConnectivityIssue } from '../../../shared/components/ConnectivityIssue';
+import { useConnectivity } from '../../../shared/hooks';
 
 interface DashboardStats {
   todaysJobs: number;
@@ -33,9 +35,29 @@ export default function DashboardPage() {
   const [calendarOffset, setCalendarOffset] = useState<number>(0); // 0 = current period, -1 = past, +1 = future
 
   // Fetch dashboard data from APIs
-  const { data: statsData, isLoading: statsLoading } = useDashboardStats(selectedDate);
-  const { data: weeklyData, isLoading: weeklyLoading } = useWeeklyActivity();
-  const { data: jobsByDate, isLoading: jobsLoading } = useJobsByDate(selectedDate);
+  const {
+    data: statsData,
+    isLoading: statsLoading,
+    error: statsError,
+    refetch: refetchStats,
+  } = useDashboardStats(selectedDate);
+  const {
+    data: weeklyData,
+    isLoading: weeklyLoading,
+    error: weeklyError,
+    refetch: refetchWeekly,
+  } = useWeeklyActivity();
+  const {
+    data: jobsByDate,
+    isLoading: jobsLoading,
+    error: jobsError,
+    refetch: refetchJobs,
+  } = useJobsByDate(selectedDate);
+
+  const { hasConnectivityIssue } = useConnectivity();
+
+  // Check if any query has errors
+  const hasError = statsError || weeklyError || jobsError;
 
   const stats: DashboardStats = useMemo(() => {
     if (!statsData) {
@@ -124,8 +146,30 @@ export default function DashboardPage() {
 
   const isLoading = statsLoading || weeklyLoading || jobsLoading;
 
+  // Show connectivity issue if offline or network error (and no cached data)
+  if (hasConnectivityIssue && hasError && !statsData && !weeklyData && !jobsByDate) {
+    return (
+      <ConnectivityIssue
+        onRetry={() => {
+          refetchStats();
+          refetchWeekly();
+          refetchJobs();
+        }}
+      />
+    );
+  }
+
   return (
     <div style={{ ...sharedStyles.container, padding: 'var(--spacing-md, 12px)' }}>
+      {/* Connectivity Indicator - Show when offline but have cached data */}
+      {hasConnectivityIssue && (statsData || weeklyData || jobsByDate) && (
+        <ConnectivityIssue
+          compact
+          message="You're viewing cached data. Some information may be outdated."
+          showRetry={false}
+          style={{ marginBottom: 'var(--spacing-md, 12px)' }}
+        />
+      )}
       <div
         style={{
           display: 'flex',

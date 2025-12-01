@@ -43,7 +43,7 @@ export class UpdateService {
           );
         }
         const repoOwner = process.env.REPO_OWNER || 'mrpiper21';
-        const repoName = process.env.REPO_NAME || 'piper-agent-prototype-Ts';
+        const repoName = process.env.REPO_NAME || 'Agent-Releases';
         const isPrivate = this.githubToken !== null;
 
         autoUpdater.setFeedURL({
@@ -189,7 +189,7 @@ export class UpdateService {
       ) {
         try {
           const repoOwner = process.env.REPO_OWNER || 'mrpiper21';
-          const repoName = process.env.REPO_NAME || 'piper-agent-prototype-Ts';
+          const repoName = process.env.REPO_NAME || 'Agent-Releases';
           const githubUrl = `https://github.com/${repoOwner}/${repoName}/releases`;
 
           let errorDetail = errorMessage;
