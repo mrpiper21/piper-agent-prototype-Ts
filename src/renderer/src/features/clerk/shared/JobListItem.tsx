@@ -64,6 +64,19 @@ function JobListItemComponent({ job, isSelected, onSelect, compact = false }: Jo
   );
   const status = useMemo(() => job.status?.toLowerCase() || 'unknown', [job.status]);
 
+  // Get client fullName from populated clientId
+  const clientName = useMemo(() => {
+    if (job.clientId && typeof job.clientId === 'object') {
+      return job.clientId.fullName;
+    }
+    return null;
+  }, [job.clientId]);
+
+  // Display name: prefer client fullName, fallback to artwork, then fileName
+  const displayName = useMemo(() => {
+    return clientName || job.artwork || job.fileName || 'Untitled Job';
+  }, [clientName, job.artwork, job.fileName]);
+
   // Compact sidebar version
   if (compact) {
     return (
@@ -128,7 +141,7 @@ function JobListItemComponent({ job, isSelected, onSelect, compact = false }: Jo
           <div
             style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}
           >
-            {/* File Name */}
+            {/* Client Name / Job Name */}
             <p
               style={{
                 color: themeStyles.text,
@@ -140,9 +153,9 @@ function JobListItemComponent({ job, isSelected, onSelect, compact = false }: Jo
                 whiteSpace: 'nowrap',
                 lineHeight: '1.4',
               }}
-              title={job.artwork || job.fileName}
+              title={displayName}
             >
-              {job.artwork || job.fileName || 'Untitled Job'}
+              {displayName}
             </p>
 
             {/* Metadata Row */}
@@ -301,9 +314,9 @@ function JobListItemComponent({ job, isSelected, onSelect, compact = false }: Jo
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
             }}
-            title={job.artwork || job.fileName}
+            title={displayName}
           >
-            {job.artwork || job.fileName || 'Untitled Job'}
+            {displayName}
           </p>
           <p
             style={{
@@ -381,6 +394,7 @@ export const JobListItem = React.memo(JobListItemComponent, (prevProps, nextProp
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.compact === nextProps.compact &&
     prevProps.job?.status === nextProps.job?.status &&
-    prevProps.job?.fileName === nextProps.job?.fileName
+    prevProps.job?.fileName === nextProps.job?.fileName &&
+    (prevProps.job?.clientId?.fullName || '') === (nextProps.job?.clientId?.fullName || '')
   );
 });

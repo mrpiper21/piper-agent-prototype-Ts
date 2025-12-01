@@ -1,5 +1,12 @@
 // IPC Types - shared between main and renderer
 
+export interface WorkingHour {
+  day: string;
+  isOpen: boolean;
+  openTime?: string;
+  closeTime?: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -15,6 +22,7 @@ export interface User {
   businessPhone?: string;
   businessCoverImage?: string;
   websiteUrl?: string;
+  workingHours?: WorkingHour[];
   isActive?: boolean;
   isTemporaryPassword?: boolean;
   createdAt: number;
@@ -56,6 +64,7 @@ export interface UpdateUserData {
   businessPhone?: string;
   businessCoverImage?: string;
   websiteUrl?: string;
+  workingHours?: WorkingHour[];
   isActive?: boolean;
 }
 
@@ -86,12 +95,23 @@ export interface PrintOptions {
   duplex?: boolean;
 }
 
+export type CategoryType =
+  | 'wassce_result'
+  | 'bece_result'
+  | 'novdec_result'
+  | 'large_format'
+  | 'regular_format';
+
+export type RegularFormatProperties = 'front_only' | 'front_and_back';
+
 export interface Category {
   id: string;
   name: string;
   unitPrice: number;
   description?: string;
   adminId: string;
+  categoryType?: CategoryType;
+  regularFormatProperties?: RegularFormatProperties;
   createdAt?: number;
   updatedAt?: number;
 }
@@ -100,12 +120,16 @@ export interface CreateCategoryData {
   name: string;
   unitPrice: number;
   description?: string;
+  categoryType?: CategoryType;
+  regularFormatProperties?: RegularFormatProperties;
 }
 
 export interface UpdateCategoryData {
   name?: string;
   unitPrice?: number;
   description?: string;
+  categoryType?: CategoryType;
+  regularFormatProperties?: RegularFormatProperties;
 }
 
 // IPC API interface

@@ -417,6 +417,11 @@ export default function SetupLocationPage() {
         updateData.businessPhone = cachedBusinessInfo.businessPhone;
         updateData.websiteUrl = cachedBusinessInfo.websiteUrl;
 
+        // Add working hours if available
+        if (cachedBusinessInfo.workingHours && cachedBusinessInfo.workingHours.length > 0) {
+          updateData.workingHours = cachedBusinessInfo.workingHours;
+        }
+
         // Use uploaded image URL if available, otherwise use file path
         if (cachedBusinessInfo.businessCoverImageUrl) {
           // Image was already uploaded in BusinessInfoPage, use the URL (no file upload needed)

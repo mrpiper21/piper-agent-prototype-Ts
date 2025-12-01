@@ -165,6 +165,10 @@ export default function ClerkLayout() {
 
     const query = debouncedSearchQuery.toLowerCase().trim();
     return jobs.filter((job: any) => {
+      // Get client fullName from populated clientId
+      const clientName = job.clientId && typeof job.clientId === 'object' 
+        ? (job.clientId.fullName || '').toLowerCase() 
+        : '';
       const fileName = (job.fileName || '').toLowerCase();
       const artwork = (job.artwork || '').toLowerCase();
       const printerName = (job.printerName || '').toLowerCase();
@@ -172,6 +176,7 @@ export default function ClerkLayout() {
       const description = (job.description || '').toLowerCase();
 
       return (
+        clientName.includes(query) ||
         fileName.includes(query) ||
         artwork.includes(query) ||
         printerName.includes(query) ||

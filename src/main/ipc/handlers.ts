@@ -787,9 +787,28 @@ export function setupIpcHandlers() {
 
   ipcMain.handle(
     'categories:create',
-    async (_, data: { name: string; unitPrice: number; description?: string }) => {
+    async (
+      _,
+      data: {
+        name: string;
+        unitPrice: number;
+        description?: string;
+        categoryType?:
+          | 'wassce_result'
+          | 'bece_result'
+          | 'novdec_result'
+          | 'large_format'
+          | 'regular_format';
+        regularFormatProperties?: 'front_only' | 'front_and_back';
+      }
+    ) => {
       try {
-        logger.info('Creating category', { name: data.name, unitPrice: data.unitPrice });
+        logger.info('Creating category', {
+          name: data.name,
+          unitPrice: data.unitPrice,
+          categoryType: data.categoryType,
+          regularFormatProperties: data.regularFormatProperties,
+        });
         const category = await apiService.createCategory(data);
         logger.info(`Successfully created category ${category.id}`);
         return category;
@@ -802,7 +821,22 @@ export function setupIpcHandlers() {
 
   ipcMain.handle(
     'categories:update',
-    async (_, id: string, data: { name?: string; unitPrice?: number; description?: string }) => {
+    async (
+      _,
+      id: string,
+      data: {
+        name?: string;
+        unitPrice?: number;
+        description?: string;
+        categoryType?:
+          | 'wassce_result'
+          | 'bece_result'
+          | 'novdec_result'
+          | 'large_format'
+          | 'regular_format';
+        regularFormatProperties?: 'front_only' | 'front_and_back';
+      }
+    ) => {
       try {
         logger.info(`Updating category ${id}`, data);
         const category = await apiService.updateCategory(id, data);

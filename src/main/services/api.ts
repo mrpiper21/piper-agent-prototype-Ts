@@ -731,6 +731,13 @@ class ApiService {
     name: string;
     unitPrice: number;
     description?: string;
+    categoryType?:
+      | 'wassce_result'
+      | 'bece_result'
+      | 'novdec_result'
+      | 'large_format'
+      | 'regular_format';
+    regularFormatProperties?: 'front_only' | 'front_and_back';
   }): Promise<Category> {
     try {
       // Verify token exists before making request
@@ -770,7 +777,18 @@ class ApiService {
 
   async updateCategory(
     id: string,
-    data: { name?: string; unitPrice?: number; description?: string }
+    data: {
+      name?: string;
+      unitPrice?: number;
+      description?: string;
+      categoryType?:
+        | 'wassce_result'
+        | 'bece_result'
+        | 'novdec_result'
+        | 'large_format'
+        | 'regular_format';
+      regularFormatProperties?: 'front_only' | 'front_and_back';
+    }
   ): Promise<Category> {
     try {
       const response = await this.axiosInstance.put(`/categories/admin/${id}`, data);

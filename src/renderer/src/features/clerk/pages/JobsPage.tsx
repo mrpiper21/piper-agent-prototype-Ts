@@ -48,13 +48,20 @@ export default function JobsPage() {
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (job: any) =>
+      filtered = filtered.filter((job: any) => {
+        // Get client fullName from populated clientId
+        const clientName = job.clientId && typeof job.clientId === 'object' 
+          ? job.clientId.fullName?.toLowerCase() 
+          : '';
+        
+        return (
+          clientName?.includes(query) ||
           job.fileName?.toLowerCase().includes(query) ||
           job.artwork?.toLowerCase().includes(query) ||
           job.printerName?.toLowerCase().includes(query) ||
           job.description?.toLowerCase().includes(query)
-      );
+        );
+      });
     }
 
     // Apply status filter
@@ -94,8 +101,12 @@ export default function JobsPage() {
           const bIndex = statusOrder.indexOf(b.status?.toLowerCase() || '');
           return aIndex - bIndex;
         }
-        case 'filename':
-          return (a.fileName || '').localeCompare(b.fileName || '');
+        case 'filename': {
+          // Sort by client fullName, fallback to fileName
+          const aName = (a.clientId && typeof a.clientId === 'object' ? a.clientId.fullName : null) || a.fileName || '';
+          const bName = (b.clientId && typeof b.clientId === 'object' ? b.clientId.fullName : null) || b.fileName || '';
+          return aName.localeCompare(bName);
+        }
         default:
           return 0;
       }

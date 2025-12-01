@@ -5,12 +5,20 @@
 
 const CACHE_KEY = 'business-info-cache';
 
+export interface WorkingHour {
+  day: string;
+  isOpen: boolean;
+  openTime?: string;
+  closeTime?: string;
+}
+
 export interface BusinessInfoCache {
   businessName: string;
   businessPhone: string;
   businessCoverImagePath?: string | null;
   businessCoverImageUrl?: string | null;
   websiteUrl?: string;
+  workingHours?: WorkingHour[];
 }
 
 export const businessInfoCache = {

@@ -26,25 +26,26 @@ export function JobDetails({ job }: JobDetailsProps) {
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
   const queryClient = useQueryClient();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [sendReportEmailToClient, setSendReportEmailToClient] = useState(false);
 
   // Get job ID (could be id, _id, or printJobId)
   const jobId = job.id || job._id || job.printJobId || '';
 
   // Mutation to update job status
   const updateJobMutation = useMutation({
-    mutationFn: async (status: string) => {
+    mutationFn: async (updates: { status: string; sendReportEmailToClient?: boolean }) => {
       if (!jobId) {
         throw new Error('Job ID not found');
       }
       const jobsAPI = (
         electronAPI as {
-          jobs?: { update: (id: string, updates: { status: string }) => Promise<Job> };
+          jobs?: { update: (id: string, updates: { status: string; sendReportEmailToClient?: boolean }) => Promise<Job> };
         }
       ).jobs;
       if (!jobsAPI) {
         throw new Error('Jobs API not available');
       }
-      return await jobsAPI.update(jobId, { status });
+      return await jobsAPI.update(jobId, updates);
     },
     onSuccess: () => {
       // Invalidate and refetch jobs query to update the UI
@@ -75,7 +76,12 @@ export function JobDetails({ job }: JobDetailsProps) {
 
     setIsUpdating(true);
     try {
-      await updateJobMutation.mutateAsync('completed');
+      await updateJobMutation.mutateAsync({
+        status: 'completed',
+        sendReportEmailToClient: sendReportEmailToClient,
+      });
+      // Reset checkbox after successful update
+      setSendReportEmailToClient(false);
     } finally {
       setIsUpdating(false);
     }
@@ -194,6 +200,62 @@ export function JobDetails({ job }: JobDetailsProps) {
             </div>
           </div>
         </div>
+
+        {/* Email Report Option - Only show if job is not completed */}
+        {job.status !== 'completed' && (
+          <div
+            style={{
+              marginTop: 'var(--spacing-md, 12px)',
+              padding: 'var(--spacing-sm, 8px)',
+              background: themeStyles.container.background,
+              borderRadius: 'var(--border-radius-sm, 4px)',
+              border: `1px solid ${themeStyles.card.border}`,
+            }}
+          >
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-sm, 8px)',
+                cursor: isUpdating ? 'not-allowed' : 'pointer',
+                opacity: isUpdating ? 0.6 : 1,
+                userSelect: 'none',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={sendReportEmailToClient}
+                onChange={(e) => setSendReportEmailToClient(e.target.checked)}
+                disabled={isUpdating}
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  cursor: isUpdating ? 'not-allowed' : 'pointer',
+                  accentColor: themeStyles.accent,
+                }}
+              />
+              <span
+                style={{
+                  color: themeStyles.text,
+                  fontSize: 'var(--font-size-small, 12px)',
+                  fontWeight: '500',
+                }}
+              >
+                Send completion report email to client
+              </span>
+            </label>
+            <p
+              style={{
+                color: themeStyles.textSecondary,
+                fontSize: 'var(--font-size-small, 11px)',
+                margin: 'var(--spacing-xs, 4px) 0 0 24px',
+                fontStyle: 'italic',
+              }}
+            >
+              When enabled, the client will receive an email notification when this job is marked as completed.
+            </p>
+          </div>
+        )}
 
         <div
           style={{
