@@ -52,6 +52,10 @@ export function JobDetails({ job }: JobDetailsProps) {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       // Also invalidate dashboard queries if they exist
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      // Refresh the page to ensure all data is up to date
+      setTimeout(() => {
+        window.location.reload();
+      }, 500); // Small delay to show success state
     },
     onError: (error) => {
       console.error('Failed to update job status:', error);

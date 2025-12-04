@@ -39,6 +39,7 @@ export default function ClerkLayout() {
   const [activeTab, setActiveTab] = useState<'home' | 'jobs'>('home');
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [jobSearchQuery, setJobSearchQuery] = useState('');
+  const [jobStatusFilter, setJobStatusFilter] = useState<'all' | 'pending' | 'processing' | 'completed' | 'failed'>('all');
   const debouncedSearchQuery = useDebounce(jobSearchQuery, 300); // Debounce search by 300ms
   const [sidebarWidth, setSidebarWidth] = useState<number | null>(null);
   const [isResizing, setIsResizing] = useState(false);
@@ -158,33 +159,50 @@ export default function ClerkLayout() {
     [selectedJob]
   );
 
-  // Filter jobs based on search query (using debounced value)
+  // Filter jobs based on search query and status filter (using debounced value)
   const filteredJobs = useMemo(() => {
     if (!jobs) return [];
-    if (!debouncedSearchQuery.trim()) return jobs;
 
-    const query = debouncedSearchQuery.toLowerCase().trim();
-    return jobs.filter((job: any) => {
-      // Get client fullName from populated clientId
-      const clientName = job.clientId && typeof job.clientId === 'object' 
-        ? (job.clientId.fullName || '').toLowerCase() 
-        : '';
-      const fileName = (job.fileName || '').toLowerCase();
-      const artwork = (job.artwork || '').toLowerCase();
-      const printerName = (job.printerName || '').toLowerCase();
-      const status = (job.status || '').toLowerCase();
-      const description = (job.description || '').toLowerCase();
+    let filtered = [...jobs];
 
-      return (
-        clientName.includes(query) ||
-        fileName.includes(query) ||
-        artwork.includes(query) ||
-        printerName.includes(query) ||
-        status.includes(query) ||
-        description.includes(query)
-      );
-    });
-  }, [jobs, debouncedSearchQuery]);
+    // Apply status filter
+    if (jobStatusFilter !== 'all') {
+      filtered = filtered.filter((job: any) => {
+        const status = job.status?.toLowerCase();
+        if (jobStatusFilter === 'pending') {
+          return status === 'pending' || status === 'queued';
+        }
+        return status === jobStatusFilter;
+      });
+    }
+
+    // Apply search query filter
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase().trim();
+      filtered = filtered.filter((job: any) => {
+        // Get client fullName from populated clientId
+        const clientName = job.clientId && typeof job.clientId === 'object' 
+          ? (job.clientId.fullName || '').toLowerCase() 
+          : '';
+        const fileName = (job.fileName || '').toLowerCase();
+        const artwork = (job.artwork || '').toLowerCase();
+        const printerName = (job.printerName || '').toLowerCase();
+        const status = (job.status || '').toLowerCase();
+        const description = (job.description || '').toLowerCase();
+
+        return (
+          clientName.includes(query) ||
+          fileName.includes(query) ||
+          artwork.includes(query) ||
+          printerName.includes(query) ||
+          status.includes(query) ||
+          description.includes(query)
+        );
+      });
+    }
+
+    return filtered;
+  }, [jobs, debouncedSearchQuery, jobStatusFilter]);
 
   return (
     <div style={styles.wrapper}>
@@ -198,7 +216,7 @@ export default function ClerkLayout() {
               ? '60px'
               : sidebarWidth !== null
                 ? `${sidebarWidth}px`
-                : `${Math.max(200, 200 * spacing)}px`,
+                : `${Math.max(280, 280 * spacing)}px`,
             transition: isResizing ? 'none' : 'width 0.2s ease',
             position: windowWidth < 768 ? 'absolute' : 'relative',
             zIndex: windowWidth < 768 ? 1000 : 'auto',
@@ -409,12 +427,15 @@ export default function ClerkLayout() {
               <div
                 style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
               >
-                {/* Search Bar */}
+                {/* Search Bar and Status Filter */}
                 <div
                   style={{
                     padding: `${8 * spacing}px ${8 * spacing}px ${6 * spacing}px`,
                     borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
                     flexShrink: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: `${6 * spacing}px`,
                   }}
                 >
                   <div
@@ -483,6 +504,36 @@ export default function ClerkLayout() {
                       </button>
                     )}
                   </div>
+                  {/* Status Filter Dropdown */}
+                  <select
+                    value={jobStatusFilter}
+                    onChange={(e) => setJobStatusFilter(e.target.value as typeof jobStatusFilter)}
+                    style={{
+                      width: '100%',
+                      padding: `${6 * spacing}px ${8 * spacing}px`,
+                      borderRadius: '4px',
+                      border: `1px solid ${themeStyles.card.border}`,
+                      background: themeStyles.input.background,
+                      color: themeStyles.input.color,
+                      fontSize: `${fontSize * 0.9}px`,
+                      cursor: 'pointer',
+                      outline: 'none',
+                      fontWeight: jobStatusFilter !== 'all' ? '500' : '400',
+                      transition: 'border-color 0.2s ease',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = themeStyles.accent;
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = themeStyles.card.border;
+                    }}
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                  </select>
                 </div>
 
                 {/* Jobs List */}

@@ -200,20 +200,27 @@ export interface IpcApi {
     getComparison: () => Promise<any>;
   };
   dashboard: {
-    getStats: (date?: string) => Promise<{
+    getStats: (date?: string, month?: string, year?: string) => Promise<{
       todaysJobs: number;
       completedJobs: number;
       pendingJobs: number;
       failedJobs: number;
       totalJobs: number;
+      totalRevenue?: number;
+      pendingRevenue?: number;
+      paidJobs?: number;
+      revenueMonth?: string;
     }>;
-    getWeeklyActivity: () => Promise<
+    getWeeklyActivity: (month?: string, year?: string) => Promise<
       Array<{
         date: string;
         count: number;
       }>
     >;
     getJobsByDate: (date: string) => Promise<any[]>;
+    getCategoryAnalytics: (days?: number) => Promise<any[]>;
+    getPaymentAnalytics: (days?: number) => Promise<any>;
+    getComprehensiveReport: (startDate?: string, endDate?: string) => Promise<any>;
   };
   health: {
     check: () => Promise<any>;

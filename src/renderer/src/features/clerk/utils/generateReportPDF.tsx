@@ -16,9 +16,26 @@ interface ReportData {
   date: string;
   jobs: PrintJob[];
   companyName?: string;
+  businessName?: string;
   clientName?: string;
   material?: string;
   jobOrderNo?: string;
+  businessInfo?: {
+    businessName?: string;
+    businessPhone?: string;
+    location?: { latitude: number; longitude: number; address: string };
+    email?: string;
+    name?: string;
+  };
+  categoryBreakdown?: Array<{ categoryName: string; count: number; revenue: number }>;
+  summary?: {
+    totalJobs: number;
+    completedJobs: number;
+    pendingJobs: number;
+    failedJobs: number;
+    totalRevenue: number;
+    pendingRevenue: number;
+  };
 }
 
 // PDF Document Component
@@ -26,15 +43,22 @@ const JobOrderDocument: React.FC<ReportData> = ({
   date,
   jobs,
   companyName,
+  businessName,
   clientName,
   material,
   jobOrderNo,
+  businessInfo,
+  categoryBreakdown,
+  summary,
 }) => {
-  // Calculate total amount
-  const totalAmount = jobs.reduce((sum: number, job) => {
+  // Use businessName from businessInfo or prop, fallback to companyName
+  const displayBusinessName = businessInfo?.businessName || businessName || companyName || 'Business Name';
+
+  // Calculate total amount from jobs or use summary
+  const totalAmount = summary?.totalRevenue || jobs.reduce((sum: number, job) => {
     const jobAny = job as unknown as Record<string, unknown>;
     const metadata = job.metadata as Record<string, unknown> | undefined;
-    const amountStr = (metadata?.amount as string) || (metadata?.amt as string) || (jobAny.amount as string) || '0';
+    const amountStr = (metadata?.amount as string) || (metadata?.amt as string) || (jobAny.amount as string) || (jobAny.totalPrice as string) || '0';
     const amount = parseFloat(amountStr);
     return sum + (isNaN(amount) ? 0 : amount);
   }, 0);
@@ -45,7 +69,16 @@ const JobOrderDocument: React.FC<ReportData> = ({
     
     // Extract artwork name - prefer artwork field, then fileName, then originalName
     const artwork = String(
-      ((jobAny as { clientId: { fullName: string } }).clientId?.fullName as string) || 
+      (jobAny.artwork as string) ||
+      (jobAny.fileName as string) ||
+      (jobAny.originalName as string) ||
+      ((jobAny as { clientId?: { fullName?: string } }).clientId?.fullName as string) || 
+      'N/A'
+    );
+    
+    // Extract category name
+    const categoryName = String(
+      ((jobAny as { categoryId?: { name?: string } }).categoryId?.name as string) ||
       'N/A'
     );
     
@@ -59,7 +92,8 @@ const JobOrderDocument: React.FC<ReportData> = ({
     
     // Extract print job ID - prefer printJobId, then _id, then id
     const ps = "#"+ String(
-      ((jobAny as { _id: string })._id.slice(0, 4) as string) || 
+      (jobAny.printJobId as string) ||
+      ((jobAny as { _id: string })._id?.slice(0, 8) as string) || 
       job.id || 
       ''
     );
@@ -83,19 +117,27 @@ const JobOrderDocument: React.FC<ReportData> = ({
     const metadata = job.metadata as Record<string, unknown> | undefined;
     const rate = String(
       (metadata?.rate as string) || 
-      (jobAny.rate as string) || 
+      (jobAny.rate as string) ||
+      ((jobAny as { categoryId?: { unitPrice?: number } }).categoryId?.unitPrice as number)?.toFixed(2) ||
       'N/A'
     );
     const amount = String(
+      (jobAny.totalPrice as number)?.toFixed(2) ||
       (metadata?.amount as string) || 
       (metadata?.amt as string) || 
       (jobAny.amount as string) || 
       'N/A'
     );
 
+    // Extract payment status
+    const paymentStatus = String(
+      (jobAny.paymentStatus as string) || 'pending'
+    );
+
     return {
       sn: `${index + 1}.`,
       artwork,
+      category: categoryName,
       size,
       ps,
       qty,
@@ -104,6 +146,7 @@ const JobOrderDocument: React.FC<ReportData> = ({
       location,
       rate,
       amount,
+      paymentStatus,
       total: '',
     };
   });
@@ -113,6 +156,7 @@ const JobOrderDocument: React.FC<ReportData> = ({
     tableRows.push({
       sn: `${tableRows.length + 1}.`,
       artwork: '',
+      category: '',
       size: '',
       ps: '',
       qty: '',
@@ -121,6 +165,7 @@ const JobOrderDocument: React.FC<ReportData> = ({
       location: '',
       rate: '',
       amount: '',
+      paymentStatus: '',
       total: '',
     });
   }
@@ -130,7 +175,16 @@ const JobOrderDocument: React.FC<ReportData> = ({
       <Page size="A4" style={styles.page}>
         {/* Header Section */}
         <View style={styles.header}>
-          <Text style={styles.companyName}>LEX PRINT SERVICES</Text>
+          <Text style={styles.companyName}>{displayBusinessName.toUpperCase()}</Text>
+          {businessInfo?.businessPhone && (
+            <Text style={styles.businessInfo}>Phone: {businessInfo.businessPhone}</Text>
+          )}
+          {businessInfo?.email && (
+            <Text style={styles.businessInfo}>Email: {businessInfo.email}</Text>
+          )}
+          {businessInfo?.location?.address && (
+            <Text style={styles.businessInfo}>Address: {businessInfo.location.address}</Text>
+          )}
         </View>
 
         {/* Information Section */}
@@ -139,10 +193,22 @@ const JobOrderDocument: React.FC<ReportData> = ({
             <Text style={styles.infoLabel}>Date:</Text>
             <Text style={styles.infoValue}>{date}</Text>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Company:</Text>
-            <Text style={styles.infoValue}>{companyName || 'N/A'}</Text>
-          </View>
+          {summary && (
+            <>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Total Jobs:</Text>
+                <Text style={styles.infoValue}>{summary.totalJobs}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Completed:</Text>
+                <Text style={styles.infoValue}>{summary.completedJobs}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Pending:</Text>
+                <Text style={styles.infoValue}>{summary.pendingJobs}</Text>
+              </View>
+            </>
+          )}
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Job Order No.:</Text>
             <Text style={styles.infoValue}>{jobOrderNo || 'N/A'}</Text>
@@ -168,14 +234,13 @@ const JobOrderDocument: React.FC<ReportData> = ({
           <View style={styles.tableHeader}>
             <Text style={[styles.tableCellHeader, { flex: 0.5 }]}>S/N</Text>
             <Text style={[styles.tableCellHeader, { flex: 1.5 }]}>ARTWORK</Text>
+            <Text style={[styles.tableCellHeader, { flex: 1 }]}>CATEGORY</Text>
             <Text style={[styles.tableCellHeader, { flex: 1 }]}>SIZE</Text>
-            <Text style={[styles.tableCellHeader, { flex: 1 }]}>PS</Text>
             <Text style={[styles.tableCellHeader, { flex: 0.7 }]}>QTY</Text>
-            <Text style={[styles.tableCellHeader, { flex: 1.2 }]}>SIZE OF MAT. USED</Text>
-            <Text style={[styles.tableCellHeader, { flex: 1.2 }]}>SIZE OF MAT. LEFT</Text>
-            <Text style={[styles.tableCellHeader, { flex: 1.3 }]}>LOCATION/VENDOR</Text>
+            <Text style={[styles.tableCellHeader, { flex: 1.2 }]}>LOCATION</Text>
             <Text style={[styles.tableCellHeader, { flex: 0.8 }]}>RATE</Text>
             <Text style={[styles.tableCellHeader, { flex: 0.8 }]}>AMT GHC</Text>
+            <Text style={[styles.tableCellHeader, { flex: 0.8 }]}>PAYMENT</Text>
           </View>
 
           {/* Table Rows */}
@@ -183,22 +248,41 @@ const JobOrderDocument: React.FC<ReportData> = ({
             <View key={index} style={styles.tableRow}>
               <Text style={[styles.tableCellData, { flex: 0.5 }]}>{row.sn}</Text>
               <Text style={[styles.tableCellData, { flex: 1.5 }]}>{row.artwork}</Text>
+              <Text style={[styles.tableCellData, { flex: 1 }]}>{row.category}</Text>
               <Text style={[styles.tableCellData, { flex: 1 }]}>{row.size}</Text>
-              <Text style={[styles.tableCellData, { flex: 1 }]}>{row.ps}</Text>
               <Text style={[styles.tableCellData, { flex: 0.7 }]}>{row.qty}</Text>
-              <Text style={[styles.tableCellData, { flex: 1.2 }]}>{row.matUsed}</Text>
-              <Text style={[styles.tableCellData, { flex: 1.2 }]}>{row.matLeft}</Text>
-              <Text style={[styles.tableCellData, { flex: 1.3 }]}>{row.location}</Text>
+              <Text style={[styles.tableCellData, { flex: 1.2 }]}>{row.location}</Text>
               <Text style={[styles.tableCellData, { flex: 0.8 }]}>{row.rate}</Text>
               <Text style={[styles.tableCellData, { flex: 0.8 }]}>{row.amount}</Text>
+              <Text style={[styles.tableCellData, { flex: 0.8, textTransform: 'uppercase' }]}>{row.paymentStatus}</Text>
             </View>
           ))}
         </View>
 
+        {/* Category Breakdown */}
+        {categoryBreakdown && categoryBreakdown.length > 0 && (
+          <View style={styles.categorySection}>
+            <Text style={styles.sectionTitle}>Category Breakdown</Text>
+            {categoryBreakdown.map((cat, index) => (
+              <View key={index} style={styles.categoryRow}>
+                <Text style={styles.categoryName}>{cat.categoryName}:</Text>
+                <Text style={styles.categoryValue}>
+                  {cat.count} jobs - GHC {cat.revenue.toFixed(2)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* Total Section */}
         {totalAmount > 0 && (
           <View style={styles.totalSection}>
-            <Text style={styles.totalText}>Total: GHC {totalAmount.toFixed(2)}</Text>
+            <Text style={styles.totalText}>Total Revenue: GHC {totalAmount.toFixed(2)}</Text>
+            {summary?.pendingRevenue && summary.pendingRevenue > 0 && (
+              <Text style={styles.pendingText}>
+                Pending Revenue: GHC {summary.pendingRevenue.toFixed(2)}
+              </Text>
+            )}
           </View>
         )}
 
@@ -240,6 +324,12 @@ const styles = StyleSheet.create({
     color: '#1e40af',
     marginBottom: 5,
     textAlign: 'center',
+  },
+  businessInfo: {
+    fontSize: 9,
+    color: '#475569',
+    textAlign: 'center',
+    marginTop: 2,
   },
   documentTitle: {
     fontSize: 14,
@@ -319,6 +409,43 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
     color: '#1e40af',
+  },
+  pendingText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#f59e0b',
+    marginTop: 4,
+  },
+  categorySection: {
+    marginTop: 15,
+    marginBottom: 15,
+    padding: 10,
+    backgroundColor: '#f8fafc',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  sectionTitle: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+    fontSize: 9,
+  },
+  categoryName: {
+    fontSize: 9,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  categoryValue: {
+    fontSize: 9,
+    color: '#1e293b',
+    fontWeight: '500',
   },
   footer: {
     marginTop: 30,

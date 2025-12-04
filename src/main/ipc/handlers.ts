@@ -713,18 +713,18 @@ export function setupIpcHandlers() {
   });
 
   // Dashboard handlers
-  ipcMain.handle('dashboard:getStats', async (_, date?: string) => {
+  ipcMain.handle('dashboard:getStats', async (_, date?: string, month?: string, year?: string) => {
     try {
-      return await apiService.getDashboardStats(date);
+      return await apiService.getDashboardStats(date, month, year);
     } catch (error) {
       logger.error('Get dashboard stats error', error);
       throw error;
     }
   });
 
-  ipcMain.handle('dashboard:getWeeklyActivity', async () => {
+  ipcMain.handle('dashboard:getWeeklyActivity', async (_, month?: string, year?: string) => {
     try {
-      return await apiService.getWeeklyActivity();
+      return await apiService.getWeeklyActivity(month, year);
     } catch (error) {
       logger.error('Get weekly activity error', error);
       throw error;
@@ -736,6 +736,33 @@ export function setupIpcHandlers() {
       return await apiService.getJobsByDate(date);
     } catch (error) {
       logger.error('Get jobs by date error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('dashboard:getCategoryAnalytics', async (_, days?: number) => {
+    try {
+      return await apiService.getCategoryAnalytics(days);
+    } catch (error) {
+      logger.error('Get category analytics error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('dashboard:getPaymentAnalytics', async (_, days?: number) => {
+    try {
+      return await apiService.getPaymentAnalytics(days);
+    } catch (error) {
+      logger.error('Get payment analytics error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('dashboard:getComprehensiveReport', async (_, startDate?: string, endDate?: string) => {
+    try {
+      return await apiService.getComprehensiveReport(startDate, endDate);
+    } catch (error) {
+      logger.error('Get comprehensive report error', error);
       throw error;
     }
   });

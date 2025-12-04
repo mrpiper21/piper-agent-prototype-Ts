@@ -67,9 +67,12 @@ const electronAPI: IpcApi = {
     getComparison: () => ipcRenderer.invoke('analytics:getComparison'),
   },
   dashboard: {
-    getStats: (date?: string) => ipcRenderer.invoke('dashboard:getStats', date),
-    getWeeklyActivity: () => ipcRenderer.invoke('dashboard:getWeeklyActivity'),
+    getStats: (date?: string, month?: string, year?: string) => ipcRenderer.invoke('dashboard:getStats', date, month, year),
+    getWeeklyActivity: (month?: string, year?: string) => ipcRenderer.invoke('dashboard:getWeeklyActivity', month, year),
     getJobsByDate: (date: string) => ipcRenderer.invoke('dashboard:getJobsByDate', date),
+    getCategoryAnalytics: (days?: number) => ipcRenderer.invoke('dashboard:getCategoryAnalytics', days),
+    getPaymentAnalytics: (days?: number) => ipcRenderer.invoke('dashboard:getPaymentAnalytics', days),
+    getComprehensiveReport: (startDate?: string, endDate?: string) => ipcRenderer.invoke('dashboard:getComprehensiveReport', startDate, endDate),
   },
   health: {
     check: () => ipcRenderer.invoke('health:check'),

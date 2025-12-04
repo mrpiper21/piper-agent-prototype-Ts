@@ -122,6 +122,14 @@ machine-id
 encryption.key
 security-report.json
 
+# Code signing certificates (NEVER commit these!)
+*.pfx
+*.p12
+*.cer
+*.crt
+certificate.pfx
+certificate.p12
+
 # Test files
 test-results/
 coverage/

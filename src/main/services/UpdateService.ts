@@ -267,10 +267,52 @@ export class UpdateService {
           // Note: User will be notified via showUpdateDownloadedDialog when download completes
         } catch (downloadError) {
           logger.error('Failed to start update download:', downloadError);
-          await dialog.showErrorBox(
-            'Download Failed',
-            `Failed to download update: ${downloadError instanceof Error ? downloadError.message : String(downloadError)}\n\nPlease try again later or download manually from GitHub.`
-          );
+
+          // Check if this is a signature verification error
+          const errorMessage =
+            downloadError instanceof Error ? downloadError.message : String(downloadError);
+          const errorObj = downloadError as any;
+
+          const isSignatureError =
+            errorMessage.includes('not signed') ||
+            errorMessage.includes('digitally signed') ||
+            errorMessage.includes('SignerCertificate') ||
+            errorMessage.includes('execution policy') ||
+            (errorObj?.rawInfo && errorObj.rawInfo.Status === 2);
+
+          const repoOwner = process.env.REPO_OWNER || 'mrpiper21';
+          const repoName = process.env.REPO_NAME || 'Agent-Releases';
+          const githubUrl = `https://github.com/${repoOwner}/${repoName}/releases`;
+
+          if (isSignatureError) {
+            // Show helpful dialog for signature errors with option to open GitHub
+            await dialog
+              .showMessageBox({
+                type: 'warning',
+                title: 'Download Failed',
+                message: 'Update requires manual download',
+                detail:
+                  `The update installer is not digitally signed.\n\n` +
+                  `This is normal for unsigned builds. You can:\n` +
+                  `1. Manually download and install from: ${githubUrl}\n` +
+                  `2. Or temporarily disable Windows SmartScreen to install unsigned updates.\n\n` +
+                  `Technical details: ${errorMessage}`,
+                buttons: ['Open GitHub Releases', 'OK'],
+                defaultId: 0,
+                cancelId: 1,
+              })
+              .then((result) => {
+                if (result.response === 0) {
+                  shell.openExternal(githubUrl);
+                }
+              });
+          } else {
+            // Generic download error
+            await dialog.showErrorBox(
+              'Download Failed',
+              `Failed to download update: ${errorMessage}\n\nPlease try again later or download manually from GitHub.`
+            );
+          }
         }
       }
     } catch (error) {

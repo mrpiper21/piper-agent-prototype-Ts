@@ -356,6 +356,30 @@ export default function JobsPage() {
             )}
           </div>
 
+          {/* Status Filter Dropdown - Always Visible */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            style={{
+              padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+              borderRadius: 'var(--border-radius-sm, 4px)',
+              border: themeStyles.card.border,
+              background: themeStyles.input.background,
+              color: themeStyles.input.color,
+              fontSize: 'var(--font-size-small, 12px)',
+              cursor: 'pointer',
+              outline: 'none',
+              height: '32px',
+              fontWeight: statusFilter !== 'all' ? '500' : '400',
+            }}
+          >
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="processing">Processing</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
+          </select>
+
           {/* Filter Button */}
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -376,7 +400,7 @@ export default function JobsPage() {
             }}
           >
             <AiOutlineFilter style={{ fontSize: 'var(--icon-size-sm, 14px)' }} />
-            Filters
+            More Filters
             {hasActiveFilters && (
               <span
                 style={{

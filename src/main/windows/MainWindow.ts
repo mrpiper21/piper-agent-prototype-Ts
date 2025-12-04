@@ -62,6 +62,14 @@ export function setupWindows(): BrowserWindow {
     iconPath = path.join(__dirname, '../../assets/printAgentLogo.png');
   }
 
+  // Configure Content Security Policy based on environment
+  const isDev = !app.isPackaged;
+  const csp = isDev
+    ? // Development: Allow unsafe-eval for Vite HMR (only in dev)
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http: data:; frame-src 'self' https: http:; connect-src 'self' https: http: ws: wss:;"
+    : // Production: Strict CSP without unsafe-eval
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: http: data:; frame-src 'self' https: http:; connect-src 'self' https: http:;";
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -70,10 +78,26 @@ export function setupWindows(): BrowserWindow {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
+      // Set CSP programmatically for better control
+      webSecurity: true,
     },
     show: false, // Don't show until ready
     autoHideMenuBar: false,
   });
+
+  // Set CSP headers programmatically for HTTP/HTTPS requests (dev server)
+  // For file:// URLs in production, the meta tag in index.html will be used
+  mainWindow.webContents.session.webRequest.onHeadersReceived(
+    { urls: ['http://*/*', 'https://*/*'] },
+    (details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [csp],
+        },
+      });
+    }
+  );
 
   // Handle geolocation permission requests - MUST be set before loading content
   const session = mainWindow.webContents.session;
