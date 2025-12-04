@@ -12,8 +12,8 @@ import type { Category } from '../../shared/types/ipc.types';
 //     : 'https://piper-server-prototype-ts.onrender.com/api'
 // );
 
-// const API_BASE_URL = 'https://piper-server-api-production.up.railway.app/api';
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'https://piper-server-api-production.up.railway.app/api';
+// const API_BASE_URL = 'http://localhost:3000/api';
 
 class ApiService {
   private axiosInstance: AxiosInstance;
