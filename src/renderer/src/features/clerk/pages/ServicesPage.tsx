@@ -6,6 +6,7 @@ import { AccessDenied } from './user-management/components';
 import { sharedStyles, lightStyles, darkStyles } from '../shared/clerkStyles';
 import { CategoryForm, CategoryList, CategoryTabs } from './services/components';
 import { useCategories, useCategoryForm } from './services/hooks/useCategories';
+import { PaymentMethodModal } from '../../../shared/components/PaymentMethodModal';
 import {
   CategoryFormData,
   CategoryType,
@@ -32,6 +33,7 @@ export default function ServicesPage() {
     handleEdit,
     handleClose,
   } = useCategoryForm();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const themeStyles = useMemo(() => {
     return theme === 'dark' ? darkStyles : lightStyles;
@@ -92,11 +94,21 @@ export default function ServicesPage() {
       await loadCategories();
     } catch (error: any) {
       console.error('Failed to save category:', error);
-      const errorMessage =
-        error?.message ||
-        error?.response?.data?.message ||
-        'Failed to save category. Please try again.';
-      alert(errorMessage);
+      
+      // Check if payment method is not set
+      const errorMessage = error?.message || error?.response?.data?.message || '';
+      const hasPaymentError = 
+        error?.hasSetPaymentMethod === false ||
+        error?.response?.data?.hasSetPaymentMethod === false ||
+        errorMessage.toLowerCase().includes('payment method') ||
+        errorMessage.toLowerCase().includes('contact system support');
+      
+      if (hasPaymentError) {
+        setShowPaymentModal(true);
+        return;
+      }
+      
+      alert(errorMessage || 'Failed to save category. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -161,6 +173,11 @@ export default function ServicesPage() {
           onClose={handleClose}
           onSubmit={handleSubmit}
           onFormDataChange={handleFormDataChange}
+        />
+
+        <PaymentMethodModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
         />
       </div>
     </div>

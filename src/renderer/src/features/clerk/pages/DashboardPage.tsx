@@ -12,10 +12,19 @@ import {
   AiOutlineRight,
   AiOutlineDownload,
 } from 'react-icons/ai';
-import { useDashboardStats, useWeeklyActivity, useJobsByDate } from '../../users/api/dashboardApi';
+import {
+  useDashboardStats,
+  useWeeklyActivity,
+  useJobsByDate,
+  useCategoryAnalytics,
+  usePaymentAnalytics,
+} from '../../users/api/dashboardApi';
+import { electronAPI } from '../../../lib';
 import { generateJobOrderPDF } from '../utils/generateReportPDF';
 import { ConnectivityIssue } from '../../../shared/components/ConnectivityIssue';
 import { useConnectivity } from '../../../shared/hooks';
+import { useAuthStore } from '../../auth/store/authStore';
+import { AiOutlineDollar, AiOutlinePieChart } from 'react-icons/ai';
 
 interface DashboardStats {
   todaysJobs: number;
@@ -23,10 +32,16 @@ interface DashboardStats {
   pendingJobs: number;
   failedJobs: number;
   totalJobs: number;
+  totalRevenue?: number;
+  pendingRevenue?: number;
+  paidJobs?: number;
 }
 
 export default function DashboardPage() {
   const { theme } = useTheme();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+  
   // Memoize themeStyles to ensure synchronous updates with layout
   const themeStyles = useMemo(() => {
     return theme === 'dark' ? darkStyles : lightStyles;
@@ -34,25 +49,36 @@ export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [calendarOffset, setCalendarOffset] = useState<number>(0); // 0 = current period, -1 = past, +1 = future
 
+  // Month selector for revenue (default to current month)
+  const currentDate = new Date();
+  const [selectedRevenueMonth, setSelectedRevenueMonth] = useState<string>(
+    `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
+  );
+
+  // Parse month and year from selectedRevenueMonth (format: YYYY-MM)
+  const [revenueYear, revenueMonth] = selectedRevenueMonth.split('-');
+
   // Fetch dashboard data from APIs
   const {
     data: statsData,
     isLoading: statsLoading,
     error: statsError,
     refetch: refetchStats,
-  } = useDashboardStats(selectedDate);
+  } = useDashboardStats(selectedDate, revenueMonth, revenueYear);
   const {
     data: weeklyData,
     isLoading: weeklyLoading,
     error: weeklyError,
     refetch: refetchWeekly,
-  } = useWeeklyActivity();
+  } = useWeeklyActivity(revenueMonth, revenueYear);
   const {
     data: jobsByDate,
     isLoading: jobsLoading,
     error: jobsError,
     refetch: refetchJobs,
   } = useJobsByDate(selectedDate);
+  const { data: categoryAnalytics } = useCategoryAnalytics(30);
+  const { data: paymentAnalytics } = usePaymentAnalytics(30);
 
   const { hasConnectivityIssue } = useConnectivity();
 
@@ -67,6 +93,9 @@ export default function DashboardPage() {
         pendingJobs: 0,
         failedJobs: 0,
         totalJobs: 0,
+        totalRevenue: 0,
+        pendingRevenue: 0,
+        paidJobs: 0,
       };
     }
     return statsData;
@@ -81,61 +110,44 @@ export default function DashboardPage() {
     };
   }, [stats]);
 
-  // Generate dates for the calendar view (28 days = 4 weeks) and map weekly activity data
+  // Generate dates for the calendar view based on selected month
   const calendarDates = useMemo(() => {
     const dates = [];
-    const today = new Date();
-    const offsetDays = calendarOffset * 28; // Each offset represents 28 days (4 weeks)
-
-    // Calculate the end date of the period (most recent date in the view)
-    const endDate = new Date(today);
-    endDate.setDate(today.getDate() - offsetDays);
-
-    // Generate 28 dates going backwards from end date (oldest to newest)
-    // This ensures contiguous periods with no gaps
-    for (let i = 27; i >= 0; i--) {
-      const date = new Date(endDate);
-      date.setDate(endDate.getDate() - i);
+    // Parse selected month (YYYY-MM format)
+    const [year, month] = selectedRevenueMonth.split('-').map(Number);
+    
+    // Get the number of days in the selected month
+    const daysInMonth = new Date(year, month, 0).getDate();
+    
+    // Generate dates for the entire month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month - 1, day);
       dates.push(date);
     }
 
     return dates;
-  }, [calendarOffset]);
+  }, [selectedRevenueMonth]);
 
-  // Get the date range for the calendar header
-  const calendarDateRange = useMemo(() => {
+  // Get the month name for the calendar header
+  const calendarMonthHeader = useMemo(() => {
     if (calendarDates.length === 0) return '';
     const firstDate = calendarDates[0];
-    const lastDate = calendarDates[calendarDates.length - 1];
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-
-    // If the range includes today, show "Today" or date range
-    if (
-      firstDate.toISOString().split('T')[0] <= todayStr &&
-      lastDate.toISOString().split('T')[0] >= todayStr
-    ) {
-      return `Week of ${firstDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      })} - ${lastDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })}`;
-    }
-    return `${firstDate.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    })} - ${lastDate.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
+    return firstDate.toLocaleDateString('en-US', {
+      month: 'long',
       year: 'numeric',
-    })}`;
+    });
   }, [calendarDates]);
 
-  // Map weekly activity to a date -> count lookup
-  const weeklyCountMap = useMemo(() => {
+  // Get the first day of the month and calculate offset for proper calendar grid
+  const calendarGridStart = useMemo(() => {
+    if (calendarDates.length === 0) return 0;
+    const firstDate = calendarDates[0];
+    const dayOfWeek = firstDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    return dayOfWeek;
+  }, [calendarDates]);
+
+  // Map monthly activity to a date -> count lookup
+  const monthlyCountMap = useMemo(() => {
     if (!weeklyData) return new Map<string, number>();
     const map = new Map<string, number>();
     weeklyData.forEach((item: { date: string; count: number }) => {
@@ -145,6 +157,25 @@ export default function DashboardPage() {
   }, [weeklyData]);
 
   const isLoading = statsLoading || weeklyLoading || jobsLoading;
+
+  // Helper function to convert monetary values to vague stats for clerks
+  const getVagueRevenue = (amount: number): string => {
+    if (amount === 0) return 'None';
+    if (amount < 100) return 'Low';
+    if (amount < 500) return 'Moderate';
+    if (amount < 2000) return 'High';
+    return 'Very High';
+  };
+
+  // Helper function to get vague percentage range for clerks
+  // const getVaguePercentage = (value: number, max: number): string => {
+  //   const percentage = (value / max) * 100;
+  //   if (percentage === 0) return 'None';
+  //   if (percentage < 25) return 'Low';
+  //   if (percentage < 50) return 'Moderate';
+  //   if (percentage < 75) return 'High';
+  //   return 'Very High';
+  // };
 
   // Show connectivity issue if offline or network error (and no cached data)
   if (hasConnectivityIssue && hasError && !statsData && !weeklyData && !jobsByDate) {
@@ -313,6 +344,316 @@ export default function DashboardPage() {
               themeStyles={themeStyles}
               description="Unsuccessful jobs"
             />
+            {(stats.totalRevenue !== undefined && isAdmin) && (
+              <div
+                style={{
+                  ...sharedStyles.card,
+                  ...themeStyles.card,
+                  padding: 'var(--spacing-sm, 8px)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--spacing-xs, 4px)',
+                  minWidth: '180px',
+                }}
+              >
+                <div
+                  style={{
+                    alignItems: 'center',
+                    marginBottom: 'var(--spacing-xs, 4px)',
+                  }}
+                >
+                    <input
+                       type="month"
+                       value={selectedRevenueMonth}
+                       onChange={(e) => setSelectedRevenueMonth(e.target.value)}
+                       style={{
+                         padding: '2px 6px',
+                         borderRadius: 'var(--border-radius-sm, 4px)',
+                         border: themeStyles.card.border,
+                         background: themeStyles.input.background,
+                         color: themeStyles.input.color,
+                         fontSize: '10px',
+                         cursor: 'pointer',
+                         height: '24px',
+                         maxWidth: '120px',
+                         marginBottom: '4px',
+                       }}
+                       title="Select month to view revenue"
+                     />
+                  <div>
+                    <span
+                      style={{
+                        color: themeStyles.text,
+                        fontSize: 'var(--font-size-small, 12px)',
+                        fontWeight: '600',
+                      }}
+                    >
+                     Total Revenue
+                    </span>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontSize: 'var(--font-size-large, 16px)',
+                    fontWeight: '700',
+                    color: themeStyles.success,
+                  }}
+                >
+                  {isAdmin ? (
+                    `GHC ${(stats.totalRevenue || 0).toFixed(2)}`
+                  ) : (
+                    getVagueRevenue(stats.totalRevenue || 0)
+                  )}
+                </div>
+                {isAdmin && (
+                  <div
+                    style={{
+                      fontSize: 'var(--font-size-small, 12px)',
+                      color: themeStyles.textSecondary,
+                    }}
+                  >
+                    {new Date(selectedRevenueMonth + '-01').toLocaleDateString('en-US', {
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Category Analytics */}
+        {categoryAnalytics && categoryAnalytics.length > 0 && (
+          <div
+            style={{
+              ...sharedStyles.card,
+              ...themeStyles.card,
+              padding: 'var(--spacing-md, 12px)',
+              boxShadow: 'none',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-xs, 4px)',
+                marginBottom: 'var(--spacing-md, 12px)',
+              }}
+            >
+              <AiOutlinePieChart style={{ fontSize: '20px', color: themeStyles.accent }} />
+              <h3
+                style={{
+                  color: themeStyles.text,
+                  margin: 0,
+                  fontWeight: '600',
+                  fontSize: 'var(--font-size, 14px)',
+                }}
+              >
+                Category Performance (Last 30 Days)
+              </h3>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: 'var(--spacing-sm, 8px)',
+              }}
+            >
+              {categoryAnalytics.map((cat: any) => (
+                <div
+                  key={cat.categoryId}
+                  style={{
+                    padding: 'var(--spacing-sm, 8px)',
+                    borderRadius: 'var(--border-radius-sm, 4px)',
+                    background: themeStyles.input.background,
+                    border: `1px solid ${themeStyles.card.border}`,
+                  }}
+                >
+                  <div style={{ fontWeight: '600', color: themeStyles.text, marginBottom: '4px' }}>
+                    {cat.categoryName}
+                  </div>
+                  <div style={{ fontSize: '12px', color: themeStyles.textSecondary }}>
+                    <div>Jobs: {cat.totalJobs}</div>
+                    <div>Completed: {cat.completedJobs}</div>
+                    <div
+                      style={{ marginTop: '4px', fontWeight: '600', color: themeStyles.success }}
+                    >
+                      {isAdmin ? (
+                        `Revenue: GHC ${cat.paidRevenue.toFixed(2)}`
+                      ) : (
+                        `Performance: ${getVagueRevenue(cat.paidRevenue)}`
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Payment Analytics */}
+        {(paymentAnalytics && isAdmin) && (
+          <div
+            style={{
+              ...sharedStyles.card,
+              ...themeStyles.card,
+              padding: 'var(--spacing-md, 12px)',
+              boxShadow: 'none',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-xs, 4px)',
+                marginBottom: 'var(--spacing-md, 12px)',
+              }}
+            >
+              <AiOutlineDollar style={{ fontSize: '20px', color: themeStyles.accent }} />
+              <h3
+                style={{
+                  color: themeStyles.text,
+                  margin: 0,
+                  fontWeight: '600',
+                  fontSize: 'var(--font-size, 14px)',
+                }}
+              >
+                Payment Overview (Last 30 Days)
+              </h3>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: 'var(--spacing-sm, 8px)',
+                marginBottom: 'var(--spacing-md, 12px)',
+              }}
+            >
+              <div
+                style={{
+                  padding: 'var(--spacing-sm, 8px)',
+                  borderRadius: 'var(--border-radius-sm, 4px)',
+                  background: `${themeStyles.success}15`,
+                  border: `1px solid ${themeStyles.success}`,
+                }}
+              >
+                <div style={{ fontSize: '12px', color: themeStyles.textSecondary }}>Paid</div>
+                <div style={{ fontWeight: '600', color: themeStyles.text }}>
+                  {paymentAnalytics.paymentStats.paid.count} jobs
+                </div>
+                <div
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    color: themeStyles.success,
+                    marginTop: '4px',
+                  }}
+                >
+                  {isAdmin ? (
+                    `GHC ${paymentAnalytics.paymentStats.paid.revenue.toFixed(2)}`
+                  ) : (
+                    getVagueRevenue(paymentAnalytics.paymentStats.paid.revenue)
+                  )}
+                </div>
+              </div>
+              <div
+                style={{
+                  padding: 'var(--spacing-sm, 8px)',
+                  borderRadius: 'var(--border-radius-sm, 4px)',
+                  background: `${themeStyles.warning}15`,
+                  border: `1px solid ${themeStyles.warning}`,
+                }}
+              >
+                <div style={{ fontSize: '12px', color: themeStyles.textSecondary }}>Pending</div>
+                <div style={{ fontWeight: '600', color: themeStyles.text }}>
+                  {paymentAnalytics.paymentStats.pending.count} jobs
+                </div>
+                <div
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    color: themeStyles.warning,
+                    marginTop: '4px',
+                  }}
+                >
+                  {isAdmin ? (
+                    `GHC ${paymentAnalytics.paymentStats.pending.revenue.toFixed(2)}`
+                  ) : (
+                    getVagueRevenue(paymentAnalytics.paymentStats.pending.revenue)
+                  )}
+                </div>
+              </div>
+              <div
+                style={{
+                  padding: 'var(--spacing-sm, 8px)',
+                  borderRadius: 'var(--border-radius-sm, 4px)',
+                  background: `${themeStyles.error}15`,
+                  border: `1px solid ${themeStyles.error}`,
+                }}
+              >
+                <div style={{ fontSize: '12px', color: themeStyles.textSecondary }}>Failed</div>
+                <div style={{ fontWeight: '600', color: themeStyles.text }}>
+                  {paymentAnalytics.paymentStats.failed.count} jobs
+                </div>
+                <div
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    color: themeStyles.error,
+                    marginTop: '4px',
+                  }}
+                >
+                  {isAdmin ? (
+                    `GHC ${paymentAnalytics.paymentStats.failed.revenue.toFixed(2)}`
+                  ) : (
+                    getVagueRevenue(paymentAnalytics.paymentStats.failed.revenue)
+                  )}
+                </div>
+              </div>
+            </div>
+            {isAdmin && (
+              <div
+                style={{
+                  padding: 'var(--spacing-sm, 8px)',
+                  borderRadius: 'var(--border-radius-sm, 4px)',
+                  background: themeStyles.input.background,
+                  border: `1px solid ${themeStyles.card.border}`,
+                }}
+              >
+                <div
+                  style={{ fontSize: '12px', color: themeStyles.textSecondary, marginBottom: '4px' }}
+                >
+                  Total Revenue (Last 7 Days)
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--spacing-sm, 8px)', flexWrap: 'wrap' }}>
+                  {paymentAnalytics.dailyRevenue.map((day: any) => (
+                    <div
+                      key={day.date}
+                      style={{
+                        flex: 1,
+                        minWidth: '80px',
+                        padding: 'var(--spacing-xs, 4px)',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <div style={{ fontSize: '10px', color: themeStyles.textSecondary }}>
+                        {new Date(day.date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </div>
+                      <div style={{ fontSize: '12px', fontWeight: '600', color: themeStyles.text }}>
+                        GHC {day.revenue.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '10px', color: themeStyles.textSecondary }}>
+                        {day.count} jobs
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -447,7 +788,7 @@ export default function DashboardPage() {
                     Activity Calendar
                   </h3>
                   <p style={{ color: themeStyles.textSecondary, margin: 0, fontSize: '12px' }}>
-                    {calendarDateRange || 'Job count by date'}
+                    {calendarMonthHeader || 'Job count by date'}
                   </p>
                 </div>
               </div>
@@ -540,6 +881,30 @@ export default function DashboardPage() {
                 </button>
               </div>
             </div>
+            {/* Weekday Headers */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                gap: 'var(--spacing-sm, 8px)',
+                marginBottom: 'var(--spacing-xs, 4px)',
+              }}
+            >
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <div
+                  key={day}
+                  style={{
+                    textAlign: 'center',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    color: themeStyles.textSecondary,
+                    padding: '4px',
+                  }}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
             <div
               style={{
                 display: 'grid',
@@ -547,9 +912,13 @@ export default function DashboardPage() {
                 gap: 'var(--spacing-sm, 8px)',
               }}
             >
+              {/* Empty cells for days before the first day of the month */}
+              {Array.from({ length: calendarGridStart }).map((_, index) => (
+                <div key={`empty-${index}`} />
+              ))}
               {calendarDates.map((date, index) => {
                 const dateStr = date.toISOString().split('T')[0];
-                const dayJobCount = weeklyCountMap.get(dateStr) || 0;
+                const dayJobCount = monthlyCountMap.get(dateStr) || 0;
                 const isToday = dateStr === new Date().toISOString().split('T')[0];
                 const isSelected = dateStr === selectedDate;
 
@@ -726,13 +1095,38 @@ export default function DashboardPage() {
                         clientName: extractedClientName,
                       });
 
+                      // Fetch comprehensive report for enhanced data
+                      let comprehensiveData = null;
+                      try {
+                        const reportData = await electronAPI.dashboard.getComprehensiveReport(
+                          selectedDate,
+                          selectedDate
+                        );
+                        comprehensiveData = reportData;
+                      } catch (err) {
+                        console.warn(
+                          'Could not fetch comprehensive report, using basic data:',
+                          err
+                        );
+                      }
+
                       await generateJobOrderPDF({
                         date: formattedDate,
                         jobs: jobsByDate,
-                        companyName: '', // Can be added later
+                        businessName: user?.businessName || '',
+                        companyName: user?.businessName || '',
                         clientName: extractedClientName,
                         material: 'Flexi', // Default material
                         jobOrderNo: jobOrderNo,
+                        businessInfo: comprehensiveData?.businessInfo || {
+                          businessName: user?.businessName,
+                          businessPhone: user?.businessPhone,
+                          location: user?.location,
+                          email: user?.email,
+                          name: user?.name,
+                        },
+                        categoryBreakdown: comprehensiveData?.categoryBreakdown,
+                        summary: comprehensiveData?.summary,
                       });
 
                       console.log('PDF generation initiated');
@@ -875,9 +1269,9 @@ export default function DashboardPage() {
 }
 
 interface StatCardProps {
-  icon: React.ReactNode;
+  icon: React.ReactNode | string;
   title: string;
-  value: number;
+  value: number | string;
   color: string;
   themeStyles: any;
   description?: string;

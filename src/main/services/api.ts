@@ -12,8 +12,8 @@ import type { Category } from '../../shared/types/ipc.types';
 //     : 'https://piper-server-prototype-ts.onrender.com/api'
 // );
 
-const API_BASE_URL = 'https://piper-server-api-production.up.railway.app/api';
-// const API_BASE_URL_LOCAL = 'http://localhost:3000/api';
+// const API_BASE_URL = 'https://piper-server-api-production.up.railway.app/api';
+const API_BASE_URL = 'http://localhost:3000/api';
 
 class ApiService {
   private axiosInstance: AxiosInstance;
@@ -364,8 +364,10 @@ class ApiService {
   }
 
   // Print Jobs
-  async getJobs(): Promise<PrintJob[]> {
-    const response = await this.axiosInstance.get('/print/jobs');
+  async getJobs(limit?: number): Promise<PrintJob[]> {
+    // Request a high limit to get all jobs (default to 1000 if not specified)
+    const params = limit ? { limit } : { limit: 1000 };
+    const response = await this.axiosInstance.get('/print/jobs', { params });
     return response.data.data;
   }
 
@@ -668,25 +670,35 @@ class ApiService {
   }
 
   // Dashboard
-  async getDashboardStats(date?: string): Promise<{
+  async getDashboardStats(date?: string, month?: string, year?: string): Promise<{
     todaysJobs: number;
     completedJobs: number;
     pendingJobs: number;
     failedJobs: number;
     totalJobs: number;
+    totalRevenue?: number;
+    pendingRevenue?: number;
+    paidJobs?: number;
+    revenueMonth?: string;
   }> {
-    const params = date ? { date } : {};
+    const params: any = {};
+    if (date) params.date = date;
+    if (month) params.month = month;
+    if (year) params.year = year;
     const response = await this.axiosInstance.get('/dashboard/stats', { params });
     return response.data.data;
   }
 
-  async getWeeklyActivity(): Promise<
+  async getWeeklyActivity(month?: string, year?: string): Promise<
     Array<{
       date: string;
       count: number;
     }>
   > {
-    const response = await this.axiosInstance.get('/dashboard/weekly');
+    const params: any = {};
+    if (month) params.month = month;
+    if (year) params.year = year;
+    const response = await this.axiosInstance.get('/dashboard/weekly', { params });
     return response.data.data;
   }
 
@@ -694,6 +706,26 @@ class ApiService {
     const response = await this.axiosInstance.get('/dashboard/jobs-by-date', {
       params: { date },
     });
+    return response.data.data;
+  }
+
+  async getCategoryAnalytics(days?: number): Promise<any> {
+    const params = days ? { days } : {};
+    const response = await this.axiosInstance.get('/dashboard/category-analytics', { params });
+    return response.data.data;
+  }
+
+  async getPaymentAnalytics(days?: number): Promise<any> {
+    const params = days ? { days } : {};
+    const response = await this.axiosInstance.get('/dashboard/payment-analytics', { params });
+    return response.data.data;
+  }
+
+  async getComprehensiveReport(startDate?: string, endDate?: string): Promise<any> {
+    const params: any = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await this.axiosInstance.get('/dashboard/comprehensive-report', { params });
     return response.data.data;
   }
 
@@ -758,7 +790,14 @@ class ApiService {
     } catch (error: unknown) {
       const err = error as {
         message?: string;
-        response?: { data?: { message?: string }; status?: number };
+        response?: { 
+          data?: { 
+            message?: string; 
+            hasSetPaymentMethod?: boolean;
+            success?: boolean;
+          }; 
+          status?: number;
+        };
       };
       console.error('Create category API Error:', {
         message: err.message,
@@ -769,6 +808,13 @@ class ApiService {
 
       if (err.response?.status === 401) {
         throw new Error('Authentication failed. Please log in again.');
+      }
+
+      // Check if payment method is not set
+      if (err.response?.data?.hasSetPaymentMethod === false) {
+        const paymentError = new Error(err.response?.data?.message || 'Payment method not set');
+        (paymentError as any).hasSetPaymentMethod = false;
+        throw paymentError;
       }
 
       throw new Error(err.response?.data?.message || err.message || 'Failed to create category');

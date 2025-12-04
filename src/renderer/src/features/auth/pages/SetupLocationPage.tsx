@@ -130,6 +130,11 @@ export default function SetupLocationPage() {
   const [mapZoom, setMapZoom] = useState<number>(13);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Manual coordinate inputs
+  const [manualLatitude, setManualLatitude] = useState<string>('');
+  const [manualLongitude, setManualLongitude] = useState<string>('');
+  const [coordinateError, setCoordinateError] = useState<string | null>(null);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
@@ -326,11 +331,23 @@ export default function SetupLocationPage() {
         const defaultAddr = await reverseGeocode(defaultCoords[0], defaultCoords[1]);
         setPosition(defaultCoords);
         setAddress(defaultAddr);
+        // Initialize manual inputs with default coordinates
+        setManualLatitude(defaultCoords[0].toString());
+        setManualLongitude(defaultCoords[1].toString());
       }
     };
 
     initializeDefaultLocation();
   }, []); // Only run once on mount
+
+  // Update manual inputs when position changes (from map click, search, etc.)
+  useEffect(() => {
+    if (position) {
+      setManualLatitude(position[0].toFixed(6));
+      setManualLongitude(position[1].toFixed(6));
+      setCoordinateError(null);
+    }
+  }, [position]);
 
   // Handle search query changes with debouncing
   useEffect(() => {
@@ -381,6 +398,48 @@ export default function SetupLocationPage() {
     },
     [setLocationWithLogging]
   );
+
+  // Handle manual coordinate input
+  const handleManualCoordinateSubmit = useCallback(async () => {
+    setCoordinateError(null);
+
+    // Validate inputs
+    const lat = parseFloat(manualLatitude);
+    const lng = parseFloat(manualLongitude);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      setCoordinateError('Please enter valid numbers for both latitude and longitude');
+      return;
+    }
+
+    // Validate coordinate ranges
+    if (lat < -90 || lat > 90) {
+      setCoordinateError('Latitude must be between -90 and 90');
+      return;
+    }
+
+    if (lng < -180 || lng > 180) {
+      setCoordinateError('Longitude must be between -180 and 180');
+      return;
+    }
+
+    try {
+      setIsLoadingLocation(true);
+      const newPosition: [number, number] = [lat, lng];
+      const addr = await reverseGeocode(lat, lng);
+      
+      setPosition(newPosition);
+      setAddress(addr);
+      setLocationWithLogging(lat, lng, addr, 'manual_input');
+      setMapZoom(15); // Zoom in for better visibility
+      setCoordinateError(null);
+    } catch (error) {
+      console.error('Error setting manual coordinates:', error);
+      setCoordinateError('Failed to set location. Please check your coordinates and try again.');
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  }, [manualLatitude, manualLongitude, reverseGeocode, setLocationWithLogging]);
 
   const handleSave = async () => {
     if (!position) {
@@ -569,7 +628,7 @@ export default function SetupLocationPage() {
         </div>
 
         {/* Search Input */}
-        <div ref={searchContainerRef}>
+        <div ref={searchContainerRef} style={{ position: 'relative' }}>
           <input
             ref={searchInputRef}
             type="text"
@@ -704,6 +763,162 @@ export default function SetupLocationPage() {
               </div>
             )}
         </div>
+
+        {/* Manual Coordinate Inputs */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'flex-start',
+            marginTop: '12px',
+          }}
+        >
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label
+              style={{
+                fontSize: '12px',
+                fontWeight: '500',
+                color: themeStyles.textSecondary,
+              }}
+            >
+              Latitude
+            </label>
+            <input
+              type="number"
+              step="any"
+              value={manualLatitude}
+              onChange={(e) => {
+                setManualLatitude(e.target.value);
+                setCoordinateError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleManualCoordinateSubmit();
+                }
+              }}
+              placeholder="e.g., 5.6037"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: themeStyles.input?.background || themeStyles.card.background,
+                color: themeStyles.text,
+                border: coordinateError
+                  ? `1px solid ${themeStyles.error}`
+                  : `1px solid ${themeStyles.card.border}`,
+                borderRadius: '6px',
+                fontSize: '14px',
+                outline: 'none',
+                transition: 'border-color 0.2s ease',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = themeStyles.accent;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = coordinateError
+                  ? themeStyles.error
+                  : themeStyles.card.border;
+              }}
+            />
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label
+              style={{
+                fontSize: '12px',
+                fontWeight: '500',
+                color: themeStyles.textSecondary,
+              }}
+            >
+              Longitude
+            </label>
+            <input
+              type="number"
+              step="any"
+              value={manualLongitude}
+              onChange={(e) => {
+                setManualLongitude(e.target.value);
+                setCoordinateError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleManualCoordinateSubmit();
+                }
+              }}
+              placeholder="e.g., -0.1870"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: themeStyles.input?.background || themeStyles.card.background,
+                color: themeStyles.text,
+                border: coordinateError
+                  ? `1px solid ${themeStyles.error}`
+                  : `1px solid ${themeStyles.card.border}`,
+                borderRadius: '6px',
+                fontSize: '14px',
+                outline: 'none',
+                transition: 'border-color 0.2s ease',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = themeStyles.accent;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = coordinateError
+                  ? themeStyles.error
+                  : themeStyles.card.border;
+              }}
+            />
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <label
+              style={{
+                fontSize: '12px',
+                fontWeight: '500',
+                color: 'transparent', // Invisible label for alignment
+              }}
+            >
+              Apply
+            </label>
+            <button
+              onClick={handleManualCoordinateSubmit}
+              disabled={isLoadingLocation || !manualLatitude || !manualLongitude}
+              style={{
+                padding: '10px 20px',
+                background: themeStyles.button?.background || themeStyles.card.background,
+                color: themeStyles.text,
+                border: themeStyles.card.border,
+                borderRadius: '6px',
+                fontWeight: '600',
+                cursor: isLoadingLocation || !manualLatitude || !manualLongitude ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                opacity: isLoadingLocation || !manualLatitude || !manualLongitude ? 0.6 : 1,
+                transition: 'opacity 0.2s ease',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+        {coordinateError && (
+          <div
+            style={{
+              marginTop: '8px',
+              padding: '8px 12px',
+              background: themeStyles.error + '20',
+              color: themeStyles.error,
+              borderRadius: '6px',
+              fontSize: '12px',
+            }}
+          >
+            {coordinateError}
+          </div>
+        )}
       </div>
 
       {/* Map Container */}
