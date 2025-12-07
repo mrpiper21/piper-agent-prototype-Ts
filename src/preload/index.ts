@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { IpcApi } from '../shared/types/ipc.types';
+import type { IpcApi, WhatsAppStatus } from '../shared/types/ipc.types';
 
 const electronAPI: IpcApi = {
   auth: {
@@ -67,12 +67,17 @@ const electronAPI: IpcApi = {
     getComparison: () => ipcRenderer.invoke('analytics:getComparison'),
   },
   dashboard: {
-    getStats: (date?: string, month?: string, year?: string) => ipcRenderer.invoke('dashboard:getStats', date, month, year),
-    getWeeklyActivity: (month?: string, year?: string) => ipcRenderer.invoke('dashboard:getWeeklyActivity', month, year),
+    getStats: (date?: string, month?: string, year?: string) =>
+      ipcRenderer.invoke('dashboard:getStats', date, month, year),
+    getWeeklyActivity: (month?: string, year?: string) =>
+      ipcRenderer.invoke('dashboard:getWeeklyActivity', month, year),
     getJobsByDate: (date: string) => ipcRenderer.invoke('dashboard:getJobsByDate', date),
-    getCategoryAnalytics: (days?: number) => ipcRenderer.invoke('dashboard:getCategoryAnalytics', days),
-    getPaymentAnalytics: (days?: number) => ipcRenderer.invoke('dashboard:getPaymentAnalytics', days),
-    getComprehensiveReport: (startDate?: string, endDate?: string) => ipcRenderer.invoke('dashboard:getComprehensiveReport', startDate, endDate),
+    getCategoryAnalytics: (days?: number) =>
+      ipcRenderer.invoke('dashboard:getCategoryAnalytics', days),
+    getPaymentAnalytics: (days?: number) =>
+      ipcRenderer.invoke('dashboard:getPaymentAnalytics', days),
+    getComprehensiveReport: (startDate?: string, endDate?: string) =>
+      ipcRenderer.invoke('dashboard:getComprehensiveReport', startDate, endDate),
   },
   health: {
     check: () => ipcRenderer.invoke('health:check'),
@@ -85,6 +90,52 @@ const electronAPI: IpcApi = {
     create: (data) => ipcRenderer.invoke('categories:create', data),
     update: (id: string, data) => ipcRenderer.invoke('categories:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('categories:delete', id),
+  },
+  whatsapp: {
+    initialize: () => ipcRenderer.invoke('whatsapp:initialize'),
+    getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
+    disconnect: () => ipcRenderer.invoke('whatsapp:disconnect'),
+    logout: () => ipcRenderer.invoke('whatsapp:logout'),
+    getLocalMessages: () => ipcRenderer.invoke('whatsapp:getLocalMessages'),
+    sendMessage: (chatId: string, text: string) =>
+      ipcRenderer.invoke('whatsapp:sendMessage', chatId, text),
+    sendFile: (chatId: string, filePath: string, caption?: string) =>
+      ipcRenderer.invoke('whatsapp:sendFile', chatId, filePath, caption),
+    createQuote: (jobId: string, quoteData: any) =>
+      ipcRenderer.invoke('whatsapp:createQuote', jobId, quoteData),
+    downloadMedia: (contact: string, messageId: string) =>
+      ipcRenderer.invoke('whatsapp:downloadMedia', contact, messageId),
+    markJobCompleted: (jobId: string, options: any) =>
+      ipcRenderer.invoke('whatsapp:markJobCompleted', jobId, options),
+    handlePaymentWebhook: (paymentData: any) =>
+      ipcRenderer.invoke('whatsapp:handlePaymentWebhook', paymentData),
+    onQR: (callback: (qr: string) => void) => {
+      ipcRenderer.on('whatsapp-qr', (_event, qr: string) => callback(qr));
+      return () => ipcRenderer.removeAllListeners('whatsapp-qr');
+    },
+    onStatus: (callback: (status: WhatsAppStatus) => void) => {
+      ipcRenderer.on('whatsapp-status', (_event, status: WhatsAppStatus) => callback(status));
+      return () => ipcRenderer.removeAllListeners('whatsapp-status');
+    },
+    onMessage: (callback: (message: any) => void) => {
+      ipcRenderer.on('whatsapp-message', (_event, message: any) => callback(message));
+      return () => ipcRenderer.removeAllListeners('whatsapp-message');
+    },
+    onError: (callback: (error: string) => void) => {
+      ipcRenderer.on('whatsapp-error', (_event, error: string) => callback(error));
+      return () => ipcRenderer.removeAllListeners('whatsapp-error');
+    },
+    onHistoryLoaded: (callback: (data: { count: number }) => void) => {
+      ipcRenderer.on('whatsapp-message-history-loaded', (_event, data: { count: number }) => callback(data));
+      return () => ipcRenderer.removeAllListeners('whatsapp-message-history-loaded');
+    },
+  },
+  shell: {
+    openPath: (filePath: string) => ipcRenderer.invoke('shell:openPath', filePath),
+    showItemInFolder: (filePath: string) => ipcRenderer.invoke('shell:showItemInFolder', filePath),
+  },
+  dialog: {
+    showOpenDialog: (options: any) => ipcRenderer.invoke('dialog:showOpenDialog', options),
   },
 };
 

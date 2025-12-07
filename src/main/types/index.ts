@@ -9,8 +9,20 @@ export interface PrintJob {
   filePath?: string;
   fileType: string;
   printerName: string;
+  description?: string;
   agentId?: string;
-  status: 'pending' | 'queued' | 'processing' | 'printing' | 'completed' | 'failed' | 'cancelled';
+  status:
+    | 'pending'
+    | 'queued'
+    | 'processing'
+    | 'printing'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+    | 'needs_quote'
+    | 'quote_sent'
+    | 'awaiting_payment'
+    | 'payment_received';
   submittedBy?: string;
   submittedAt: string;
   startedAt?: string;
@@ -24,6 +36,29 @@ export interface PrintJob {
     paperSize?: string;
     duplex?: boolean;
     pages?: number;
+    // WhatsApp-specific fields
+    whatsappContact?: string;
+    whatsappMessageId?: string;
+    notes?: string;
+    conversationStatus?: 'needs_quote' | 'quote_sent' | 'payment_received' | 'completed';
+    attachedFiles?: Array<{
+      filePath: string;
+      fileName: string;
+      fileType: string;
+      messageId?: string;
+    }>;
+    orderDescription?: string;
+    quantity?: string;
+    specifications?: string;
+    price?: number;
+    internalNotes?: string;
+    paymentLink?: string;
+    paymentVerified?: boolean;
+    paymentReference?: string;
+    paymentAmount?: number;
+    quoteReference?: string;
+    binding?: boolean;
+    total?: number;
   };
 }
 

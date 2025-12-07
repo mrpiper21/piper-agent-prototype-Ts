@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { IpcApi } from '../shared/types/ipc.types';
+import type { IpcApi, WhatsAppStatus } from '../shared/types/ipc.types';
 
-const electronAPI: IpcApi = {
+const electronAPI = {
   auth: {
     login: (credentials) => ipcRenderer.invoke('auth:login', credentials),
     logout: () => ipcRenderer.invoke('auth:logout'),
@@ -65,9 +65,17 @@ const electronAPI: IpcApi = {
     getComparison: () => ipcRenderer.invoke('analytics:getComparison'),
   },
   dashboard: {
-    getStats: (date?: string) => ipcRenderer.invoke('dashboard:getStats', date),
-    getWeeklyActivity: () => ipcRenderer.invoke('dashboard:getWeeklyActivity'),
+    getStats: (date?: string, month?: string, year?: string) =>
+      ipcRenderer.invoke('dashboard:getStats', date, month, year),
+    getWeeklyActivity: (month?: string, year?: string) =>
+      ipcRenderer.invoke('dashboard:getWeeklyActivity', month, year),
     getJobsByDate: (date: string) => ipcRenderer.invoke('dashboard:getJobsByDate', date),
+    getCategoryAnalytics: (days?: number) =>
+      ipcRenderer.invoke('dashboard:getCategoryAnalytics', days),
+    getPaymentAnalytics: (days?: number) =>
+      ipcRenderer.invoke('dashboard:getPaymentAnalytics', days),
+    getComprehensiveReport: (startDate?: string, endDate?: string) =>
+      ipcRenderer.invoke('dashboard:getComprehensiveReport', startDate, endDate),
   },
   health: {
     check: () => ipcRenderer.invoke('health:check'),
@@ -81,6 +89,28 @@ const electronAPI: IpcApi = {
     update: (id: string, data) => ipcRenderer.invoke('categories:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('categories:delete', id),
   },
-};
+  whatsapp: {
+    initialize: () => ipcRenderer.invoke('whatsapp:initialize'),
+    getStatus: () => ipcRenderer.invoke('whatsapp:getStatus'),
+    disconnect: () => ipcRenderer.invoke('whatsapp:disconnect'),
+    logout: () => ipcRenderer.invoke('whatsapp:logout'),
+    onQR: (callback: (qr: string) => void) => {
+      ipcRenderer.on('whatsapp-qr', (_event, qr: string) => callback(qr));
+      return () => ipcRenderer.removeAllListeners('whatsapp-qr');
+    },
+    onStatus: (callback: (status: WhatsAppStatus) => void) => {
+      ipcRenderer.on('whatsapp-status', (_event, status: WhatsAppStatus) => callback(status));
+      return () => ipcRenderer.removeAllListeners('whatsapp-status');
+    },
+    onMessage: (callback: (message: any) => void) => {
+      ipcRenderer.on('whatsapp-message', (_event, message: any) => callback(message));
+      return () => ipcRenderer.removeAllListeners('whatsapp-message');
+    },
+    onError: (callback: (error: string) => void) => {
+      ipcRenderer.on('whatsapp-error', (_event, error: string) => callback(error));
+      return () => ipcRenderer.removeAllListeners('whatsapp-error');
+    },
+  },
+} as IpcApi;
 
 contextBridge.exposeInMainWorld('electron', electronAPI);

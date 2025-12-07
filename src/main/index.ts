@@ -5,6 +5,7 @@ import { setupIpcHandlers } from './ipc/handlers';
 import { logger } from './utils/logger';
 import { dbService } from './services/DatabaseService';
 import { updateService } from './services/UpdateService';
+import { whatsappService } from './services/WhatsAppService';
 import fs from 'fs';
 
 try {
@@ -141,6 +142,11 @@ app.whenReady().then(() => {
         // Continue - updates are not critical
       }
     }
+
+    // Initialize WhatsApp service (non-critical - can be started manually via UI)
+    // Don't auto-start to avoid blocking app startup
+    // Users can start it manually from the UI
+    logger.info('WhatsApp service available (initialize via UI)');
   } catch (error) {
     logger.error('Failed to initialize application:', error);
     // Show error dialog
@@ -186,5 +192,11 @@ app.on('activate', () => {
 app.on('before-quit', () => {
   logger.info('Application shutting down...');
   updateService.stopPeriodicUpdateChecks();
+  
+  // Disconnect WhatsApp service gracefully
+  whatsappService.disconnect().catch((error) => {
+    logger.warn('Error disconnecting WhatsApp service during shutdown:', error);
+  });
+  
   dbService.close();
 });

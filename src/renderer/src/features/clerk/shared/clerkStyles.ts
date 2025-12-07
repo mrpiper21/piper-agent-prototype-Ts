@@ -25,8 +25,11 @@ export const lightStyles = {
   },
   input: { background: '#ffffff', color: '#000000', border: '1px solid #e1e1e1' },
   primaryButton: { background: '#fbbf24', color: '#000000' },
+  accentButton: { background: '#fbbf24', color: '#000000' },
   dangerButton: { background: '#ef4444', color: '#ffffff' },
   activeNav: { background: '#fbbf24' },
+  errorBackground: { background: 'rgba(239, 68, 68, 0.1)' },
+  errorText: { color: '#ef4444' },
   taskBar: {
     background: '#f8f9fa',
     borderColor: '#e1e1e1',
@@ -60,8 +63,11 @@ export const darkStyles = {
   },
   input: { background: '#333333', color: '#f5f5f5', border: '1px solid #404040' },
   primaryButton: { background: '#fbbf24', color: '#000000' },
+  accentButton: { background: '#fbbf24', color: '#000000' },
   dangerButton: { background: '#ef4444', color: '#ffffff' },
   activeNav: { background: '#fbbf24' },
+  errorBackground: { background: 'rgba(239, 68, 68, 0.1)' },
+  errorText: { color: '#ef4444' },
   taskBar: {
     background: '#1a1a1a',
     borderColor: '#404040',

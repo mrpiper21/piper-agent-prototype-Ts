@@ -3,6 +3,7 @@ import { lightStyles, darkStyles } from './clerkStyles';
 import { FilePreview } from './FilePreview';
 import { JobDetails } from './JobDetails';
 import { useMemo } from 'react';
+import { AiOutlineDollar, AiOutlineFileText, AiOutlineInfoCircle } from 'react-icons/ai';
 
 interface JobPreviewProps {
   job: any;
@@ -52,6 +53,31 @@ export function JobPreview({ job, onClose }: JobPreviewProps) {
     return null;
   }, [job.clientId]);
 
+  // Check if this is a quotation job
+  const isQuotation = useMemo(() => job.isQuotation === true, [job.isQuotation]);
+
+  // Get payment status color
+  const getPaymentStatusColor = (paymentStatus: string) => {
+    switch (paymentStatus?.toLowerCase()) {
+      case 'paid':
+        return '#22c55e';
+      case 'pending':
+        return '#f59e0b';
+      case 'failed':
+        return '#ef4444';
+      case 'refunded':
+        return '#6b7280';
+      default:
+        return themeStyles.textSecondary;
+    }
+  };
+
+  // Format payment status text
+  const formatPaymentStatus = (paymentStatus: string) => {
+    if (!paymentStatus) return 'Pending';
+    return paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1).toLowerCase();
+  };
+
   // Determine what to show based on category type
   const isResultChecker = categoryType === 'wassce_result' || categoryType === 'bece_result' || categoryType === 'novdec_result';
   const isFormatCategory = categoryType === 'large_format' || categoryType === 'regular_format';
@@ -85,15 +111,34 @@ export function JobPreview({ job, onClose }: JobPreviewProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <h2
             style={{
-              color: '#fbbf24',
+              color: isQuotation ? '#3b82f6' : '#fbbf24',
               fontWeight: '600',
               fontSize: 'var(--font-size-large, 16px)',
               margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
             }}
           >
-            Job Preview
+            {isQuotation && <AiOutlineDollar style={{ fontSize: '18px' }} />}
+            {isQuotation ? 'Quote Preview' : 'Job Preview'}
           </h2>
-          {categoryType && (
+          {isQuotation ? (
+            <span
+              style={{
+                color: '#3b82f6',
+                fontSize: 'var(--font-size-small, 12px)',
+                fontWeight: '600',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: 'rgba(59, 130, 246, 0.15)',
+                display: 'inline-block',
+                width: 'fit-content',
+              }}
+            >
+              QUOTATION
+            </span>
+          ) : categoryType ? (
             <span
               style={{
                 color: themeStyles.textSecondary,
@@ -103,7 +148,7 @@ export function JobPreview({ job, onClose }: JobPreviewProps) {
             >
               {formatCategoryType(categoryType)}
             </span>
-          )}
+          ) : null}
         </div>
         <button
           onClick={(e) => {
@@ -143,13 +188,13 @@ export function JobPreview({ job, onClose }: JobPreviewProps) {
           flex: 1,
           overflow: 'auto',
           display: 'flex',
-          flexDirection: isResultChecker ? 'column' : 'row',
+          flexDirection: isQuotation || isResultChecker ? 'column' : 'row',
           gap: 'var(--spacing-md, 12px)',
           padding: 'var(--spacing-md, 12px)',
         }}
       >
-        {/* File Preview Section - Only show for format categories or if file exists */}
-        {(isFormatCategory || hasFile) && (
+        {/* File Preview Section - Only show for format categories or if file exists, NOT for quotations */}
+        {!isQuotation && (isFormatCategory || hasFile) && (
           <div
             style={{
               flex: isResultChecker ? 'none' : '1 1 60%',
@@ -167,18 +212,383 @@ export function JobPreview({ job, onClose }: JobPreviewProps) {
           </div>
         )}
 
-        {/* Right Side - Job Details */}
+        {/* Right Side - Job Details / Quotation Details */}
         <div
           style={{
-            flex: isResultChecker ? 'none' : '0 0 40%',
+            flex: isQuotation || isResultChecker ? 'none' : '0 0 40%',
             minWidth: '300px',
-            maxWidth: isResultChecker ? '100%' : '500px',
+            maxWidth: isQuotation || isResultChecker ? '100%' : '500px',
             overflow: 'auto',
             display: 'flex',
             flexDirection: 'column',
             gap: 'var(--spacing-md, 12px)',
           }}
         >
+          {/* Quotation Job Section */}
+          {isQuotation && (
+            <>
+              {/* Order Description */}
+              {job.orderDescription && (
+                <div
+                  style={{
+                    padding: 'var(--spacing-md, 12px)',
+                    background:
+                      theme === 'dark' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(59, 130, 246, 0.12)',
+                    border: '2px solid #3b82f6',
+                    borderRadius: 'var(--border-radius-md, 6px)',
+                    borderLeft: '4px solid #3b82f6',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--spacing-sm, 8px)',
+                      marginBottom: 'var(--spacing-sm, 8px)',
+                    }}
+                  >
+                    <AiOutlineFileText
+                      style={{
+                        fontSize: 'var(--icon-size-lg, 20px)',
+                        color: '#3b82f6',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <h3
+                      style={{
+                        color: '#3b82f6',
+                        fontSize: 'var(--font-size, 14px)',
+                        fontWeight: '600',
+                        margin: 0,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}
+                    >
+                      Order Description
+                    </h3>
+                  </div>
+                  <p
+                    style={{
+                      color: themeStyles.text,
+                      fontSize: 'var(--font-size, 14px)',
+                      margin: 0,
+                      lineHeight: '1.6',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {job.orderDescription}
+                  </p>
+                </div>
+              )}
+
+              {/* Specifications */}
+              {job.specifications && (
+                <div
+                  style={{
+                    padding: 'var(--spacing-md, 12px)',
+                    background:
+                      theme === 'dark' ? 'rgba(251, 191, 36, 0.08)' : 'rgba(251, 191, 36, 0.12)',
+                    border: `2px solid ${themeStyles.accent}`,
+                    borderRadius: 'var(--border-radius-md, 6px)',
+                    borderLeft: `4px solid ${themeStyles.accent}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--spacing-sm, 8px)',
+                      marginBottom: 'var(--spacing-sm, 8px)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 'var(--icon-size-lg, 20px)',
+                        color: themeStyles.accent,
+                        flexShrink: 0,
+                      }}
+                    >
+                      📋
+                    </span>
+                    <h3
+                      style={{
+                        color: themeStyles.accent,
+                        fontSize: 'var(--font-size, 14px)',
+                        fontWeight: '600',
+                        margin: 0,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}
+                    >
+                      Specifications
+                    </h3>
+                  </div>
+                  <p
+                    style={{
+                      color: themeStyles.text,
+                      fontSize: 'var(--font-size, 14px)',
+                      margin: 0,
+                      lineHeight: '1.6',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {job.specifications}
+                  </p>
+                </div>
+              )}
+
+              {/* Quantity and Total Price */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 'var(--spacing-md, 12px)',
+                  flexWrap: 'wrap',
+                }}
+              >
+                {/* Quantity */}
+                {job.quantity && (
+                  <div
+                    style={{
+                      flex: '1 1 200px',
+                      padding: 'var(--spacing-md, 12px)',
+                      background:
+                        theme === 'dark' ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.12)',
+                      border: '2px solid #8b5cf6',
+                      borderRadius: 'var(--border-radius-md, 6px)',
+                      borderLeft: '4px solid #8b5cf6',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--spacing-sm, 8px)',
+                        marginBottom: 'var(--spacing-sm, 8px)',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 'var(--icon-size-lg, 20px)',
+                          color: '#8b5cf6',
+                          flexShrink: 0,
+                        }}
+                      >
+                        📄
+                      </span>
+                      <h3
+                        style={{
+                          color: '#8b5cf6',
+                          fontSize: 'var(--font-size, 14px)',
+                          fontWeight: '600',
+                          margin: 0,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                        }}
+                      >
+                        Quantity
+                      </h3>
+                    </div>
+                    <span
+                      style={{
+                        color: themeStyles.text,
+                        fontSize: 'var(--font-size-2xl, 24px)',
+                        fontWeight: '700',
+                        fontFamily: 'monospace',
+                        lineHeight: '1',
+                      }}
+                    >
+                      {job.quantity}
+                    </span>
+                  </div>
+                )}
+
+                {/* Total Price */}
+                {job.totalPrice && (
+                  <div
+                    style={{
+                      flex: '1 1 200px',
+                      padding: 'var(--spacing-md, 12px)',
+                      background:
+                        theme === 'dark' ? 'rgba(34, 197, 94, 0.08)' : 'rgba(34, 197, 94, 0.12)',
+                      border: '2px solid #22c55e',
+                      borderRadius: 'var(--border-radius-md, 6px)',
+                      borderLeft: '4px solid #22c55e',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--spacing-sm, 8px)',
+                        marginBottom: 'var(--spacing-sm, 8px)',
+                      }}
+                    >
+                      <AiOutlineDollar
+                        style={{
+                          fontSize: 'var(--icon-size-lg, 20px)',
+                          color: '#22c55e',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <h3
+                        style={{
+                          color: '#22c55e',
+                          fontSize: 'var(--font-size, 14px)',
+                          fontWeight: '600',
+                          margin: 0,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                        }}
+                      >
+                        Total Price
+                      </h3>
+                    </div>
+                    <span
+                      style={{
+                        color: themeStyles.text,
+                        fontSize: 'var(--font-size-2xl, 24px)',
+                        fontWeight: '700',
+                        fontFamily: 'monospace',
+                        lineHeight: '1',
+                      }}
+                    >
+                      ₵{Number(job.totalPrice).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Status and Reference */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 'var(--spacing-md, 12px)',
+                  flexWrap: 'wrap',
+                }}
+              >
+                {/* Payment Status */}
+                <div
+                  style={{
+                    flex: '1 1 200px',
+                    padding: 'var(--spacing-md, 12px)',
+                    background: themeStyles.card.background,
+                    border: `1px solid ${themeStyles.card.border}`,
+                    borderRadius: 'var(--border-radius-md, 6px)',
+                  }}
+                >
+                  <h3
+                    style={{
+                      color: themeStyles.text,
+                      fontSize: 'var(--font-size, 14px)',
+                      fontWeight: '600',
+                      margin: '0 0 var(--spacing-sm, 8px) 0',
+                    }}
+                  >
+                    Payment Status
+                  </h3>
+                  <span
+                    style={{
+                      color: getPaymentStatusColor(job.paymentStatus || 'pending'),
+                      fontSize: 'var(--font-size, 14px)',
+                      fontWeight: '600',
+                      padding: '4px 12px',
+                      borderRadius: '4px',
+                      background: `${getPaymentStatusColor(job.paymentStatus || 'pending')}20`,
+                      display: 'inline-block',
+                    }}
+                  >
+                    {formatPaymentStatus(job.paymentStatus || 'pending')}
+                  </span>
+                </div>
+
+                {/* Payment Reference */}
+                {job.paymentReference && (
+                  <div
+                    style={{
+                      flex: '1 1 200px',
+                      padding: 'var(--spacing-md, 12px)',
+                      background: themeStyles.card.background,
+                      border: `1px solid ${themeStyles.card.border}`,
+                      borderRadius: 'var(--border-radius-md, 6px)',
+                    }}
+                  >
+                    <h3
+                      style={{
+                        color: themeStyles.text,
+                        fontSize: 'var(--font-size, 14px)',
+                        fontWeight: '600',
+                        margin: '0 0 var(--spacing-sm, 8px) 0',
+                      }}
+                    >
+                      Payment Reference
+                    </h3>
+                    <p
+                      style={{
+                        color: themeStyles.text,
+                        fontSize: 'var(--font-size, 14px)',
+                        margin: 0,
+                        fontFamily: 'monospace',
+                        wordBreak: 'break-all',
+                      }}
+                    >
+                      {job.paymentReference}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Internal Notes */}
+              {job.internalNotes && (
+                <div
+                  style={{
+                    padding: 'var(--spacing-md, 12px)',
+                    background: themeStyles.card.background,
+                    border: `1px solid ${themeStyles.card.border}`,
+                    borderRadius: 'var(--border-radius-md, 6px)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--spacing-sm, 8px)',
+                      marginBottom: 'var(--spacing-sm, 8px)',
+                    }}
+                  >
+                    <AiOutlineInfoCircle
+                      style={{
+                        fontSize: 'var(--icon-size-lg, 20px)',
+                        color: themeStyles.textSecondary,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <h3
+                      style={{
+                        color: themeStyles.text,
+                        fontSize: 'var(--font-size, 14px)',
+                        fontWeight: '600',
+                        margin: 0,
+                      }}
+                    >
+                      Internal Notes
+                    </h3>
+                  </div>
+                  <p
+                    style={{
+                      color: themeStyles.text,
+                      fontSize: 'var(--font-size, 14px)',
+                      margin: 0,
+                      lineHeight: '1.6',
+                      whiteSpace: 'pre-wrap',
+                      fontStyle: 'italic',
+                    }}
+                  >
+                    {job.internalNotes}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
           {/* Result Checker Categories - wassce_result, bece_result, novdec_result */}
           {isResultChecker && (
             <>
