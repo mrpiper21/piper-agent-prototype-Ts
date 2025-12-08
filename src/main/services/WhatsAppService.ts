@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import { app, Notification } from 'electron';
 import { fork, ChildProcess } from 'child_process';
 import { logger } from '../utils/logger';
-import { apiService } from './api';
+import { apiService, PAYMENT_LINK_BASE_URL } from './api';
 import type { PrintJob } from '../types';
 // import { v4 as uuidv4 } from 'uuid';
 import { getMainWindow } from '../windows/MainWindow';
@@ -1159,8 +1159,6 @@ export class WhatsAppService {
     }
   ): Promise<{ success: boolean; paymentLink?: string }> {
     try {
-      const { PAYMENT_LINK_BASE_URL } = await import('./api');
-      
       let adminId: string = '';
       let categoryId: string = '';
       

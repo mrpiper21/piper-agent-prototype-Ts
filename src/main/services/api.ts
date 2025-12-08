@@ -5,17 +5,11 @@ import { app } from 'electron';
 import type { AnalyticsData, PrinterAgent, PrinterLog, PrintJob, User } from '../types';
 import type { Category } from '../../shared/types/ipc.types';
 
-// Use environment variable with production default, fallback to localhost for development
-// const API_BASE_URL = process.env.API_BASE_URL || (
-//   process.env.NODE_ENV === 'development'
-//     ? 'http://localhost:3000/api'
-//     : 'https://piper-server-prototype-ts.onrender.com/api'
-// );
 
-// const API_BASE_URL = 'https://piper-server-api-production.up.railway.app/api';
-// export const PAYMENT_LINK_BASE_URL = "https://piper-client-one.vercel.app"
-export const PAYMENT_LINK_BASE_URL = "http://localhost:5174"
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'https://piper-server-api-production.up.railway.app/api';
+export const PAYMENT_LINK_BASE_URL = 'https://piper-client-one.vercel.app';
+// export const PAYMENT_LINK_BASE_URL = "http://localhost:5174"
+// const API_BASE_URL = 'http://localhost:3000/api';
 
 class ApiService {
   private axiosInstance: AxiosInstance;
@@ -29,7 +23,6 @@ class ApiService {
       },
     });
 
-    // Request interceptor to add auth token
     this.axiosInstance.interceptors.request.use(
       (config) => {
         const token = this.getToken();
@@ -50,14 +43,12 @@ class ApiService {
       }
     );
 
-    // Response interceptor for error handling
     this.axiosInstance.interceptors.response.use(
       (response: AxiosResponse) => {
         return response;
       },
       (error) => {
         if (error.response?.status === 401) {
-          // Token expired or invalid
           this.clearToken();
         }
         return Promise.reject(error);
@@ -69,9 +60,7 @@ class ApiService {
     if (typeof localStorage !== 'undefined') {
       return localStorage.getItem('auth-token');
     }
-    // For Node.js/Electron environment
     try {
-      // Use Electron's userData path for reliable token storage
       const userDataPath = app?.getPath('userData') || process.cwd();
       const tokenPath = path.join(userDataPath, '.auth-token');
       if (fs.existsSync(tokenPath)) {
@@ -96,10 +85,8 @@ class ApiService {
       localStorage.setItem('auth-token', token);
     } else {
       try {
-        // Use Electron's userData path for reliable token storage
         const userDataPath = app?.getPath('userData') || process.cwd();
         const tokenPath = path.join(userDataPath, '.auth-token');
-        // Ensure directory exists
         if (!fs.existsSync(userDataPath)) {
           fs.mkdirSync(userDataPath, { recursive: true });
         }
@@ -116,7 +103,6 @@ class ApiService {
       localStorage.removeItem('auth-token');
     } else {
       try {
-        // Use Electron's userData path for reliable token storage
         const userDataPath = app?.getPath('userData') || process.cwd();
         const tokenPath = path.join(userDataPath, '.auth-token');
         if (fs.existsSync(tokenPath)) {
@@ -129,7 +115,6 @@ class ApiService {
     }
   }
 
-  // Authentication
   async login(email: string, password: string): Promise<{ user: User; token: string }> {
     try {
       const response = await this.axiosInstance.post('/auth/login', { email, password });
