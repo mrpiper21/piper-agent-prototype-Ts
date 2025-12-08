@@ -18,7 +18,7 @@ try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const updateElectronApp = require('update-electron-app');
     updateElectronApp.updateElectronApp({
-      logger: logger.log || logger.info, // Use log method if available, fallback to info
+      logger: logger?.log || logger?.info, // Use log method if available, fallback to info
       updateInterval: '1 hour',
     });
     logger.info('update-electron-app initialized');

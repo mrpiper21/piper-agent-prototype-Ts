@@ -59,18 +59,27 @@ jobs:
             | grep -o '"default_branch":"[^"]*"' | cut -d'"' -f4 || echo "")
           
           if [ -z "$DEFAULT_BRANCH" ]; then
-            echo "Repository is empty. Initializing with README..."
+            echo "Repository appears empty. Ensuring README exists..."
             
             # Create a temporary directory
             TEMP_DIR=$(mktemp -d)
             cd "$TEMP_DIR"
             
-            # Initialize git repo
-            git init
+            # Configure git
             git config user.name "GitHub Actions"
             git config user.email "actions@github.com"
             
-            # Create README
+            # Try to clone the repository first (in case it exists but API check failed)
+            if git clone --depth 1 "https://$GH_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git" "$REPO_NAME" 2>/dev/null; then
+              echo "Repository exists. Checking if README needs to be added/updated..."
+              cd "$REPO_NAME"
+            else
+              echo "Repository is truly empty. Initializing..."
+              git init
+              git branch -M main
+            fi
+            
+            # Create or update README
             echo "# Agent Releases" > README.md
             echo "" >> README.md
             echo "This repository contains release builds for the PrintMyFile Agent." >> README.md
@@ -83,14 +92,35 @@ jobs:
             echo "" >> README.md
             echo "Download the appropriate installer for your platform from the latest release." >> README.md
             
-            # Commit and push
-            git add README.md
-            git commit -m "Initial commit: Add README"
-            git remote add origin "https://$GH_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git"
-            git branch -M main
-            git push -u origin main
+            # Add remote if not already added
+            if ! git remote get-url origin > /dev/null 2>&1; then
+              git remote add origin "https://$GH_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git"
+            else
+              git remote set-url origin "https://$GH_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git"
+            fi
             
-            echo "✅ Repository initialized successfully"
+            # Ensure we're on main branch
+            git checkout -b main 2>/dev/null || git checkout main 2>/dev/null || true
+            
+            # Stage and commit README
+            git add README.md
+            if git diff --cached --quiet; then
+              echo "README is already up to date."
+            else
+              git commit -m "Add/Update README" || git commit --amend -m "Update README" || true
+            fi
+            
+            # Pull before pushing to handle any remote changes
+            git pull origin main --allow-unrelated-histories --no-edit 2>/dev/null || true
+            
+            # Push to remote
+            git push origin main || {
+              echo "Push failed. Retrying with pull..."
+              git pull origin main --rebase --allow-unrelated-histories 2>/dev/null || git pull origin main --allow-unrelated-histories --no-edit 2>/dev/null || true
+              git push origin main
+            }
+            
+            echo "✅ Repository README ensured successfully"
           else
             echo "✅ Repository already has commits (default branch: $DEFAULT_BRANCH), skipping initialization"
           fi
