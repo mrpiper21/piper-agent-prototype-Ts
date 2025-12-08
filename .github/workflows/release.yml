@@ -197,9 +197,9 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         env:
-          # Use GH_TOKEN for electron-builder (it checks this first for custom repos)
+          # GH_TOKEN is critical - electron-builder uses this for custom repositories
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          # Also set GITHUB_TOKEN to our PAT to override the default Actions token
+          # Override GITHUB_TOKEN to use PAT instead of default Actions token
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
         run: |
@@ -208,38 +208,58 @@ jobs:
           $tag = $env:GITHUB_REF -replace 'refs/tags/', ''
           Write-Host "🏷️  Release Tag: $tag"
           Write-Host "🔑 Using Personal Access Token for authentication"
+          Write-Host "🔍 Verifying electron-builder configuration before publish..."
+          node -e "const pkg = require('./package.json'); console.log('Publish config:', JSON.stringify(pkg.build.publish, null, 2))"
           # Build first, then publish with explicit config
           npm run build
           # Use npx electron-builder with explicit publish config (all on one line for PowerShell)
+          Write-Host "📤 Starting electron-builder publish..."
           npx electron-builder --win --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release
+          Write-Host "✅ electron-builder publish completed"
 
       - name: Build and Publish (macOS)
         if: matrix.os == 'macos-latest'
         env:
+          # GH_TOKEN is critical - electron-builder uses this for custom repositories
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          # Override GITHUB_TOKEN to use PAT instead of default Actions token
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           echo "🚀 Publishing macOS build to Agent-Releases repository..."
           echo "📦 Target Repository: mrpiper21/Agent-Releases"
           echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
           echo "🔑 Using Personal Access Token for authentication"
+          echo "🔍 Verifying electron-builder configuration before publish..."
+          # Verify the publish config will be used
+          node -e "const pkg = require('./package.json'); console.log('Publish config:', JSON.stringify(pkg.build.publish, null, 2))"
           npm run build
           # Use npx to ensure electron-builder is available
+          # Explicitly set all publish config via CLI to override any defaults
+          echo "📤 Starting electron-builder publish..."
           npx electron-builder --mac --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release
+          echo "✅ electron-builder publish completed"
 
       - name: Build and Publish (Linux)
         if: matrix.os == 'ubuntu-latest'
         env:
+          # GH_TOKEN is critical - electron-builder uses this for custom repositories
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          # Override GITHUB_TOKEN to use PAT instead of default Actions token
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           echo "🚀 Publishing Linux build to Agent-Releases repository..."
           echo "📦 Target Repository: mrpiper21/Agent-Releases"
           echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
           echo "🔑 Using Personal Access Token for authentication"
+          echo "🔍 Verifying electron-builder configuration before publish..."
+          # Verify the publish config will be used
+          node -e "const pkg = require('./package.json'); console.log('Publish config:', JSON.stringify(pkg.build.publish, null, 2))"
           npm run build
           # Use npx to ensure electron-builder is available
+          # Explicitly set all publish config via CLI to override any defaults
+          echo "📤 Starting electron-builder publish..."
           npx electron-builder --linux --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release
+          echo "✅ electron-builder publish completed"
       
       - name: Verify Release Published
         if: always()
@@ -252,18 +272,45 @@ jobs:
           TAG_NAME=${GITHUB_REF#refs/tags/}
           
           echo "🔍 Verifying release $TAG_NAME exists in Agent-Releases..."
+          echo "📋 Checking both repositories for the release..."
           
           # Wait a bit for GitHub API to update
-          sleep 5
+          sleep 10
           
-          # Check if release exists
-          if curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$TAG_NAME" | grep -q '"tag_name"'; then
+          # Check if release exists in Agent-Releases
+          RELEASE_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$TAG_NAME")
+          
+          if echo "$RELEASE_RESPONSE" | grep -q '"tag_name"'; then
             echo "✅ Release $TAG_NAME successfully published to Agent-Releases!"
             echo "🔗 View at: https://github.com/$REPO_OWNER/$REPO_NAME/releases/tag/$TAG_NAME"
+            
+            # Get release details
+            RELEASE_URL=$(echo "$RELEASE_RESPONSE" | grep -o '"html_url":"[^"]*"' | cut -d'"' -f4)
+            echo "📦 Release URL: $RELEASE_URL"
           else
-            echo "⚠️  Release $TAG_NAME not found yet. It may take a few moments to appear."
-            echo "🔗 Check releases at: https://github.com/$REPO_OWNER/$REPO_NAME/releases"
+            echo "❌ Release $TAG_NAME NOT found in Agent-Releases!"
+            echo ""
+            echo "Checking if it was published to the source repository instead..."
+            SOURCE_REPO=${{ github.repository }}
+            SOURCE_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/$SOURCE_REPO/releases/tags/$TAG_NAME")
+            
+            if echo "$SOURCE_RESPONSE" | grep -q '"tag_name"'; then
+              echo "⚠️  WARNING: Release was published to source repository ($SOURCE_REPO) instead of Agent-Releases!"
+              echo "This indicates electron-builder is not using the correct publish configuration."
+              echo "Please check:"
+              echo "  1. GH_TOKEN is set correctly"
+              echo "  2. --config.publish.repo=Agent-Releases is being used"
+              echo "  3. package.json build.publish.repo is set to Agent-Releases"
+            else
+              echo "⚠️  Release $TAG_NAME not found in either repository."
+              echo "The publish step may have failed. Check the build logs above."
+            fi
+            echo ""
+            echo "🔗 Check Agent-Releases releases: https://github.com/$REPO_OWNER/$REPO_NAME/releases"
+            echo "🔗 Check source repository releases: https://github.com/$SOURCE_REPO/releases"
+            exit 1
           fi
 
       # Artifacts are skipped to save storage quota
