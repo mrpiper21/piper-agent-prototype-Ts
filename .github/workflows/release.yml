@@ -195,25 +195,23 @@ jobs:
 
       - name: Build and Publish (Windows)
         if: matrix.os == 'windows-latest'
+        shell: pwsh
         env:
           # Use GH_TOKEN for electron-builder (it checks this first for custom repos)
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           # Also set GITHUB_TOKEN to our PAT to override the default Actions token
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
         run: |
-          echo "🚀 Publishing Windows build to Agent-Releases repository..."
-          echo "📦 Target Repository: mrpiper21/Agent-Releases"
-          echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
-          echo "🔑 Using Personal Access Token for authentication"
+          Write-Host "🚀 Publishing Windows build to Agent-Releases repository..."
+          Write-Host "📦 Target Repository: mrpiper21/Agent-Releases"
+          $tag = $env:GITHUB_REF -replace 'refs/tags/', ''
+          Write-Host "🏷️  Release Tag: $tag"
+          Write-Host "🔑 Using Personal Access Token for authentication"
           # Build first, then publish with explicit config
           npm run build
-          # Use electron-builder directly with explicit publish config
-          cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --publish always \
-            --config.publish.provider=github \
-            --config.publish.owner=mrpiper21 \
-            --config.publish.repo=Agent-Releases \
-            --config.publish.private=false \
-            --config.publish.releaseType=release
+          # Use npx electron-builder with explicit publish config (all on one line for PowerShell)
+          npx electron-builder --win --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release
 
       - name: Build and Publish (macOS)
         if: matrix.os == 'macos-latest'
@@ -226,12 +224,8 @@ jobs:
           echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
           echo "🔑 Using Personal Access Token for authentication"
           npm run build
-          electron-builder --mac --publish always \
-            --config.publish.provider=github \
-            --config.publish.owner=mrpiper21 \
-            --config.publish.repo=Agent-Releases \
-            --config.publish.private=false \
-            --config.publish.releaseType=release
+          # Use npx to ensure electron-builder is available
+          npx electron-builder --mac --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release
 
       - name: Build and Publish (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -244,12 +238,8 @@ jobs:
           echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
           echo "🔑 Using Personal Access Token for authentication"
           npm run build
-          electron-builder --linux --publish always \
-            --config.publish.provider=github \
-            --config.publish.owner=mrpiper21 \
-            --config.publish.repo=Agent-Releases \
-            --config.publish.private=false \
-            --config.publish.releaseType=release
+          # Use npx to ensure electron-builder is available
+          npx electron-builder --linux --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release
       
       - name: Verify Release Published
         if: always()
