@@ -5,14 +5,10 @@ import { app } from 'electron';
 import type { AnalyticsData, PrinterAgent, PrinterLog, PrintJob, User } from '../types';
 import type { Category } from '../../shared/types/ipc.types';
 
-// Use environment variable with production default, fallback to localhost for development
-// const API_BASE_URL = process.env.API_BASE_URL || (
-//   process.env.NODE_ENV === 'development'
-//     ? 'http://localhost:3000/api'
-//     : 'https://piper-server-prototype-ts.onrender.com/api'
-// );
 
 const API_BASE_URL = 'https://piper-server-api-production.up.railway.app/api';
+export const PAYMENT_LINK_BASE_URL = 'https://piper-client-one.vercel.app';
+// export const PAYMENT_LINK_BASE_URL = "http://localhost:5174"
 // const API_BASE_URL = 'http://localhost:3000/api';
 
 class ApiService {
@@ -21,13 +17,12 @@ class ApiService {
   constructor() {
     this.axiosInstance = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 10000,
+      timeout: 30000, // Increased to 30 seconds for better reliability
       headers: {
         'Content-Type': 'application/json',
       },
     });
 
-    // Request interceptor to add auth token
     this.axiosInstance.interceptors.request.use(
       (config) => {
         const token = this.getToken();
@@ -48,14 +43,12 @@ class ApiService {
       }
     );
 
-    // Response interceptor for error handling
     this.axiosInstance.interceptors.response.use(
       (response: AxiosResponse) => {
         return response;
       },
       (error) => {
         if (error.response?.status === 401) {
-          // Token expired or invalid
           this.clearToken();
         }
         return Promise.reject(error);
@@ -67,9 +60,7 @@ class ApiService {
     if (typeof localStorage !== 'undefined') {
       return localStorage.getItem('auth-token');
     }
-    // For Node.js/Electron environment
     try {
-      // Use Electron's userData path for reliable token storage
       const userDataPath = app?.getPath('userData') || process.cwd();
       const tokenPath = path.join(userDataPath, '.auth-token');
       if (fs.existsSync(tokenPath)) {
@@ -94,10 +85,8 @@ class ApiService {
       localStorage.setItem('auth-token', token);
     } else {
       try {
-        // Use Electron's userData path for reliable token storage
         const userDataPath = app?.getPath('userData') || process.cwd();
         const tokenPath = path.join(userDataPath, '.auth-token');
-        // Ensure directory exists
         if (!fs.existsSync(userDataPath)) {
           fs.mkdirSync(userDataPath, { recursive: true });
         }
@@ -114,7 +103,6 @@ class ApiService {
       localStorage.removeItem('auth-token');
     } else {
       try {
-        // Use Electron's userData path for reliable token storage
         const userDataPath = app?.getPath('userData') || process.cwd();
         const tokenPath = path.join(userDataPath, '.auth-token');
         if (fs.existsSync(tokenPath)) {
@@ -127,7 +115,6 @@ class ApiService {
     }
   }
 
-  // Authentication
   async login(email: string, password: string): Promise<{ user: User; token: string }> {
     try {
       const response = await this.axiosInstance.post('/auth/login', { email, password });
@@ -367,7 +354,11 @@ class ApiService {
   async getJobs(limit?: number): Promise<PrintJob[]> {
     // Request a high limit to get all jobs (default to 1000 if not specified)
     const params = limit ? { limit } : { limit: 1000 };
-    const response = await this.axiosInstance.get('/print/jobs', { params });
+    // Use longer timeout for getJobs since it may fetch many records
+    const response = await this.axiosInstance.get('/print/jobs', {
+      params,
+      timeout: 60000, // 60 seconds for large job lists
+    });
     return response.data.data;
   }
 
@@ -379,6 +370,56 @@ class ApiService {
   async createJob(job: Omit<PrintJob, 'id' | 'submittedAt'>): Promise<PrintJob> {
     const response = await this.axiosInstance.post('/print/jobs', job);
     return response.data.data;
+  }
+
+  async createQuote(data: {
+    adminId: string;
+    categoryId: string;
+    orderDescription?: string;
+    quantity?: string;
+    specifications: string;
+    totalPrice: number;
+    internalNotes?: string;
+  }): Promise<{ id: string; [key: string]: any }> {
+    try {
+      // Ensure totalPrice is a number
+      const payload = {
+        ...data,
+        totalPrice:
+          typeof data.totalPrice === 'number'
+            ? data.totalPrice
+            : parseFloat(String(data.totalPrice)),
+      };
+
+      console.log('[API] Creating quote with payload:', {
+        ...payload,
+        totalPrice: payload.totalPrice,
+        totalPriceType: typeof payload.totalPrice,
+      });
+
+      const response = await this.axiosInstance.post('/print/quotes', payload);
+
+      console.log('[API] Create quote response:', {
+        success: response.data.success,
+        hasData: !!response.data.data,
+        dataId: response.data.data?.id,
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to create quote');
+      }
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Create quote API Error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url,
+        method: error.config?.method,
+        payload: data,
+      });
+      throw new Error(error.response?.data?.message || error.message || 'Failed to create quote');
+    }
   }
 
   async updateJob(id: string, updates: Partial<PrintJob>): Promise<PrintJob> {
@@ -670,7 +711,11 @@ class ApiService {
   }
 
   // Dashboard
-  async getDashboardStats(date?: string, month?: string, year?: string): Promise<{
+  async getDashboardStats(
+    date?: string,
+    month?: string,
+    year?: string
+  ): Promise<{
     todaysJobs: number;
     completedJobs: number;
     pendingJobs: number;
@@ -689,7 +734,10 @@ class ApiService {
     return response.data.data;
   }
 
-  async getWeeklyActivity(month?: string, year?: string): Promise<
+  async getWeeklyActivity(
+    month?: string,
+    year?: string
+  ): Promise<
     Array<{
       date: string;
       count: number;
@@ -759,6 +807,53 @@ class ApiService {
     }
   }
 
+  async getClients(_adminId: string): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get(`/clients`);
+      return response.data.data || response.data || [];
+    } catch (error: any) {
+      console.error('Get clients API Error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      // If endpoint doesn't exist or returns error, return empty array
+      if (
+        error.response?.status === 404 ||
+        error.response?.status === 401 ||
+        error.response?.status === 403
+      ) {
+        console.warn('[API] Client endpoints may not be available, returning empty array');
+        return [];
+      }
+      throw new Error(error.response?.data?.message || error.message || 'Failed to get clients');
+    }
+  }
+
+  async createClient(data: {
+    adminId: string;
+    fullName: string;
+    phoneNumber: string;
+    email?: string;
+  }): Promise<{ id: string; _id?: string; [key: string]: any }> {
+    try {
+      const response = await this.axiosInstance.post('/clients', data);
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to create client');
+      }
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Create client API Error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to create client';
+      throw new Error(errorMessage);
+    }
+  }
+
   async createCategory(data: {
     name: string;
     unitPrice: number;
@@ -790,12 +885,12 @@ class ApiService {
     } catch (error: unknown) {
       const err = error as {
         message?: string;
-        response?: { 
-          data?: { 
-            message?: string; 
+        response?: {
+          data?: {
+            message?: string;
             hasSetPaymentMethod?: boolean;
             success?: boolean;
-          }; 
+          };
           status?: number;
         };
       };

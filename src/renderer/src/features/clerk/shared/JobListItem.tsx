@@ -8,6 +8,7 @@ import {
   AiOutlineCloseCircle,
   AiOutlinePrinter,
   AiOutlineFile,
+  AiOutlineDollar,
 } from 'react-icons/ai';
 
 interface JobListItemProps {
@@ -72,13 +73,186 @@ function JobListItemComponent({ job, isSelected, onSelect, compact = false }: Jo
     return null;
   }, [job.clientId]);
 
-  // Display name: prefer client fullName, fallback to artwork, then fileName
+  // Display name: prefer client fullName, fallback to artwork, then fileName, or orderDescription for quotations
   const displayName = useMemo(() => {
+    if (job.isQuotation && job.orderDescription) {
+      return job.orderDescription;
+    }
     return clientName || job.artwork || job.fileName || 'Untitled Job';
-  }, [clientName, job.artwork, job.fileName]);
+  }, [clientName, job.artwork, job.fileName, job.isQuotation, job.orderDescription]);
+
+  // Check if this is a quotation job
+  const isQuotation = useMemo(() => job.isQuotation === true, [job.isQuotation]);
+
+  // Get payment status color
+  const getPaymentStatusColor = (paymentStatus: string) => {
+    switch (paymentStatus?.toLowerCase()) {
+      case 'paid':
+        return '#22c55e';
+      case 'pending':
+        return '#f59e0b';
+      case 'failed':
+        return '#ef4444';
+      case 'refunded':
+        return '#6b7280';
+      default:
+        return themeStyles.textSecondary;
+    }
+  };
+
+  // Format payment status text
+  const formatPaymentStatus = (paymentStatus: string) => {
+    if (!paymentStatus) return 'Pending';
+    return paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1).toLowerCase();
+  };
 
   // Compact sidebar version
   if (compact) {
+    // Special design for quotation jobs
+    if (isQuotation) {
+      const paymentStatus = job.paymentStatus || 'pending';
+      const paymentStatusColor = getPaymentStatusColor(paymentStatus);
+      
+      return (
+        <div
+          onClick={onSelect}
+          onMouseEnter={(e) => {
+            if (!isSelected) {
+              e.currentTarget.style.background =
+                theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isSelected) {
+              e.currentTarget.style.background = themeStyles.card.background;
+            }
+          }}
+          style={{
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            position: 'relative',
+            borderLeft: isSelected ? `3px solid ${themeStyles.accent}` : '3px solid transparent',
+            borderTop: 'none',
+            borderRight: 'none',
+            borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
+            background: isSelected
+              ? theme === 'dark'
+                ? 'rgba(251, 191, 36, 0.12)'
+                : 'rgba(251, 191, 36, 0.08)'
+              : themeStyles.card.background,
+            padding: '8px 6px',
+            borderRadius: 0,
+            boxShadow: 'none',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', width: '100%' }}>
+            {/* Quotation Icon */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '24px',
+                height: '24px',
+                borderRadius: '4px',
+                background: 'rgba(59, 130, 246, 0.15)',
+                color: '#3b82f6',
+                flexShrink: 0,
+                marginTop: '2px',
+              }}
+            >
+              <AiOutlineDollar style={{ fontSize: '12px' }} />
+            </div>
+
+            {/* Content */}
+            <div
+              style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}
+            >
+              {/* Order Description */}
+              <p
+                style={{
+                  color: themeStyles.text,
+                  fontWeight: isSelected ? '600' : '500',
+                  fontSize: '12px',
+                  margin: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  lineHeight: '1.4',
+                }}
+                title={displayName}
+              >
+                {displayName}
+              </p>
+
+              {/* Quotation Metadata Row */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  flexWrap: 'wrap',
+                  fontSize: '10px',
+                  color: themeStyles.textSecondary,
+                  lineHeight: '1.3',
+                }}
+              >
+                {/* Quotation Badge */}
+                <span
+                  style={{
+                    color: '#3b82f6',
+                    fontWeight: '600',
+                    fontSize: '9px',
+                    letterSpacing: '0.3px',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    background: 'rgba(59, 130, 246, 0.15)',
+                    flexShrink: 0,
+                  }}
+                >
+                  QUOTE
+                </span>
+
+                {/* Payment Status */}
+                <span
+                  style={{
+                    color: paymentStatusColor,
+                    fontWeight: '500',
+                    fontSize: '9px',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    background: `${paymentStatusColor}20`,
+                    flexShrink: 0,
+                  }}
+                >
+                  {formatPaymentStatus(paymentStatus)}
+                </span>
+
+                {/* Total Price */}
+                {job.totalPrice && (
+                  <>
+                    <span style={{ opacity: 0.4 }}>•</span>
+                    <span style={{ fontWeight: '600', color: themeStyles.text }}>
+                      ₵{Number(job.totalPrice).toFixed(2)}
+                    </span>
+                  </>
+                )}
+
+                {/* Date */}
+                {job.createdAt && (
+                  <>
+                    {(job.totalPrice) && <span style={{ opacity: 0.4 }}>•</span>}
+                    <span>{formattedDate}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Regular compact version for non-quotation jobs
     return (
       <div
         onClick={onSelect}
@@ -237,6 +411,161 @@ function JobListItemComponent({ job, isSelected, onSelect, compact = false }: Jo
   }
 
   // Full version for main content area
+  // Special design for quotation jobs
+  if (isQuotation) {
+    const paymentStatus = job.paymentStatus || 'pending';
+    const paymentStatusColor = getPaymentStatusColor(paymentStatus);
+    
+    return (
+      <div
+        onClick={onSelect}
+        onMouseEnter={(e) => {
+          if (!isSelected) {
+            e.currentTarget.style.background =
+              theme === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isSelected) {
+            e.currentTarget.style.background = themeStyles.card.background;
+          }
+        }}
+        style={{
+          ...sharedStyles.jobItem,
+          ...themeStyles.card,
+          cursor: 'pointer',
+          transition: 'background 0.15s ease',
+          position: 'relative',
+          borderLeft: isSelected ? `3px solid ${themeStyles.accent}` : '3px solid transparent',
+          borderTop: 'none',
+          borderRight: 'none',
+          borderBottom: themeStyles.card.border,
+          background: isSelected
+            ? theme === 'dark'
+              ? 'rgba(59, 130, 246, 0.08)'
+              : 'rgba(59, 130, 246, 0.04)'
+            : themeStyles.card.background,
+          padding: 'var(--spacing-sm, 8px) var(--spacing-md, 12px)',
+          borderRadius: 0,
+          boxShadow: 'none',
+        }}
+      >
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--spacing-sm, 8px)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: 'var(--border-radius-sm, 4px)',
+              background: 'rgba(59, 130, 246, 0.15)',
+              color: '#3b82f6',
+              flexShrink: 0,
+            }}
+          >
+            <AiOutlineDollar style={{ fontSize: 'var(--icon-size-sm, 14px)' }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                color: themeStyles.text,
+                fontWeight: '500',
+                fontSize: 'var(--font-size, 14px)',
+                margin: 0,
+                marginBottom: 'var(--spacing-xs, 4px)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={displayName}
+            >
+              {displayName}
+            </p>
+            <p
+              style={{
+                color: themeStyles.textSecondary,
+                fontSize: 'var(--font-size-small, 12px)',
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--spacing-xs, 4px)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <span style={{ fontWeight: '600', color: '#3b82f6' }}>QUOTE</span>
+              <span>•</span>
+              <span style={{ color: paymentStatusColor, fontWeight: '500' }}>
+                {formatPaymentStatus(paymentStatus)}
+              </span>
+              {job.totalPrice && (
+                <>
+                  <span>•</span>
+                  <span style={{ fontWeight: '600', color: themeStyles.text }}>
+                    ₵{Number(job.totalPrice).toFixed(2)}
+                  </span>
+                </>
+              )}
+              {job.createdAt && (
+                <>
+                  <span>•</span>
+                  <span>{formattedDate}</span>
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: '4px',
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              color: paymentStatusColor,
+              fontWeight: '600',
+              fontSize: 'var(--font-size-small, 12px)',
+              padding: 'var(--spacing-xs, 4px) var(--spacing-sm, 8px)',
+              borderRadius: 'var(--border-radius-sm, 4px)',
+              background: `${paymentStatusColor}20`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-xs, 4px)',
+            }}
+          >
+            {formatPaymentStatus(paymentStatus)}
+          </span>
+          {job.paymentReference && (
+            <span
+              style={{
+                color: themeStyles.textSecondary,
+                fontSize: '10px',
+                fontFamily: 'monospace',
+                opacity: 0.7,
+              }}
+              title={job.paymentReference}
+            >
+              {job.paymentReference.substring(0, 8)}...
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Regular full version for non-quotation jobs
   return (
     <div
       onClick={onSelect}
@@ -395,6 +724,11 @@ export const JobListItem = React.memo(JobListItemComponent, (prevProps, nextProp
     prevProps.compact === nextProps.compact &&
     prevProps.job?.status === nextProps.job?.status &&
     prevProps.job?.fileName === nextProps.job?.fileName &&
-    (prevProps.job?.clientId?.fullName || '') === (nextProps.job?.clientId?.fullName || '')
+    (prevProps.job?.clientId?.fullName || '') === (nextProps.job?.clientId?.fullName || '') &&
+    prevProps.job?.isQuotation === nextProps.job?.isQuotation &&
+    prevProps.job?.paymentStatus === nextProps.job?.paymentStatus &&
+    prevProps.job?.totalPrice === nextProps.job?.totalPrice &&
+    prevProps.job?.paymentReference === nextProps.job?.paymentReference &&
+    prevProps.job?.orderDescription === nextProps.job?.orderDescription
   );
 });

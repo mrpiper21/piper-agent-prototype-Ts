@@ -1,9 +1,11 @@
-import { ipcMain, Notification } from 'electron';
+import { ipcMain, Notification, shell } from 'electron';
 import { dbService } from '../services/DatabaseService';
 import { agentService } from '../services/AgentService';
 import { apiService } from '../services/api';
 import { updateService } from '../services/UpdateService';
+import { whatsappService } from '../services/WhatsAppService';
 import { logger } from '../utils/logger';
+import { getMainWindow } from '../windows/MainWindow';
 import fs from 'fs';
 import https from 'https';
 import http from 'http';
@@ -883,6 +885,213 @@ export function setupIpcHandlers() {
       logger.info(`Successfully deleted category ${id}`);
     } catch (error) {
       logger.error(`Delete category ${id} error`, error);
+      throw error;
+    }
+  });
+
+  // WhatsApp handlers
+  ipcMain.handle('whatsapp:initialize', async () => {
+    try {
+      await whatsappService.initialize();
+      logger.info('WhatsApp service initialized via IPC');
+      return whatsappService.getStatus();
+    } catch (error) {
+      logger.error('WhatsApp initialize error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('whatsapp:getStatus', async () => {
+    try {
+      return whatsappService.getStatus();
+    } catch (error) {
+      logger.error('WhatsApp getStatus error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('whatsapp:disconnect', async () => {
+    try {
+      await whatsappService.disconnect();
+      logger.info('WhatsApp service disconnected via IPC');
+      return whatsappService.getStatus();
+    } catch (error) {
+      logger.error('WhatsApp disconnect error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('whatsapp:logout', async () => {
+    try {
+      await whatsappService.logout();
+      logger.info('WhatsApp service logged out via IPC');
+      return whatsappService.getStatus();
+    } catch (error) {
+      logger.error('WhatsApp logout error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('whatsapp:getLocalMessages', async () => {
+    try {
+      const allMessages = whatsappService.getAllLocalMessages();
+      // Convert to array format for easier consumption
+      const messagesArray: any[] = [];
+      allMessages.forEach((messages, contact) => {
+        messages.forEach((msg) => {
+          // Ensure timestamp is in milliseconds
+          let timestamp = msg.timestamp;
+          if (timestamp && timestamp < 1000000000000) {
+            // If timestamp is in seconds (less than year 2001 in ms), convert to milliseconds
+            timestamp = timestamp * 1000;
+          }
+          
+          messagesArray.push({
+            contact,
+            contactName: msg.contactName,
+            messageId: msg.messageId,
+            body: msg.body,
+            timestamp: timestamp || Date.now(),
+            hasMedia: msg.hasMedia,
+            media: msg.media,
+            isPrintCommand: msg.isPrintCommand,
+            from: msg.from || 'client', // Include sender info
+          });
+        });
+      });
+      logger.info('[IPC] getLocalMessages returning', {
+        totalMessages: messagesArray.length,
+        contacts: allMessages.size,
+        sampleMessage: messagesArray[0] ? {
+          contact: messagesArray[0].contact,
+          body: messagesArray[0].body?.substring(0, 50),
+          isPrintCommand: messagesArray[0].isPrintCommand,
+        } : null,
+      });
+      return messagesArray;
+    } catch (error) {
+      logger.error('WhatsApp getLocalMessages error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('whatsapp:sendMessage', async (_event, chatId: string, text: string) => {
+    try {
+      await whatsappService.sendMessage(chatId, text);
+      logger.info('WhatsApp message sent via IPC', { chatId, textLength: text.length });
+      return { success: true };
+    } catch (error) {
+      logger.error('WhatsApp sendMessage error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('whatsapp:sendFile', async (_event, chatId: string, filePath: string, caption?: string) => {
+    try {
+      await whatsappService.sendFile(chatId, filePath, caption);
+      logger.info('WhatsApp file sent via IPC', { chatId, filePath, hasCaption: !!caption });
+      return { success: true };
+    } catch (error) {
+      logger.error('WhatsApp sendFile error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('whatsapp:createQuote', async (_event, jobId: string, quoteData: any) => {
+    try {
+      const result = await whatsappService.createQuote(jobId, quoteData);
+      logger.info('Quote created via IPC', { jobId, price: quoteData.price });
+      return result;
+    } catch (error) {
+      logger.error('WhatsApp createQuote error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('whatsapp:downloadMedia', async (_event, contact: string, messageId: string) => {
+    try {
+      const filePath = await whatsappService.downloadMediaFile(contact, messageId);
+      logger.info('WhatsApp media downloaded via IPC', { contact, messageId, filePath });
+      return { success: true, filePath };
+    } catch (error) {
+      logger.error('WhatsApp downloadMedia error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('whatsapp:markJobCompleted', async (_event, jobId: string, options: any) => {
+    try {
+      const result = await whatsappService.markJobCompleted(jobId, options);
+      logger.info('Job marked as completed via IPC', { jobId });
+      return result;
+    } catch (error) {
+      logger.error('WhatsApp markJobCompleted error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('whatsapp:handlePaymentWebhook', async (_event, paymentData: any) => {
+    try {
+      const result = await whatsappService.handlePaymentWebhook(paymentData);
+      logger.info('Payment webhook handled via IPC', { reference: paymentData.reference });
+      return result;
+    } catch (error) {
+      logger.error('WhatsApp handlePaymentWebhook error', error);
+      throw error;
+    }
+  });
+
+  // Paystack webhook handler
+  ipcMain.handle('paystack:handleWebhook', async (_event, event: any, signature?: string, rawBody?: string) => {
+    try {
+      const { paystackWebhookHandler } = await import('../services/PaystackWebhookHandler');
+      const result = await paystackWebhookHandler.handleWebhook(event, signature, rawBody);
+      logger.info('Paystack webhook handled via IPC', { event: event.event, reference: event.data?.reference });
+      return result;
+    } catch (error) {
+      logger.error('Paystack webhook handler error', error);
+      throw error;
+    }
+  });
+
+  // Shell handlers
+  ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
+    try {
+      await shell.openPath(filePath);
+      logger.info('Opened file path', { filePath });
+      return { success: true };
+    } catch (error) {
+      logger.error('Error opening file path', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('shell:showItemInFolder', async (_event, filePath: string) => {
+    try {
+      shell.showItemInFolder(filePath);
+      logger.info('Showed item in folder', { filePath });
+      return { success: true };
+    } catch (error) {
+      logger.error('Error showing item in folder', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('dialog:showOpenDialog', async (_event, options: {
+    properties?: Array<'openFile' | 'openDirectory' | 'multiSelections'>;
+    filters?: Array<{ name: string; extensions: string[] }>;
+  }) => {
+    try {
+      const { dialog } = await import('electron');
+      const mainWindow = getMainWindow();
+      if (!mainWindow) {
+        throw new Error('Main window not available');
+      }
+      const result = await dialog.showOpenDialog(mainWindow, options);
+      logger.info('File dialog opened', { canceled: result.canceled, fileCount: result.filePaths.length });
+      return result;
+    } catch (error) {
+      logger.error('Error showing open dialog', error);
       throw error;
     }
   });

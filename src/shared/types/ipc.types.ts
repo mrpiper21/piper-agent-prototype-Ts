@@ -132,6 +132,15 @@ export interface UpdateCategoryData {
   regularFormatProperties?: RegularFormatProperties;
 }
 
+// WhatsApp types
+export interface WhatsAppStatus {
+  isConnected: boolean;
+  isAuthenticated: boolean;
+  qrCode?: string;
+  error?: string;
+  phoneNumber?: string;
+}
+
 // IPC API interface
 export interface IpcApi {
   auth: {
@@ -200,7 +209,11 @@ export interface IpcApi {
     getComparison: () => Promise<any>;
   };
   dashboard: {
-    getStats: (date?: string, month?: string, year?: string) => Promise<{
+    getStats: (
+      date?: string,
+      month?: string,
+      year?: string
+    ) => Promise<{
       todaysJobs: number;
       completedJobs: number;
       pendingJobs: number;
@@ -211,7 +224,10 @@ export interface IpcApi {
       paidJobs?: number;
       revenueMonth?: string;
     }>;
-    getWeeklyActivity: (month?: string, year?: string) => Promise<
+    getWeeklyActivity: (
+      month?: string,
+      year?: string
+    ) => Promise<
       Array<{
         date: string;
         count: number;
@@ -233,6 +249,59 @@ export interface IpcApi {
     create: (data: CreateCategoryData) => Promise<Category>;
     update: (id: string, data: UpdateCategoryData) => Promise<Category>;
     delete: (id: string) => Promise<void>;
+  };
+  whatsapp: {
+    initialize: () => Promise<WhatsAppStatus>;
+    getStatus: () => Promise<WhatsAppStatus>;
+    disconnect: () => Promise<WhatsAppStatus>;
+    logout: () => Promise<WhatsAppStatus>;
+    getLocalMessages: () => Promise<any[]>;
+    sendMessage: (chatId: string, text: string) => Promise<{ success: boolean }>;
+    sendFile: (chatId: string, filePath: string, caption?: string) => Promise<{ success: boolean }>;
+    createQuote: (
+      jobId: string,
+      quoteData: {
+        orderDescription: string;
+        quantity?: string;
+        specifications: string;
+        price: number;
+        internalNotes?: string;
+        contact: string;
+        email: string;
+      }
+    ) => Promise<{ success: boolean; paymentLink?: string }>;
+    downloadMedia: (
+      contact: string,
+      messageId: string
+    ) => Promise<{ success: boolean; filePath?: string }>;
+    markJobCompleted: (
+      jobId: string,
+      options: {
+        contact: string;
+        customMessage?: string;
+      }
+    ) => Promise<{ success: boolean }>;
+    handlePaymentWebhook: (paymentData: {
+      reference: string;
+      status: string;
+      amount: number;
+      customer: { email: string };
+    }) => Promise<{ success: boolean; jobId?: string }>;
+    onQR: (callback: (qr: string) => void) => () => void;
+    onStatus: (callback: (status: WhatsAppStatus) => void) => () => void;
+    onMessage: (callback: (message: any) => void) => () => void;
+    onError: (callback: (error: string) => void) => () => void;
+    onHistoryLoaded: (callback: (data: { count: number }) => void) => () => void;
+  };
+  shell: {
+    openPath: (filePath: string) => Promise<{ success: boolean }>;
+    showItemInFolder: (filePath: string) => Promise<{ success: boolean }>;
+  };
+  dialog: {
+    showOpenDialog: (options: {
+      properties?: Array<'openFile' | 'openDirectory' | 'multiSelections'>;
+      filters?: Array<{ name: string; extensions: string[] }>;
+    }) => Promise<{ canceled: boolean; filePaths: string[] }>;
   };
 }
 

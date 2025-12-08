@@ -42,6 +42,42 @@ jobs:
             exit 1
           fi
           echo "✅ Personal Access Token is configured"
+      
+      - name: Verify Agent-Releases Repository Access
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        run: |
+          REPO_OWNER="mrpiper21"
+          REPO_NAME="Agent-Releases"
+          
+          # Verify repository exists and is accessible
+          if curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME" | grep -q '"name"'; then
+            echo "✅ Agent-Releases repository is accessible"
+          else
+            echo "::error::Cannot access Agent-Releases repository. Please verify the token has 'repo' scope."
+            exit 1
+          fi
+      
+      - name: Extract Version from Tag
+        shell: bash
+        id: version
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "📦 Building version: $VERSION (tag: $TAG_NAME)"
+      
+      - name: Verify Package Configuration
+        shell: bash
+        run: |
+          echo "📋 Verifying electron-builder configuration..."
+          echo "Repository in package.json publish config:"
+          node -e "const pkg = require('./package.json'); console.log(JSON.stringify(pkg.build.publish, null, 2))"
+          echo ""
+          echo "✅ Package is configured to publish to: mrpiper21/Agent-Releases"
 
       - name: Initialize Agent-Releases Repository (if empty)
         if: matrix.os == 'ubuntu-latest'
@@ -59,18 +95,35 @@ jobs:
             | grep -o '"default_branch":"[^"]*"' | cut -d'"' -f4 || echo "")
           
           if [ -z "$DEFAULT_BRANCH" ]; then
-            echo "Repository is empty. Initializing with README..."
+            echo "Repository appears empty. Ensuring README exists..."
             
             # Create a temporary directory
             TEMP_DIR=$(mktemp -d)
-            cd "$TEMP_DIR"
+            WORK_DIR="$TEMP_DIR/$REPO_NAME"
             
-            # Initialize git repo
-            git init
-            git config user.name "GitHub Actions"
-            git config user.email "actions@github.com"
+            # Configure git globally for this session
+            git config --global user.name "GitHub Actions"
+            git config --global user.email "actions@github.com"
             
-            # Create README
+            # Try to clone the repository first (in case it exists but API check failed)
+            if git clone --depth 1 "https://$GH_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git" "$WORK_DIR" 2>/dev/null; then
+              echo "Repository exists. Checking if README needs to be added/updated..."
+              cd "$WORK_DIR"
+            else
+              echo "Repository is truly empty. Initializing..."
+              mkdir -p "$WORK_DIR"
+              cd "$WORK_DIR"
+              git init
+              git branch -M main
+            fi
+            
+            # Verify we're in a git directory
+            if ! git rev-parse --git-dir > /dev/null 2>&1; then
+              echo "Error: Not in a git directory. Current directory: $(pwd)"
+              exit 1
+            fi
+            
+            # Create or update README
             echo "# Agent Releases" > README.md
             echo "" >> README.md
             echo "This repository contains release builds for the PrintMyFile Agent." >> README.md
@@ -83,14 +136,35 @@ jobs:
             echo "" >> README.md
             echo "Download the appropriate installer for your platform from the latest release." >> README.md
             
-            # Commit and push
-            git add README.md
-            git commit -m "Initial commit: Add README"
-            git remote add origin "https://$GH_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git"
-            git branch -M main
-            git push -u origin main
+            # Add remote if not already added
+            if ! git remote get-url origin > /dev/null 2>&1; then
+              git remote add origin "https://$GH_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git"
+            else
+              git remote set-url origin "https://$GH_TOKEN@github.com/$REPO_OWNER/$REPO_NAME.git"
+            fi
             
-            echo "✅ Repository initialized successfully"
+            # Ensure we're on main branch
+            git checkout -b main 2>/dev/null || git checkout main 2>/dev/null || true
+            
+            # Stage and commit README
+            git add README.md
+            if git diff --cached --quiet; then
+              echo "README is already up to date."
+            else
+              git commit -m "Add/Update README" || git commit --amend -m "Update README" || true
+            fi
+            
+            # Pull before pushing to handle any remote changes
+            git pull origin main --allow-unrelated-histories --no-edit 2>/dev/null || true
+            
+            # Push to remote
+            git push origin main || {
+              echo "Push failed. Retrying with pull..."
+              git pull origin main --rebase --allow-unrelated-histories 2>/dev/null || git pull origin main --allow-unrelated-histories --no-edit 2>/dev/null || true
+              git push origin main
+            }
+            
+            echo "✅ Repository README ensured successfully"
           else
             echo "✅ Repository already has commits (default branch: $DEFAULT_BRANCH), skipping initialization"
           fi
@@ -117,9 +191,15 @@ jobs:
         if: matrix.os == 'windows-latest'
         env:
           # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
+          # GH_TOKEN is used by electron-builder to publish to the specified repository
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          # Don't use GITHUB_TOKEN as it points to the source repo, not Agent-Releases
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        run: npm run publish:win
+          # Explicitly set the publish target
+          PUBLISH_TARGET: "github"
+        run: |
+          echo "🚀 Publishing Windows build to Agent-Releases repository..."
+          npm run publish:win
 
       - name: Build and Publish (macOS)
         if: matrix.os == 'macos-latest'
@@ -127,7 +207,10 @@ jobs:
           # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        run: npm run publish:mac
+          PUBLISH_TARGET: "github"
+        run: |
+          echo "🚀 Publishing macOS build to Agent-Releases repository..."
+          npm run publish:mac
 
       - name: Build and Publish (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -135,7 +218,35 @@ jobs:
           # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-        run: npm run publish:linux
+          PUBLISH_TARGET: "github"
+        run: |
+          echo "🚀 Publishing Linux build to Agent-Releases repository..."
+          npm run publish:linux
+      
+      - name: Verify Release Published
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        run: |
+          REPO_OWNER="mrpiper21"
+          REPO_NAME="Agent-Releases"
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          
+          echo "🔍 Verifying release $TAG_NAME exists in Agent-Releases..."
+          
+          # Wait a bit for GitHub API to update
+          sleep 5
+          
+          # Check if release exists
+          if curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$TAG_NAME" | grep -q '"tag_name"'; then
+            echo "✅ Release $TAG_NAME successfully published to Agent-Releases!"
+            echo "🔗 View at: https://github.com/$REPO_OWNER/$REPO_NAME/releases/tag/$TAG_NAME"
+          else
+            echo "⚠️  Release $TAG_NAME not found yet. It may take a few moments to appear."
+            echo "🔗 Check releases at: https://github.com/$REPO_OWNER/$REPO_NAME/releases"
+          fi
 
       # Artifacts are skipped to save storage quota
       # electron-builder --publish already uploads to GitHub Releases

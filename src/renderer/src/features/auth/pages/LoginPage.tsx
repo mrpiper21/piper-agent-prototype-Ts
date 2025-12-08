@@ -1,7 +1,9 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../../../context/ThemeContext';
+import { WhatsAppConnectionModal } from '../../../shared/components/WhatsAppConnectionModal';
+import { electronAPI } from '../../../lib';
 // import { AiOutlineMoon, AiOutlineSun } from 'react-icons/ai';
 import printAgentLogo from '../../../assets/printAgentLogo.png';
 
@@ -14,6 +16,8 @@ export default function LoginPage() {
   const { theme,/* toggleTheme */} = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [shouldShowWhatsAppPrompt, setShouldShowWhatsAppPrompt] = useState(false);
 
   const themeStyles = theme === 'dark' ? darkStyles : lightStyles;
 
@@ -51,11 +55,31 @@ export default function LoginPage() {
         return;
       }
 
-      // User is fully set up (admin with location) - navigate to dashboard
-      navigate('/');
+      // User is fully set up (admin with location) - check WhatsApp connection
+      const whatsappStatus = await electronAPI.whatsapp.getStatus();
+      if (!whatsappStatus.isAuthenticated) {
+        // Show WhatsApp connection prompt
+        setShouldShowWhatsAppPrompt(true);
+        setShowWhatsAppModal(true);
+      } else {
+        // Already connected, navigate to dashboard
+        navigate('/');
+      }
     } catch (err) {
       console.error('Login error:', err);
     }
+  };
+
+  const handleWhatsAppConnect = () => {
+    setShowWhatsAppModal(false);
+    setShouldShowWhatsAppPrompt(false);
+    navigate('/');
+  };
+
+  const handleWhatsAppSkip = () => {
+    setShowWhatsAppModal(false);
+    setShouldShowWhatsAppPrompt(false);
+    navigate('/');
   };
 
   return (
@@ -102,6 +126,16 @@ export default function LoginPage() {
           </form>
         </div>
       </div>
+
+      {/* WhatsApp Connection Modal */}
+      {shouldShowWhatsAppPrompt && (
+        <WhatsAppConnectionModal
+          isOpen={showWhatsAppModal}
+          onClose={handleWhatsAppSkip}
+          onConnect={handleWhatsAppConnect}
+          onSkip={handleWhatsAppSkip}
+        />
+      )}
     </div>
   );
 }

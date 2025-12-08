@@ -37,8 +37,8 @@ The token must have write access to the `Agent-Releases` repository. If the `Age
 
 1. Create and push a new tag:
    ```bash
-   git tag -a v1.1.15 -m "Release version 1.1.15"
-   git push origin v1.1.15
+   git tag -a v1.1.19 -m "Release version 1.1.19"
+   git push origin v1.1.18
    ```
 
 2. Check the workflow:

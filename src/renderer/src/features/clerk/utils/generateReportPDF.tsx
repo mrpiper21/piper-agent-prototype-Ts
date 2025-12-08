@@ -63,17 +63,23 @@ const JobOrderDocument: React.FC<ReportData> = ({
     return sum + (isNaN(amount) ? 0 : amount);
   }, 0);
 
-  // Prepare table rows
+  // Prepare table rows with comprehensive data for both quotations and normal jobs
   const tableRows = jobs.map((job, index) => {
     const jobAny = job as unknown as Record<string, unknown>;
+    const isQuotation = (jobAny.isQuotation as boolean) === true;
     
-    // Extract artwork name - prefer artwork field, then fileName, then originalName
-    const artwork = String(
-      (jobAny.artwork as string) ||
-      (jobAny.fileName as string) ||
-      (jobAny.originalName as string) ||
-      ((jobAny as { clientId?: { fullName?: string } }).clientId?.fullName as string) || 
-      'N/A'
+    // Extract job type
+    const jobType = isQuotation ? 'QUOTE' : 'JOB';
+    
+    // Extract description/artwork - for quotes use orderDescription, for jobs use artwork/fileName
+    const description = String(
+      isQuotation 
+        ? ((jobAny.orderDescription as string) || 'Quote Request')
+        : ((jobAny.artwork as string) ||
+           (jobAny.fileName as string) ||
+           (jobAny.originalName as string) ||
+           ((jobAny as { clientId?: { fullName?: string } }).clientId?.fullName as string) || 
+           'N/A')
     );
     
     // Extract category name
@@ -82,16 +88,18 @@ const JobOrderDocument: React.FC<ReportData> = ({
       'N/A'
     );
     
-    // Extract size - direct field or from metadata
+    // Extract size - for quotes show specifications, for jobs show size
     const size = String(
-      (jobAny.size as string) || 
-      (job.metadata as Record<string, unknown> | undefined)?.size || 
-      (jobAny.width && jobAny.height ? `${jobAny.width} x ${jobAny.height}` : '') ||
-      'N/A'
+      isQuotation
+        ? ((jobAny.specifications as string) || 'N/A')
+        : ((jobAny.size as string) || 
+           (job.metadata as Record<string, unknown> | undefined)?.size || 
+           (jobAny.width && jobAny.height ? `${jobAny.width} x ${jobAny.height}` : '') ||
+           'N/A')
     );
     
     // Extract print job ID - prefer printJobId, then _id, then id
-    const ps = "#"+ String(
+    const jobId = "#"+ String(
       (jobAny.printJobId as string) ||
       ((jobAny as { _id: string })._id?.slice(0, 8) as string) || 
       job.id || 
@@ -106,69 +114,113 @@ const JobOrderDocument: React.FC<ReportData> = ({
       1
     );
     
-    // Extract location
+    // Extract location/printer
     const location = String(
       (jobAny.location as string) || 
       job.printerName || 
-      ''
+      'N/A'
     );
     
-    // Extract rate and amount from metadata or direct fields
+    // Extract rate - for quotes calculate from totalPrice, for jobs use rate/unitPrice
     const metadata = job.metadata as Record<string, unknown> | undefined;
+    const totalPrice = (jobAny.totalPrice as number) || 0;
+    const quantity = (jobAny.quantity as number) || (jobAny.copies as number) || 1;
     const rate = String(
-      (metadata?.rate as string) || 
-      (jobAny.rate as string) ||
-      ((jobAny as { categoryId?: { unitPrice?: number } }).categoryId?.unitPrice as number)?.toFixed(2) ||
-      'N/A'
+      isQuotation && totalPrice > 0 && quantity > 0
+        ? (totalPrice / quantity).toFixed(2)
+        : ((metadata?.rate as string) || 
+           (jobAny.rate as string) ||
+           ((jobAny as { categoryId?: { unitPrice?: number } }).categoryId?.unitPrice as number)?.toFixed(2) ||
+           'N/A')
     );
+    
+    // Extract total amount
     const amount = String(
-      (jobAny.totalPrice as number)?.toFixed(2) ||
-      (metadata?.amount as string) || 
-      (metadata?.amt as string) || 
-      (jobAny.amount as string) || 
-      'N/A'
+      totalPrice > 0 
+        ? totalPrice.toFixed(2)
+        : ((metadata?.amount as string) || 
+           (metadata?.amt as string) || 
+           (jobAny.amount as string) || 
+           '0.00')
     );
 
     // Extract payment status
     const paymentStatus = String(
-      (jobAny.paymentStatus as string) || 'pending'
+      (jobAny.paymentStatus as string) || (isQuotation ? 'pending' : 'N/A')
+    );
+    
+    // Extract amount paid - only for paid jobs
+    const amountPaid = String(
+      paymentStatus === 'paid' && totalPrice > 0
+        ? totalPrice.toFixed(2)
+        : '0.00'
+    );
+    
+    // Extract payment reference
+    const paymentRef = String(
+      (jobAny.paymentReference as string) || ''
     );
 
     return {
       sn: `${index + 1}.`,
-      artwork,
+      jobType,
+      description,
       category: categoryName,
       size,
-      ps,
+      jobId,
       qty,
-      matUsed: '',
-      matLeft: '',
       location,
       rate,
       amount,
+      amountPaid,
       paymentStatus,
-      total: '',
+      paymentRef,
     };
   });
 
-  // Fill remaining rows up to 5 total rows
-  while (tableRows.length < 5) {
-    tableRows.push({
-      sn: `${tableRows.length + 1}.`,
-      artwork: '',
-      category: '',
-      size: '',
-      ps: '',
-      qty: '',
-      matUsed: '',
-      matLeft: '',
-      location: '',
-      rate: '',
-      amount: '',
-      paymentStatus: '',
-      total: '',
-    });
-  }
+  // Calculate breakdown statistics
+  const quotationJobs = jobs.filter((job) => (job as unknown as Record<string, unknown>).isQuotation === true);
+  const normalJobs = jobs.filter((job) => (job as unknown as Record<string, unknown>).isQuotation !== true);
+  
+  const quotationTotal = quotationJobs.reduce((sum, job) => {
+    const jobAny = job as unknown as Record<string, unknown>;
+    const totalPrice = (jobAny.totalPrice as number) || 0;
+    return sum + totalPrice;
+  }, 0);
+  
+  const normalJobsTotal = normalJobs.reduce((sum, job) => {
+    const jobAny = job as unknown as Record<string, unknown>;
+    const totalPrice = (jobAny.totalPrice as number) || 0;
+    const metadata = job.metadata as Record<string, unknown> | undefined;
+    const amount = parseFloat(
+      String(totalPrice || 
+        (metadata?.amount as string) || 
+        (metadata?.amt as string) || 
+        (jobAny.amount as string) || 
+        '0')
+    );
+    return sum + (isNaN(amount) ? 0 : amount);
+  }, 0);
+  
+  const paidAmount = jobs.reduce((sum, job) => {
+    const jobAny = job as unknown as Record<string, unknown>;
+    const paymentStatus = String(jobAny.paymentStatus || 'pending');
+    if (paymentStatus === 'paid') {
+      const totalPrice = (jobAny.totalPrice as number) || 0;
+      return sum + totalPrice;
+    }
+    return sum;
+  }, 0);
+  
+  const pendingAmount = jobs.reduce((sum, job) => {
+    const jobAny = job as unknown as Record<string, unknown>;
+    const paymentStatus = String(jobAny.paymentStatus || 'pending');
+    if (paymentStatus === 'pending') {
+      const totalPrice = (jobAny.totalPrice as number) || 0;
+      return sum + totalPrice;
+    }
+    return sum;
+  }, 0);
 
   return (
     <Document>
@@ -232,29 +284,33 @@ const JobOrderDocument: React.FC<ReportData> = ({
         <View style={styles.tableContainer}>
           {/* Table Header */}
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableCellHeader, { flex: 0.5 }]}>S/N</Text>
-            <Text style={[styles.tableCellHeader, { flex: 1.5 }]}>ARTWORK</Text>
+            <Text style={[styles.tableCellHeader, { flex: 0.4 }]}>S/N</Text>
+            <Text style={[styles.tableCellHeader, { flex: 0.6 }]}>TYPE</Text>
+            <Text style={[styles.tableCellHeader, { flex: 1.8 }]}>DESCRIPTION</Text>
             <Text style={[styles.tableCellHeader, { flex: 1 }]}>CATEGORY</Text>
-            <Text style={[styles.tableCellHeader, { flex: 1 }]}>SIZE</Text>
-            <Text style={[styles.tableCellHeader, { flex: 0.7 }]}>QTY</Text>
-            <Text style={[styles.tableCellHeader, { flex: 1.2 }]}>LOCATION</Text>
-            <Text style={[styles.tableCellHeader, { flex: 0.8 }]}>RATE</Text>
-            <Text style={[styles.tableCellHeader, { flex: 0.8 }]}>AMT GHC</Text>
-            <Text style={[styles.tableCellHeader, { flex: 0.8 }]}>PAYMENT</Text>
+            <Text style={[styles.tableCellHeader, { flex: 1.2 }]}>SIZE/SPECS</Text>
+            <Text style={[styles.tableCellHeader, { flex: 0.5 }]}>QTY</Text>
+            <Text style={[styles.tableCellHeader, { flex: 1 }]}>LOCATION</Text>
+            <Text style={[styles.tableCellHeader, { flex: 0.7 }]}>RATE</Text>
+            <Text style={[styles.tableCellHeader, { flex: 0.8 }]}>TOTAL GHC</Text>
+            <Text style={[styles.tableCellHeader, { flex: 0.8 }]}>PAID GHC</Text>
+            <Text style={[styles.tableCellHeader, { flex: 0.7 }]}>STATUS</Text>
           </View>
 
           {/* Table Rows */}
           {tableRows.map((row, index) => (
             <View key={index} style={styles.tableRow}>
-              <Text style={[styles.tableCellData, { flex: 0.5 }]}>{row.sn}</Text>
-              <Text style={[styles.tableCellData, { flex: 1.5 }]}>{row.artwork}</Text>
-              <Text style={[styles.tableCellData, { flex: 1 }]}>{row.category}</Text>
-              <Text style={[styles.tableCellData, { flex: 1 }]}>{row.size}</Text>
-              <Text style={[styles.tableCellData, { flex: 0.7 }]}>{row.qty}</Text>
-              <Text style={[styles.tableCellData, { flex: 1.2 }]}>{row.location}</Text>
-              <Text style={[styles.tableCellData, { flex: 0.8 }]}>{row.rate}</Text>
-              <Text style={[styles.tableCellData, { flex: 0.8 }]}>{row.amount}</Text>
-              <Text style={[styles.tableCellData, { flex: 0.8, textTransform: 'uppercase' }]}>{row.paymentStatus}</Text>
+              <Text style={[styles.tableCellData, { flex: 0.4 }]}>{row.sn}</Text>
+              <Text style={[styles.tableCellData, { flex: 0.6, fontWeight: 'bold', color: row.jobType === 'QUOTE' ? '#3b82f6' : '#1e293b' }]}>{row.jobType}</Text>
+              <Text style={[styles.tableCellData, { flex: 1.8, fontSize: 6.5 }]}>{row.description}</Text>
+              <Text style={[styles.tableCellData, { flex: 1, fontSize: 6.5 }]}>{row.category}</Text>
+              <Text style={[styles.tableCellData, { flex: 1.2, fontSize: 6.5 }]}>{row.size}</Text>
+              <Text style={[styles.tableCellData, { flex: 0.5 }]}>{row.qty}</Text>
+              <Text style={[styles.tableCellData, { flex: 1, fontSize: 6.5 }]}>{row.location}</Text>
+              <Text style={[styles.tableCellData, { flex: 0.7 }]}>{row.rate}</Text>
+              <Text style={[styles.tableCellData, { flex: 0.8, fontWeight: 'bold' }]}>{row.amount}</Text>
+              <Text style={[styles.tableCellData, { flex: 0.8, fontWeight: row.amountPaid !== '0.00' ? 'bold' : 'normal', color: row.amountPaid !== '0.00' ? '#22c55e' : '#64748b' }]}>{row.amountPaid}</Text>
+              <Text style={[styles.tableCellData, { flex: 0.7, textTransform: 'uppercase', fontSize: 6.5 }]}>{row.paymentStatus}</Text>
             </View>
           ))}
         </View>
@@ -274,31 +330,55 @@ const JobOrderDocument: React.FC<ReportData> = ({
           </View>
         )}
 
-        {/* Total Section */}
-        {totalAmount > 0 && (
-          <View style={styles.totalSection}>
-            <Text style={styles.totalText}>Total Revenue: GHC {totalAmount.toFixed(2)}</Text>
-            {summary?.pendingRevenue && summary.pendingRevenue > 0 && (
-              <Text style={styles.pendingText}>
-                Pending Revenue: GHC {summary.pendingRevenue.toFixed(2)}
-              </Text>
-            )}
+        {/* Comprehensive Breakdown Section */}
+        <View style={styles.breakdownSection}>
+          <Text style={styles.breakdownTitle}>Financial Breakdown</Text>
+          
+          {/* Job Type Breakdown */}
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>Quotations ({quotationJobs.length}):</Text>
+            <Text style={styles.breakdownValue}>GHC {quotationTotal.toFixed(2)}</Text>
           </View>
-        )}
-
-        {/* Footer Section - Signatures */}
-        <View style={styles.footer}>
-          <View style={styles.signatureSection}>
-            <Text style={styles.signatureLabel}>Prepared by:</Text>
-            <View style={styles.signatureLine} />
-            <Text style={styles.signatureLabel}>Printed by:</Text>
-            <View style={styles.signatureLine} />
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>Normal Jobs ({normalJobs.length}):</Text>
+            <Text style={styles.breakdownValue}>GHC {normalJobsTotal.toFixed(2)}</Text>
           </View>
-          <View style={styles.signatureSection}>
-            <Text style={styles.signatureLabel}>Approved by:</Text>
-            <View style={styles.signatureLine} />
+          
+          <View style={styles.breakdownDivider} />
+          
+          {/* Payment Status Breakdown */}
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>Amount Paid:</Text>
+            <Text style={[styles.breakdownValue, { color: '#22c55e', fontWeight: 'bold' }]}>GHC {paidAmount.toFixed(2)}</Text>
+          </View>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>Amount Pending:</Text>
+            <Text style={[styles.breakdownValue, { color: '#f59e0b', fontWeight: 'bold' }]}>GHC {pendingAmount.toFixed(2)}</Text>
+          </View>
+          
+          <View style={styles.breakdownDivider} />
+          
+          {/* Total Section */}
+          <View style={styles.breakdownRow}>
+            <Text style={[styles.breakdownLabel, { fontSize: 11, fontWeight: 'bold' }]}>Total Revenue:</Text>
+            <Text style={[styles.breakdownValue, { fontSize: 11, fontWeight: 'bold', color: '#1e40af' }]}>GHC {totalAmount.toFixed(2)}</Text>
           </View>
         </View>
+
+        {/* Category Breakdown */}
+        {categoryBreakdown && categoryBreakdown.length > 0 && (
+          <View style={styles.categorySection}>
+            <Text style={styles.sectionTitle}>Category Breakdown</Text>
+            {categoryBreakdown.map((cat, index) => (
+              <View key={index} style={styles.categoryRow}>
+                <Text style={styles.categoryName}>{cat.categoryName}:</Text>
+                <Text style={styles.categoryValue}>
+                  {cat.count} jobs - GHC {cat.revenue.toFixed(2)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </Page>
     </Document>
   );
@@ -387,17 +467,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tableCellHeader: {
-    fontSize: 7,
+    fontSize: 6.5,
     fontWeight: 'bold',
     color: '#ffffff',
     textAlign: 'center',
-    paddingHorizontal: 2,
+    paddingHorizontal: 1,
   },
   tableCellData: {
-    fontSize: 7,
+    fontSize: 6.5,
     color: '#1e293b',
     textAlign: 'center',
-    paddingHorizontal: 2,
+    paddingHorizontal: 1,
   },
   totalSection: {
     marginTop: 10,
@@ -447,28 +527,42 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     fontWeight: '500',
   },
-  footer: {
-    marginTop: 30,
+  breakdownSection: {
+    marginTop: 15,
+    marginBottom: 15,
+    padding: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  breakdownTitle: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    marginBottom: 6,
+    alignItems: 'center',
   },
-  signatureSection: {
-    width: '45%',
-  },
-  signatureLabel: {
+  breakdownLabel: {
     fontSize: 9,
     color: '#475569',
-    marginBottom: 5,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
-  signatureLine: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#94a3b8',
-    marginBottom: 15,
-    height: 20,
+  breakdownValue: {
+    fontSize: 9,
+    color: '#1e293b',
+    fontWeight: '500',
+  },
+  breakdownDivider: {
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#cbd5e1',
+    marginVertical: 8,
   },
 });
 
