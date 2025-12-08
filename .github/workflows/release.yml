@@ -78,6 +78,12 @@ jobs:
           node -e "const pkg = require('./package.json'); console.log(JSON.stringify(pkg.build.publish, null, 2))"
           echo ""
           echo "✅ Package is configured to publish to: mrpiper21/Agent-Releases"
+          echo ""
+          echo "🔍 Environment variables check:"
+          echo "GH_TOKEN is set: $([ -n \"$GH_TOKEN\" ] && echo 'YES' || echo 'NO')"
+          echo "GITHUB_TOKEN is set: $([ -n \"$GITHUB_TOKEN\" ] && echo 'YES' || echo 'NO')"
+          echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+          echo "GITHUB_REF: $GITHUB_REF"
 
       - name: Initialize Agent-Releases Repository (if empty)
         if: matrix.os == 'ubuntu-latest'
@@ -190,38 +196,60 @@ jobs:
       - name: Build and Publish (Windows)
         if: matrix.os == 'windows-latest'
         env:
-          # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
-          # GH_TOKEN is used by electron-builder to publish to the specified repository
+          # Use GH_TOKEN for electron-builder (it checks this first for custom repos)
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          # Don't use GITHUB_TOKEN as it points to the source repo, not Agent-Releases
+          # Also set GITHUB_TOKEN to our PAT to override the default Actions token
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          # Explicitly set the publish target
-          PUBLISH_TARGET: "github"
         run: |
           echo "🚀 Publishing Windows build to Agent-Releases repository..."
-          npm run publish:win
+          echo "📦 Target Repository: mrpiper21/Agent-Releases"
+          echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
+          echo "🔑 Using Personal Access Token for authentication"
+          # Build first, then publish with explicit config
+          npm run build
+          # Use electron-builder directly with explicit publish config
+          cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --publish always \
+            --config.publish.provider=github \
+            --config.publish.owner=mrpiper21 \
+            --config.publish.repo=Agent-Releases \
+            --config.publish.private=false \
+            --config.publish.releaseType=release
 
       - name: Build and Publish (macOS)
         if: matrix.os == 'macos-latest'
         env:
-          # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          PUBLISH_TARGET: "github"
         run: |
           echo "🚀 Publishing macOS build to Agent-Releases repository..."
-          npm run publish:mac
+          echo "📦 Target Repository: mrpiper21/Agent-Releases"
+          echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
+          echo "🔑 Using Personal Access Token for authentication"
+          npm run build
+          electron-builder --mac --publish always \
+            --config.publish.provider=github \
+            --config.publish.owner=mrpiper21 \
+            --config.publish.repo=Agent-Releases \
+            --config.publish.private=false \
+            --config.publish.releaseType=release
 
       - name: Build and Publish (Linux)
         if: matrix.os == 'ubuntu-latest'
         env:
-          # Personal Access Token with 'repo' scope required for publishing to Agent-Releases
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          PUBLISH_TARGET: "github"
         run: |
           echo "🚀 Publishing Linux build to Agent-Releases repository..."
-          npm run publish:linux
+          echo "📦 Target Repository: mrpiper21/Agent-Releases"
+          echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
+          echo "🔑 Using Personal Access Token for authentication"
+          npm run build
+          electron-builder --linux --publish always \
+            --config.publish.provider=github \
+            --config.publish.owner=mrpiper21 \
+            --config.publish.repo=Agent-Releases \
+            --config.publish.private=false \
+            --config.publish.releaseType=release
       
       - name: Verify Release Published
         if: always()
