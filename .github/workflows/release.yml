@@ -70,8 +70,58 @@ jobs:
           echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "📦 Building version: $VERSION (tag: $TAG_NAME)"
       
+      - name: Update Package Version to Match Tag
+        shell: bash
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG_NAME#v}
+          echo "📝 Updating package.json version to $VERSION to match tag $TAG_NAME"
+          # Update package.json version using node
+          node -e "const fs = require('fs'); const pkg = require('./package.json'); pkg.version = '$VERSION'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
+          echo "✅ Updated package.json version to $VERSION"
+          # Verify the update
+          echo "📋 Current package.json version:"
+          node -e "const pkg = require('./package.json'); console.log(pkg.version)"
+      
+      - name: Ensure Tag Exists in Agent-Releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          REPO_OWNER="mrpiper21"
+          REPO_NAME="Agent-Releases"
+          
+          echo "🏷️  Ensuring tag $TAG_NAME exists in Agent-Releases..."
+          
+          # Check if tag exists in Agent-Releases
+          TAG_EXISTS=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/git/refs/tags/$TAG_NAME" | grep -q '"ref"' && echo "yes" || echo "no")
+          
+          if [ "$TAG_EXISTS" = "no" ]; then
+            echo "📌 Tag $TAG_NAME does not exist in Agent-Releases. Creating it..."
+            
+            # Get the commit SHA from the source repository
+            COMMIT_SHA=$(git rev-parse HEAD)
+            echo "📝 Commit SHA: $COMMIT_SHA"
+            
+            # Create the tag in Agent-Releases
+            curl -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"ref\":\"refs/tags/$TAG_NAME\",\"sha\":\"$COMMIT_SHA\"}" \
+              "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/git/refs" || {
+              echo "⚠️  Failed to create tag. It may already exist or the commit SHA might be invalid."
+              echo "Continuing anyway - electron-builder should handle this."
+            }
+          else
+            echo "✅ Tag $TAG_NAME already exists in Agent-Releases"
+          fi
+      
       - name: Verify Package Configuration
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           echo "📋 Verifying electron-builder configuration..."
           echo "Repository in package.json publish config:"
@@ -80,10 +130,19 @@ jobs:
           echo "✅ Package is configured to publish to: mrpiper21/Agent-Releases"
           echo ""
           echo "🔍 Environment variables check:"
-          echo "GH_TOKEN is set: $([ -n \"$GH_TOKEN\" ] && echo 'YES' || echo 'NO')"
+          echo "GH_TOKEN is set: $([ -n \"$GH_TOKEN\" ] && echo 'YES (length: ${#GH_TOKEN})' || echo 'NO')"
           echo "GITHUB_TOKEN is set: $([ -n \"$GITHUB_TOKEN\" ] && echo 'YES' || echo 'NO')"
           echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
           echo "GITHUB_REF: $GITHUB_REF"
+          echo ""
+          echo "🔍 Testing token access to Agent-Releases..."
+          if curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/mrpiper21/Agent-Releases" | grep -q '"name"'; then
+            echo "✅ Token has access to Agent-Releases repository"
+          else
+            echo "❌ Token does NOT have access to Agent-Releases repository!"
+            echo "Please verify the Personal Access Token has 'repo' scope."
+          fi
 
       - name: Initialize Agent-Releases Repository (if empty)
         if: matrix.os == 'ubuntu-latest'
@@ -212,10 +271,38 @@ jobs:
           node -e "const pkg = require('./package.json'); console.log('Publish config:', JSON.stringify(pkg.build.publish, null, 2))"
           # Build first, then publish with explicit config
           npm run build
+          # Check if build artifacts exist
+          Write-Host "📦 Checking for build artifacts..."
+          if (Test-Path "release") {
+            Write-Host "✅ Release directory exists"
+            Get-ChildItem release -Recurse | Select-Object -First 10 Name, Length
+          } else {
+            Write-Host "⚠️  Release directory not found"
+          }
           # Use npx electron-builder with explicit publish config (all on one line for PowerShell)
           Write-Host "📤 Starting electron-builder publish..."
-          npx electron-builder --win --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release
+          Write-Host "🔑 Token check: GH_TOKEN is $([string]::IsNullOrEmpty($env:GH_TOKEN) ? 'NOT SET' : 'SET')"
+          $tag = $env:GITHUB_REF -replace 'refs/tags/', ''
+          $env:DEBUG = "electron-builder:*"
+          npx electron-builder --win --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release --config.publish.token=$env:GH_TOKEN *> electron-builder.log
+          $exitCode = $LASTEXITCODE
+          Write-Host "📋 electron-builder output:"
+          Get-Content electron-builder.log
+          if ($exitCode -ne 0) {
+            Write-Host "❌ electron-builder publish failed with exit code $exitCode"
+            Write-Host "📋 Last 50 lines of output:"
+            Get-Content electron-builder.log -Tail 50
+            exit $exitCode
+          }
           Write-Host "✅ electron-builder publish completed"
+          if (Select-String -Path electron-builder.log -Pattern "published|uploaded|release|github.*release" -CaseSensitive:$false) {
+            Write-Host "✅ Found publish confirmation in logs:"
+            Select-String -Path electron-builder.log -Pattern "published|uploaded|release|github.*release" -CaseSensitive:$false | Select-Object -First 5
+          } else {
+            Write-Host "⚠️  No publish confirmation found in logs"
+            Write-Host "📋 Full electron-builder output:"
+            Get-Content electron-builder.log
+          }
 
       - name: Build and Publish (macOS)
         if: matrix.os == 'macos-latest'
@@ -225,6 +312,7 @@ jobs:
           # Override GITHUB_TOKEN to use PAT instead of default Actions token
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
+          set -e  # Exit on error
           echo "🚀 Publishing macOS build to Agent-Releases repository..."
           echo "📦 Target Repository: mrpiper21/Agent-Releases"
           echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
@@ -232,12 +320,45 @@ jobs:
           echo "🔍 Verifying electron-builder configuration before publish..."
           # Verify the publish config will be used
           node -e "const pkg = require('./package.json'); console.log('Publish config:', JSON.stringify(pkg.build.publish, null, 2))"
+          echo "🔑 Token check: GH_TOKEN is $([ -n \"$GH_TOKEN\" ] && echo 'SET' || echo 'NOT SET')"
           npm run build
+          # Check if build artifacts exist
+          echo "📦 Checking for build artifacts..."
+          if [ -d "release" ]; then
+            echo "✅ Release directory exists"
+            ls -la release/ || true
+          else
+            echo "⚠️  Release directory not found"
+          fi
           # Use npx to ensure electron-builder is available
           # Explicitly set all publish config via CLI to override any defaults
           echo "📤 Starting electron-builder publish..."
-          npx electron-builder --mac --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "Running: npx electron-builder --mac --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release"
+          # Use DEBUG environment variable for verbose output
+          # Also set the version explicitly to match the tag
+          DEBUG=electron-builder:* npx electron-builder --mac --publish always \
+            --config.publish.provider=github \
+            --config.publish.owner=mrpiper21 \
+            --config.publish.repo=Agent-Releases \
+            --config.publish.private=false \
+            --config.publish.releaseType=release \
+            --config.publish.token=$GH_TOKEN 2>&1 | tee electron-builder.log || {
+            echo "❌ electron-builder publish failed!"
+            echo "📋 Last 50 lines of electron-builder output:"
+            tail -50 electron-builder.log || true
+            exit 1
+          }
           echo "✅ electron-builder publish completed"
+          echo "📋 Checking electron-builder log for publish confirmation..."
+          if grep -iE "published|uploaded|release|github.*release" electron-builder.log; then
+            echo "✅ Found publish confirmation in logs"
+            grep -iE "published|uploaded|release|github.*release" electron-builder.log | head -5
+          else
+            echo "⚠️  No publish confirmation found in logs"
+            echo "📋 Full electron-builder output:"
+            cat electron-builder.log
+          fi
 
       - name: Build and Publish (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -247,6 +368,7 @@ jobs:
           # Override GITHUB_TOKEN to use PAT instead of default Actions token
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
+          set -e  # Exit on error
           echo "🚀 Publishing Linux build to Agent-Releases repository..."
           echo "📦 Target Repository: mrpiper21/Agent-Releases"
           echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
@@ -254,12 +376,31 @@ jobs:
           echo "🔍 Verifying electron-builder configuration before publish..."
           # Verify the publish config will be used
           node -e "const pkg = require('./package.json'); console.log('Publish config:', JSON.stringify(pkg.build.publish, null, 2))"
+          echo "🔑 Token check: GH_TOKEN is $([ -n \"$GH_TOKEN\" ] && echo 'SET' || echo 'NOT SET')"
           npm run build
           # Use npx to ensure electron-builder is available
           # Explicitly set all publish config via CLI to override any defaults
           echo "📤 Starting electron-builder publish..."
-          npx electron-builder --linux --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release
+          echo "Running: npx electron-builder --linux --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release"
+          # Use DEBUG environment variable for verbose output
+          DEBUG=electron-builder:* npx electron-builder --linux --publish always \
+            --config.publish.provider=github \
+            --config.publish.owner=mrpiper21 \
+            --config.publish.repo=Agent-Releases \
+            --config.publish.private=false \
+            --config.publish.releaseType=release 2>&1 | tee electron-builder.log || {
+            echo "❌ electron-builder publish failed!"
+            echo "📋 Last 50 lines of electron-builder output:"
+            tail -50 electron-builder.log || true
+            exit 1
+          }
           echo "✅ electron-builder publish completed"
+          echo "📋 Checking electron-builder log for publish confirmation..."
+          if grep -i "published\|uploaded\|release" electron-builder.log; then
+            echo "✅ Found publish confirmation in logs"
+          else
+            echo "⚠️  No publish confirmation found in logs"
+          fi
       
       - name: Verify Release Published
         if: always()
