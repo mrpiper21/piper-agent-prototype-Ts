@@ -408,6 +408,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
+          set +e  # Don't exit on error - we want to report status even if some checks fail
           REPO_OWNER="mrpiper21"
           REPO_NAME="Agent-Releases"
           TAG_NAME=${GITHUB_REF#refs/tags/}
@@ -426,9 +427,25 @@ jobs:
             echo "✅ Release $TAG_NAME successfully published to Agent-Releases!"
             echo "🔗 View at: https://github.com/$REPO_OWNER/$REPO_NAME/releases/tag/$TAG_NAME"
             
-            # Get release details
-            RELEASE_URL=$(echo "$RELEASE_RESPONSE" | grep -o '"html_url":"[^"]*"' | cut -d'"' -f4)
-            echo "📦 Release URL: $RELEASE_URL"
+            # Get release details (don't fail if this doesn't work)
+            RELEASE_URL=$(echo "$RELEASE_RESPONSE" | grep -o '"html_url":"[^"]*"' | cut -d'"' -f4 || echo "")
+            if [ -n "$RELEASE_URL" ]; then
+              echo "📦 Release URL: $RELEASE_URL"
+            fi
+            
+            # Check if release has assets
+            ASSET_COUNT=$(echo "$RELEASE_RESPONSE" | grep -o '"assets":\[' | wc -l || echo "0")
+            if echo "$RELEASE_RESPONSE" | grep -q '"assets"'; then
+              ASSET_NAMES=$(echo "$RELEASE_RESPONSE" | grep -o '"name":"[^"]*"' | cut -d'"' -f4 || echo "")
+              if [ -n "$ASSET_NAMES" ]; then
+                echo "📦 Release assets:"
+                echo "$ASSET_NAMES" | head -5
+              fi
+            fi
+            
+            echo ""
+            echo "✅ Verification successful - release is published to Agent-Releases!"
+            exit 0
           else
             echo "❌ Release $TAG_NAME NOT found in Agent-Releases!"
             echo ""
