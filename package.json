@@ -1,15 +1,16 @@
 {
   "name": "printmyfile-agent",
-  "version": "1.1.32",
+  "version": "1.1.33",
   "description": "PrintMyFile SaaS Local Print Agent",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "npm run copy-whatsapp && electron-vite build",
     "preview": "electron-vite preview",
     "start": "electron out/main/index.js",
     "start:built": "electron out/main/index.js",
     "lint": "eslint . --ext .ts,.tsx",
+    "copy-whatsapp": "node scripts/copy-whatsapp-service.js",
     "package": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
     "package:win": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
     "package:mac": "npm run build && electron-builder --mac",
@@ -128,8 +129,10 @@
     ],
     "asar": true,
     "asarUnpack": [
-      "**/whatsapp-service.js",
-      "out/main/whatsapp-service.js"
+      "out/main/whatsapp-service.js",
+      "node_modules/whatsapp-web.js/**/*",
+      "node_modules/puppeteer/**/*",
+      "node_modules/puppeteer-core/**/*"
     ],
     "win": {
       "target": [
