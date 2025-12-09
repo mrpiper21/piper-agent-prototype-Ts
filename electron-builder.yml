@@ -8,9 +8,11 @@ files:
   - node_modules/**
   - package.json
 
-# Force unpack preload script (required for preload scripts with native dependencies)
+# Force unpack preload script and whatsapp-service.js (required for forked processes)
 asar:
-  unpack: "**/preload/**"
+  unpack: 
+    - "**/preload/**"
+    - "**/whatsapp-service.js"
 
 directories:
   output: release

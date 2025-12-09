@@ -66,14 +66,14 @@ export default function CategoryFormFields({
               gap: '4px',
             }}
           >
-            <span>Price with 7% markup:</span>
+            <span>Price with 1.5% markup:</span>
             <span
               style={{
                 fontWeight: '500',
                 color: themeStyles.accent,
               }}
             >
-              {(formData.unitPrice * 1.07).toFixed(2)}
+              {(formData.unitPrice * 1.015).toFixed(2)}
             </span>
           </div>
         )}

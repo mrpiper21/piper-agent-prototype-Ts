@@ -1,6 +1,6 @@
 {
   "name": "printmyfile-agent",
-  "version": "1.1.26",
+  "version": "1.1.27",
   "description": "PrintMyFile SaaS Local Print Agent",
   "main": "./out/main/index.js",
   "scripts": {
@@ -126,6 +126,9 @@
       "package.json",
       "build/icon.png"
     ],
+    "asar": {
+      "unpack": "**/whatsapp-service.js"
+    },
     "win": {
       "target": [
         {

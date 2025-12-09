@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { AiOutlineClose, AiOutlineSend, AiOutlineFileText, AiOutlineInfoCircle } from 'react-icons/ai';
+import {
+  AiOutlineClose,
+  AiOutlineSend,
+  AiOutlineFileText,
+  AiOutlineInfoCircle,
+} from 'react-icons/ai';
 import type { lightStyles } from '../../../shared/clerkStyles';
 // import { PAYMENT_LINK_BASE_URL } from '../../../../../../main/services/api';
 
@@ -16,10 +21,12 @@ interface QuoteFormProps {
       notes?: string;
     };
     description?: string;
-    clientId?: {
-      fullName?: string;
-      phoneNumber?: string;
-    } | string;
+    clientId?:
+      | {
+          fullName?: string;
+          phoneNumber?: string;
+        }
+      | string;
   };
   onClose: () => void;
   onSubmit: (quoteData: QuoteData) => Promise<void>;
@@ -62,8 +69,8 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
       return;
     }
 
-    // Calculate service fee (7%) and total price
-    const serviceFee = priceNum * 0.07;
+    // Calculate service fee (1.5%) and total price
+    const serviceFee = priceNum * 0.015;
     const totalPrice = priceNum + serviceFee;
 
     setIsSubmitting(true);
@@ -83,7 +90,9 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
     }
   };
 
-  const isDark = themeStyles.container.background === '#1a1a1a' || themeStyles.container.background === '#262626';
+  const isDark =
+    themeStyles.container.background === '#1a1a1a' ||
+    themeStyles.container.background === '#262626';
 
   return (
     <div
@@ -106,15 +115,15 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
     >
       <style>
         {`
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-          }
-        `}
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes slideUp {
+              from { transform: translateY(20px); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+          `}
       </style>
       <div
         style={{
@@ -125,7 +134,7 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
           // width: '100%',
           maxHeight: '90vh',
           overflowY: 'auto',
-          boxShadow: isDark 
+          boxShadow: isDark
             ? '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)'
             : '0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
           border: `1px solid ${themeStyles.card.border}`,
@@ -447,9 +456,7 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
                     marginTop: '8px',
                     padding: '10px 12px',
                     borderRadius: '8px',
-                    background: isDark 
-                      ? 'rgba(59, 130, 246, 0.1)' 
-                      : 'rgba(59, 130, 246, 0.08)',
+                    background: isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.08)',
                     border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.2)'}`,
                     fontSize: '13px',
                   }}
@@ -462,7 +469,7 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
                       marginBottom: '4px',
                     }}
                   >
-                    <span style={{ color: themeStyles.textSecondary }}>Base Price:</span>
+                    <span style={{ color: themeStyles.textSecondary }}>transaction charges:</span>
                     <span style={{ color: themeStyles.text, fontWeight: '500' }}>
                       ₵{parseFloat(price).toFixed(2)}
                     </span>
@@ -475,9 +482,9 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
                       marginBottom: '4px',
                     }}
                   >
-                    <span style={{ color: themeStyles.textSecondary }}>Service Fee (7%):</span>
+                    <span style={{ color: themeStyles.textSecondary }}>Transaction Charges (1.5%):</span>
                     <span style={{ color: themeStyles.text, fontWeight: '500' }}>
-                      ₵{(parseFloat(price) * 0.07).toFixed(2)}
+                      ₵{(parseFloat(price) * 0.015).toFixed(2)}
                     </span>
                   </div>
                   <div
@@ -491,8 +498,10 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
                     }}
                   >
                     <span style={{ color: themeStyles.text, fontWeight: '600' }}>Total Price:</span>
-                    <span style={{ color: themeStyles.accent, fontWeight: '700', fontSize: '15px' }}>
-                      ₵{(parseFloat(price) * 1.07).toFixed(2)}
+                    <span
+                      style={{ color: themeStyles.accent, fontWeight: '700', fontSize: '15px' }}
+                    >
+                      ₵{(parseFloat(price) * 1.015).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -513,7 +522,9 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
                   marginBottom: '5px',
                 }}
               >
-                <AiOutlineInfoCircle style={{ fontSize: '16px', color: themeStyles.textSecondary }} />
+                <AiOutlineInfoCircle
+                  style={{ fontSize: '16px', color: themeStyles.textSecondary }}
+                />
                 Internal Notes
                 <span
                   style={{
@@ -586,8 +597,8 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
                 }}
                 onMouseEnter={(e) => {
                   if (!isSubmitting) {
-                    e.currentTarget.style.background = isDark 
-                      ? 'rgba(255, 255, 255, 0.05)' 
+                    e.currentTarget.style.background = isDark
+                      ? 'rgba(255, 255, 255, 0.05)'
                       : 'rgba(0, 0, 0, 0.03)';
                     e.currentTarget.style.borderColor = themeStyles.textSecondary;
                   }
@@ -641,4 +652,3 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
     </div>
   );
 }
-
