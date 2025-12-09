@@ -287,6 +287,25 @@ jobs:
             echo "NODE_ENV=production"
           } > .env
 
+      - name: Build Application
+        shell: bash
+        run: |
+          echo "🔨 Building application..."
+          npm run build
+          echo "✅ Build completed"
+          
+          # Verify whatsapp-service.js was copied during build
+          echo "🔍 Verifying whatsapp-service.js exists..."
+          if [ -f "out/main/whatsapp-service.js" ]; then
+            echo "✅ whatsapp-service.js found in build output"
+            ls -lh out/main/whatsapp-service.js 2>/dev/null || dir out\\main\\whatsapp-service.js 2>/dev/null || true
+          else
+            echo "❌ ERROR: whatsapp-service.js NOT FOUND!"
+            echo "📋 Contents of out/main:"
+            ls -la out/main/ 2>/dev/null || dir out\\main 2>/dev/null || true
+            exit 1
+          fi
+
       - name: Build and Publish (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
@@ -302,22 +321,25 @@ jobs:
           $tag = $env:GITHUB_REF -replace 'refs/tags/', ''
           Write-Host "🏷️  Release Tag: $tag"
           Write-Host "🔑 Using Personal Access Token for authentication"
-          Write-Host "🔍 Verifying electron-builder configuration before publish..."
-          node -e "const pkg = require('./package.json'); console.log('Publish config:', JSON.stringify(pkg.build.publish, null, 2))"
-          # Build first, then publish with explicit config
-          npm run build
-          # Check if build artifacts exist
-          Write-Host "📦 Checking for build artifacts..."
-          if (Test-Path "release") {
-            Write-Host "✅ Release directory exists"
-            Get-ChildItem release -Recurse | Select-Object -First 10 Name, Length
+          
+          # Verify whatsapp-service.js exists (build step should have created it)
+          Write-Host "🔍 Verifying whatsapp-service.js exists before publish..."
+          if (Test-Path "out/main/whatsapp-service.js") {
+            Write-Host "✅ whatsapp-service.js found"
+            Get-Item "out/main/whatsapp-service.js" | Select-Object Name, Length
           } else {
-            Write-Host "⚠️  Release directory not found"
+            Write-Host "❌ ERROR: whatsapp-service.js NOT found!"
+            Write-Host "📋 Contents of out/main:"
+            Get-ChildItem out/main -ErrorAction SilentlyContinue | Select-Object Name
+            exit 1
           }
-          # Use npx electron-builder with explicit publish config (all on one line for PowerShell)
-          Write-Host "📤 Starting electron-builder publish..."
+          
+          Write-Host "🔍 Verifying electron-builder configuration..."
+          node -e "const pkg = require('./package.json'); console.log('Publish config:', JSON.stringify(pkg.build.publish, null, 2))"
           Write-Host "🔑 Token check: GH_TOKEN is $([string]::IsNullOrEmpty($env:GH_TOKEN) ? 'NOT SET' : 'SET')"
-          $tag = $env:GITHUB_REF -replace 'refs/tags/', ''
+          
+          # Build already done, just package and publish
+          Write-Host "📤 Starting electron-builder publish..."
           $env:DEBUG = "electron-builder:*"
           npx electron-builder --win --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release --config.publish.token=$env:GH_TOKEN *> electron-builder.log
           $exitCode = $LASTEXITCODE
@@ -352,26 +374,26 @@ jobs:
           echo "📦 Target Repository: mrpiper21/Agent-Releases"
           echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
           echo "🔑 Using Personal Access Token for authentication"
-          echo "🔍 Verifying electron-builder configuration before publish..."
-          # Verify the publish config will be used
+          
+          # Verify whatsapp-service.js exists (build step should have created it)
+          echo "🔍 Verifying whatsapp-service.js exists before publish..."
+          if [ -f "out/main/whatsapp-service.js" ]; then
+            echo "✅ whatsapp-service.js found"
+            ls -lh out/main/whatsapp-service.js
+          else
+            echo "❌ ERROR: whatsapp-service.js NOT found!"
+            echo "📋 Contents of out/main:"
+            ls -la out/main/ || true
+            exit 1
+          fi
+          
+          echo "🔍 Verifying electron-builder configuration..."
           node -e "const pkg = require('./package.json'); console.log('Publish config:', JSON.stringify(pkg.build.publish, null, 2))"
           echo "🔑 Token check: GH_TOKEN is $([ -n \"$GH_TOKEN\" ] && echo 'SET' || echo 'NOT SET')"
-          npm run build
-          # Check if build artifacts exist
-          echo "📦 Checking for build artifacts..."
-          if [ -d "release" ]; then
-            echo "✅ Release directory exists"
-            ls -la release/ || true
-          else
-            echo "⚠️  Release directory not found"
-          fi
-          # Use npx to ensure electron-builder is available
-          # Explicitly set all publish config via CLI to override any defaults
+          
+          # Build already done, just package and publish
           echo "📤 Starting electron-builder publish..."
           TAG_NAME=${GITHUB_REF#refs/tags/}
-          echo "Running: npx electron-builder --mac --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release"
-          # Use DEBUG environment variable for verbose output
-          # Also set the version explicitly to match the tag
           DEBUG=electron-builder:* npx electron-builder --mac --publish always \
             --config.publish.provider=github \
             --config.publish.owner=mrpiper21 \
@@ -408,16 +430,25 @@ jobs:
           echo "📦 Target Repository: mrpiper21/Agent-Releases"
           echo "🏷️  Release Tag: ${GITHUB_REF#refs/tags/}"
           echo "🔑 Using Personal Access Token for authentication"
-          echo "🔍 Verifying electron-builder configuration before publish..."
-          # Verify the publish config will be used
+          
+          # Verify whatsapp-service.js exists (build step should have created it)
+          echo "🔍 Verifying whatsapp-service.js exists before publish..."
+          if [ -f "out/main/whatsapp-service.js" ]; then
+            echo "✅ whatsapp-service.js found"
+            ls -lh out/main/whatsapp-service.js
+          else
+            echo "❌ ERROR: whatsapp-service.js NOT found!"
+            echo "📋 Contents of out/main:"
+            ls -la out/main/ || true
+            exit 1
+          fi
+          
+          echo "🔍 Verifying electron-builder configuration..."
           node -e "const pkg = require('./package.json'); console.log('Publish config:', JSON.stringify(pkg.build.publish, null, 2))"
           echo "🔑 Token check: GH_TOKEN is $([ -n \"$GH_TOKEN\" ] && echo 'SET' || echo 'NOT SET')"
-          npm run build
-          # Use npx to ensure electron-builder is available
-          # Explicitly set all publish config via CLI to override any defaults
+          
+          # Build already done, just package and publish
           echo "📤 Starting electron-builder publish..."
-          echo "Running: npx electron-builder --linux --publish always --config.publish.provider=github --config.publish.owner=mrpiper21 --config.publish.repo=Agent-Releases --config.publish.private=false --config.publish.releaseType=release"
-          # Use DEBUG environment variable for verbose output
           DEBUG=electron-builder:* npx electron-builder --linux --publish always \
             --config.publish.provider=github \
             --config.publish.owner=mrpiper21 \
@@ -432,10 +463,13 @@ jobs:
           }
           echo "✅ electron-builder publish completed"
           echo "📋 Checking electron-builder log for publish confirmation..."
-          if grep -i "published\|uploaded\|release" electron-builder.log; then
+          if grep -iE "published|uploaded|release|github.*release" electron-builder.log; then
             echo "✅ Found publish confirmation in logs"
+            grep -iE "published|uploaded|release|github.*release" electron-builder.log | head -5
           else
             echo "⚠️  No publish confirmation found in logs"
+            echo "📋 Full electron-builder output:"
+            cat electron-builder.log
           fi
       
       - name: Check Publish Step Status
