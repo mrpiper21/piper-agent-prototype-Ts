@@ -19,12 +19,10 @@ try {
   console.error('Module paths:', require.resolve.paths('whatsapp-web.js'));
   
   // Try to send error to parent process if IPC is available
-  if (process.send) {
-    process.send({
-      type: 'error',
-      error: `Failed to load whatsapp-web.js: ${error.message}. Check that node_modules is accessible.`,
-    });
-  }
+  safeSend({
+    type: 'error',
+    error: `Failed to load whatsapp-web.js: ${error.message}. Check that node_modules is accessible.`,
+  });
   process.exit(1);
 }
 
@@ -33,6 +31,23 @@ const fs = require('fs');
 
 let client = null;
 let userDataPath = null;
+
+// Helper function to safely send messages to parent process
+function safeSend(message) {
+  try {
+    if (process.send) {
+      process.send(message);
+      return true;
+    } else {
+      console.warn('process.send is not available, cannot send message:', message.type);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error sending message to parent process:', error);
+    console.error('Message that failed:', message.type);
+    return false;
+  }
+}
 
 // Get user data path for session storage
 function getUserDataPath() {
@@ -72,7 +87,7 @@ process.on('message', async (msg) => {
         break;
     }
   } catch (error) {
-    process.send({ 
+    safeSend({ 
       type: 'error', 
       error: error.message || 'Unknown error' 
     });
@@ -82,7 +97,7 @@ process.on('message', async (msg) => {
 async function initializeWhatsApp(providedUserDataPath) {
   try {
     if (client) {
-      process.send({ type: 'already-initialized' });
+      safeSend({ type: 'already-initialized' });
       return;
     }
 
@@ -118,34 +133,60 @@ async function initializeWhatsApp(providedUserDataPath) {
 
     client.on('qr', (qr) => {
       console.log('QR code received');
-      process.send({ type: 'qr', qr });
+      safeSend({ type: 'qr', qr });
     });
 
     client.on('authenticated', () => {
       console.log('WhatsApp authenticated');
-      process.send({ type: 'authenticated' });
+      safeSend({ type: 'authenticated' });
     });
 
     client.on('ready', async () => {
       console.log('WhatsApp client is ready!');
       
       try {
+        // Wait a bit for client.info to be fully available
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         const info = client.info;
-        process.send({ 
-          type: 'ready',
-          clientInfo: {
-            pushname: info.pushname || 'Unknown',
-            platform: info.platform || 'Unknown',
-            number: info.wid?.user || 'Unknown',
-            phoneNumber: info.wid?.user || undefined,
-          }
+        console.log('Client info retrieved:', {
+          hasInfo: !!info,
+          hasWid: !!info?.wid,
+          widUser: info?.wid?.user,
+          pushname: info?.pushname,
         });
+        
+        const clientInfo = {
+          pushname: info?.pushname || 'Unknown',
+          platform: info?.platform || 'Unknown',
+          number: info?.wid?.user || 'Unknown',
+          phoneNumber: info?.wid?.user || undefined,
+        };
+        
+        console.log('Sending ready message with clientInfo:', clientInfo);
+        const sent = safeSend({ 
+          type: 'ready',
+          clientInfo: clientInfo
+        });
+        if (!sent) {
+          console.error('Failed to send ready message to parent process');
+        }
         
         // Fetch recent messages that may have been missed while offline
         await fetchRecentMessages();
       } catch (error) {
         console.error('Error getting client info:', error);
-        process.send({ type: 'ready' });
+        console.error('Error stack:', error.stack);
+        // Still send ready message, but without clientInfo
+        safeSend({ 
+          type: 'ready',
+          clientInfo: {
+            pushname: 'Unknown',
+            platform: 'Unknown',
+            number: 'Unknown',
+            phoneNumber: undefined,
+          }
+        });
       }
     });
 
@@ -181,20 +222,20 @@ async function initializeWhatsApp(providedUserDataPath) {
 
     client.on('disconnected', (reason) => {
       console.log('WhatsApp disconnected:', reason);
-      process.send({ type: 'disconnected', reason });
+      safeSend({ type: 'disconnected', reason });
       client = null;
     });
 
     client.on('auth_failure', (message) => {
       console.error('Authentication failure:', message);
-      process.send({ type: 'error', error: 'Authentication failed: ' + message });
+      safeSend({ type: 'error', error: 'Authentication failed: ' + message });
     });
 
     await client.initialize();
-    process.send({ type: 'initializing' });
+    safeSend({ type: 'initializing' });
   } catch (error) {
     console.error('Failed to initialize WhatsApp:', error);
-    process.send({ type: 'error', error: error.message || 'Failed to initialize' });
+    safeSend({ type: 'error', error: error.message || 'Failed to initialize' });
   }
 }
 
@@ -247,7 +288,7 @@ async function fetchRecentMessages() {
     }
 
     console.log(`Finished fetching recent messages. Processed ${totalFetched} messages.`);
-    process.send({ type: 'message-history-fetched', count: totalFetched });
+    safeSend({ type: 'message-history-fetched', count: totalFetched });
   } catch (error) {
     console.error('Error fetching recent messages:', error);
     // Don't fail the connection if history fetch fails
@@ -321,7 +362,7 @@ async function processMessage(message, isHistorical = false) {
       });
     }
     
-    process.send({ type: 'message', data: messageData });
+    safeSend({ type: 'message', data: messageData });
   } catch (error) {
     console.error('Error processing message:', error);
   }
@@ -329,22 +370,22 @@ async function processMessage(message, isHistorical = false) {
 
 async function sendMessage(chatId, text) {
   if (!client) {
-    process.send({ type: 'error', error: 'Client not initialized' });
+    safeSend({ type: 'error', error: 'Client not initialized' });
     return;
   }
 
   try {
     await client.sendMessage(chatId, text);
-    process.send({ type: 'message-sent', chatId, text });
+    safeSend({ type: 'message-sent', chatId, text });
   } catch (error) {
     console.error('Error sending message:', error);
-    process.send({ type: 'error', error: error.message || 'Failed to send message' });
+    safeSend({ type: 'error', error: error.message || 'Failed to send message' });
   }
 }
 
 async function sendFile(chatId, filePath, caption) {
   if (!client) {
-    process.send({ type: 'error', error: 'Client not initialized' });
+    safeSend({ type: 'error', error: 'Client not initialized' });
     return;
   }
 
@@ -382,10 +423,10 @@ async function sendFile(chatId, filePath, caption) {
 
     // Send file with optional caption
     await client.sendMessage(chatId, media, { caption: caption || '' });
-    process.send({ type: 'file-sent', chatId, filePath, fileName });
+    safeSend({ type: 'file-sent', chatId, filePath, fileName });
   } catch (error) {
     console.error('Error sending file:', error);
-    process.send({ type: 'error', error: error.message || 'Failed to send file' });
+    safeSend({ type: 'error', error: error.message || 'Failed to send file' });
   }
 }
 
@@ -394,10 +435,10 @@ async function disconnect() {
     try {
       await client.destroy();
       client = null;
-      process.send({ type: 'disconnected', reason: 'User requested' });
+      safeSend({ type: 'disconnected', reason: 'User requested' });
     } catch (error) {
       console.error('Error disconnecting:', error);
-      process.send({ type: 'error', error: error.message });
+      safeSend({ type: 'error', error: error.message });
     }
   }
 }
@@ -407,10 +448,10 @@ async function logout() {
     try {
       await client.logout();
       await disconnect();
-      process.send({ type: 'logged-out' });
+      safeSend({ type: 'logged-out' });
     } catch (error) {
       console.error('Error logging out:', error);
-      process.send({ type: 'error', error: error.message });
+      safeSend({ type: 'error', error: error.message });
     }
   }
 }
@@ -425,12 +466,12 @@ process.on('SIGTERM', async () => {
 
 process.on('uncaughtException', (error) => {
   console.error('Uncaught exception in WhatsApp service:', error);
-  process.send({ type: 'error', error: error.message || 'Uncaught exception' });
+  safeSend({ type: 'error', error: error.message || 'Uncaught exception' });
 });
 
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled rejection in WhatsApp service:', reason);
-  process.send({ type: 'error', error: String(reason) || 'Unhandled rejection' });
+  safeSend({ type: 'error', error: String(reason) || 'Unhandled rejection' });
 });
 
 // Log startup information
@@ -446,7 +487,5 @@ console.log('Process info:', {
 });
 
 // Send ready message to parent process
-if (process.send) {
-  process.send({ type: 'process-ready' });
-}
+safeSend({ type: 'process-ready' });
 

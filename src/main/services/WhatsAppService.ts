@@ -334,13 +334,22 @@ export class WhatsAppService {
         break;
 
       case 'ready':
+        const clientInfo = message.clientInfo as Record<string, unknown> | undefined;
+        const phoneNumber = clientInfo
+          ? ((clientInfo.phoneNumber as string) || (clientInfo.number as string))
+          : undefined;
+        
+        logger.info('WhatsApp ready event received', {
+          hasClientInfo: !!clientInfo,
+          phoneNumber,
+          clientInfoKeys: clientInfo ? Object.keys(clientInfo) : [],
+        });
+        
         this.updateStatus({
           isConnected: true,
           isAuthenticated: true,
           qrCode: undefined,
-          phoneNumber:
-            ((message.clientInfo as Record<string, unknown>)?.phoneNumber as string) ||
-            ((message.clientInfo as Record<string, unknown>)?.number as string),
+          phoneNumber,
         });
         this.isInitializing = false;
         break;
@@ -569,11 +578,16 @@ export class WhatsAppService {
    * Update status and notify listeners
    */
   private updateStatus(status: Partial<WhatsAppStatus>): void {
+    // Update status first
+    this.status = { ...this.status, ...status };
+    
+    // Then send the updated status to renderer
     const mainWindow = getMainWindow();
     if (mainWindow) {
       mainWindow.webContents.send('whatsapp-status', this.status);
     }
-    this.status = { ...this.status, ...status };
+    
+    // Notify listeners with updated status
     this.statusListeners.forEach((listener) => listener(this.status));
   }
 
