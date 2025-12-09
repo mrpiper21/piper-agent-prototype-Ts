@@ -137,27 +137,45 @@ export class WhatsAppService {
       const execPath = process.execPath;
       logger.info('Using executable path:', execPath);
 
-      // Set up NODE_PATH to include node_modules location
-      let nodePath = process.env.NODE_PATH || '';
-      if (!isDev) {
-        // In production, node_modules is in the resources path
+      // CRITICAL: Set up node_modules paths for production
+      let nodeModulesPath: string;
+      let baseDir: string;
+      
+      if (isDev) {
+        // In development, node_modules is in the project root
+        const projectRoot = path.resolve(__dirname, '../../');
+        nodeModulesPath = path.join(projectRoot, 'node_modules');
+        baseDir = projectRoot;
+      } else {
+        // In production, node_modules should be in app.asar.unpacked
         const resourcesPath = process.resourcesPath || path.resolve(__dirname, '../../../');
-        const asarNodeModules = path.join(resourcesPath, 'app.asar', 'node_modules');
-        const unpackedNodeModules = path.join(resourcesPath, 'app.asar.unpacked', 'node_modules');
+        baseDir = path.join(resourcesPath, 'app.asar.unpacked');
+        nodeModulesPath = path.join(baseDir, 'node_modules');
         
-        const paths: string[] = [];
-        if (fs.existsSync(asarNodeModules)) {
-          paths.push(asarNodeModules);
-        }
-        if (fs.existsSync(unpackedNodeModules)) {
-          paths.push(unpackedNodeModules);
-        }
-        if (nodePath) {
-          paths.push(nodePath);
-        }
+        logger.info('Production paths:', {
+          resourcesPath,
+          baseDir,
+          nodeModulesPath,
+          nodeModulesExists: fs.existsSync(nodeModulesPath),
+        });
         
-        nodePath = paths.join(path.delimiter);
-        logger.info('NODE_PATH configured:', { nodePath, paths });
+        // Verify critical modules exist
+        const whatsappWebPath = path.join(nodeModulesPath, 'whatsapp-web.js');
+        const puppeteerPath = path.join(nodeModulesPath, 'puppeteer');
+        const puppeteerCorePath = path.join(nodeModulesPath, 'puppeteer-core');
+        
+        logger.info('Module verification:', {
+          whatsappWebExists: fs.existsSync(whatsappWebPath),
+          puppeteerExists: fs.existsSync(puppeteerPath),
+          puppeteerCoreExists: fs.existsSync(puppeteerCorePath),
+        });
+        
+        if (!fs.existsSync(nodeModulesPath)) {
+          logger.error('node_modules not found in unpacked directory!', {
+            expectedPath: nodeModulesPath,
+            resourcesPath,
+          });
+        }
       }
 
       const forkOptions: {
@@ -171,22 +189,24 @@ export class WhatsAppService {
           ...process.env,
           NODE_ENV: process.env.NODE_ENV || 'production',
           USER_DATA_PATH: app.getPath('userData'),
-          ...(nodePath ? { NODE_PATH: nodePath } : {}),
+          // CRITICAL: Tell Node where to find modules
+          NODE_PATH: nodeModulesPath,
         },
+        // Set the working directory to where node_modules is
+        cwd: baseDir,
       };
 
       // Use Electron executable in production
       if (!isDev) {
         forkOptions.execPath = execPath;
-        // Set working directory to the unpacked directory so relative requires work
-        forkOptions.cwd = path.dirname(whatsappServicePath);
-        logger.info('Production mode: Using Electron executable and cwd:', forkOptions.cwd);
+        logger.info('Production mode: Using Electron executable');
       }
 
       logger.info('Fork options:', {
         execPath: forkOptions.execPath || 'default',
         cwd: forkOptions.cwd || 'default',
-        hasNodePath: !!forkOptions.env.NODE_PATH,
+        nodePath: forkOptions.env.NODE_PATH,
+        userDataPath: forkOptions.env.USER_DATA_PATH,
       });
 
       this.whatsappProcess = fork(whatsappServicePath, [], forkOptions);
