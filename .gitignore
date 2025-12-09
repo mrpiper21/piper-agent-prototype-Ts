@@ -148,3 +148,4 @@ coverage/
 
 # Local development
 .local/
+.auth-token

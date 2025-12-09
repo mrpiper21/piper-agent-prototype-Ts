@@ -117,16 +117,79 @@ export class WhatsAppService {
         throw new Error(`WhatsApp service file not found at: ${whatsappServicePath}. Tried paths: ${triedPaths}`);
       }
 
+      // Verify file is readable
+      try {
+        const stats = fs.statSync(whatsappServicePath);
+        logger.info('WhatsApp service file verified:', {
+          path: whatsappServicePath,
+          size: stats.size,
+          isFile: stats.isFile(),
+        });
+      } catch (error) {
+        logger.error('Failed to stat WhatsApp service file:', error);
+        throw new Error(`WhatsApp service file exists but is not accessible: ${whatsappServicePath}`);
+      }
+
       logger.info('Starting WhatsApp service from:', whatsappServicePath);
 
-      this.whatsappProcess = fork(whatsappServicePath, [], {
+      // In production, we need to use the Electron executable for fork()
+      // process.execPath points to the Electron executable in packaged apps
+      const execPath = process.execPath;
+      logger.info('Using executable path:', execPath);
+
+      // Set up NODE_PATH to include node_modules location
+      let nodePath = process.env.NODE_PATH || '';
+      if (!isDev) {
+        // In production, node_modules is in the resources path
+        const resourcesPath = process.resourcesPath || path.resolve(__dirname, '../../../');
+        const asarNodeModules = path.join(resourcesPath, 'app.asar', 'node_modules');
+        const unpackedNodeModules = path.join(resourcesPath, 'app.asar.unpacked', 'node_modules');
+        
+        const paths: string[] = [];
+        if (fs.existsSync(asarNodeModules)) {
+          paths.push(asarNodeModules);
+        }
+        if (fs.existsSync(unpackedNodeModules)) {
+          paths.push(unpackedNodeModules);
+        }
+        if (nodePath) {
+          paths.push(nodePath);
+        }
+        
+        nodePath = paths.join(path.delimiter);
+        logger.info('NODE_PATH configured:', { nodePath, paths });
+      }
+
+      const forkOptions: {
+        stdio: Array<'pipe' | 'ipc'>;
+        env: NodeJS.ProcessEnv;
+        execPath?: string;
+        cwd?: string;
+      } = {
         stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
         env: {
           ...process.env,
-          NODE_ENV: process.env.NODE_ENV,
+          NODE_ENV: process.env.NODE_ENV || 'production',
           USER_DATA_PATH: app.getPath('userData'),
+          ...(nodePath ? { NODE_PATH: nodePath } : {}),
         },
+      };
+
+      // Use Electron executable in production
+      if (!isDev) {
+        forkOptions.execPath = execPath;
+        // Set working directory to the unpacked directory so relative requires work
+        forkOptions.cwd = path.dirname(whatsappServicePath);
+        logger.info('Production mode: Using Electron executable and cwd:', forkOptions.cwd);
+      }
+
+      logger.info('Fork options:', {
+        execPath: forkOptions.execPath || 'default',
+        cwd: forkOptions.cwd || 'default',
+        hasNodePath: !!forkOptions.env.NODE_PATH,
       });
+
+      this.whatsappProcess = fork(whatsappServicePath, [], forkOptions);
 
       this.whatsappProcess.stdout?.on('data', (data) => {
         logger.info('[WhatsApp Service]:', data.toString().trim());
@@ -136,41 +199,103 @@ export class WhatsAppService {
         logger.error('[WhatsApp Service Error]:', data.toString().trim());
       });
 
+      // Wait for process to be ready before sending init
+      let processReady = false;
+      const processReadyPromise = new Promise<void>((resolve) => {
+        const checkReady = () => {
+          if (processReady) {
+            resolve();
+            return;
+          }
+          if (this.whatsappProcess?.killed) {
+            resolve(); // Resolve to continue with error check below
+            return;
+          }
+          setTimeout(checkReady, 100);
+        };
+        checkReady();
+        
+        // Timeout after 5 seconds
+        setTimeout(() => {
+          if (!processReady && !this.whatsappProcess?.killed) {
+            logger.warn('WhatsApp service process did not send ready message within timeout, proceeding anyway');
+            resolve();
+          }
+        }, 5000);
+      });
+
+      // Set up message handler
       this.whatsappProcess.on('message', (msg: unknown) => {
+        const message = msg as Record<string, unknown>;
+        if (message.type === 'process-ready' && !processReady) {
+          processReady = true;
+          logger.info('WhatsApp service process confirmed ready');
+          // Send init message now that process is ready
+          if (this.whatsappProcess && !this.whatsappProcess.killed) {
+            this.whatsappProcess.send({
+              type: 'init',
+              userDataPath: app.getPath('userData'),
+            });
+            logger.info('WhatsApp service initialization requested');
+          }
+        }
         this.handleProcessMessage(msg);
       });
 
       this.whatsappProcess.on('error', (error) => {
         logger.error('WhatsApp process error:', error);
+        logger.error('Error details:', {
+          message: error.message,
+          code: (error as NodeJS.ErrnoException).code,
+          errno: (error as NodeJS.ErrnoException).errno,
+          syscall: (error as NodeJS.ErrnoException).syscall,
+          path: (error as NodeJS.ErrnoException).path,
+          stack: error.stack,
+        });
         this.updateStatus({
           isConnected: false,
           isAuthenticated: false,
-          error: error.message,
+          error: `Failed to start WhatsApp service: ${error.message}`,
         });
         this.whatsappProcess = null;
         this.isInitializing = false;
       });
 
       this.whatsappProcess.on('exit', (code, signal) => {
-        logger.info(`WhatsApp process exited with code ${code} and signal ${signal}`);
+        logger.warn(`WhatsApp process exited with code ${code} and signal ${signal}`);
+        if (code !== 0 && code !== null) {
+          logger.error('WhatsApp process exited with non-zero code. This usually indicates an error.');
+          this.updateStatus({
+            isConnected: false,
+            isAuthenticated: false,
+            error: `WhatsApp service process exited with code ${code}. Check logs for details.`,
+          });
+        } else {
+          this.updateStatus({
+            isConnected: false,
+            isAuthenticated: false,
+          });
+        }
         this.whatsappProcess = null;
         this.isInitializing = false;
-        this.updateStatus({
-          isConnected: false,
-          isAuthenticated: false,
-        });
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Wait for process to be ready
+      await processReadyPromise;
 
-      if (this.whatsappProcess && !this.whatsappProcess.killed) {
+      // Verify process is still alive and send init if not already sent
+      if (!this.whatsappProcess || this.whatsappProcess.killed) {
+        throw new Error('WhatsApp service process died before initialization');
+      }
+
+      // If process didn't send ready message, try sending init anyway
+      if (!processReady) {
+        logger.warn('Sending init message without ready confirmation');
         this.whatsappProcess.send({
           type: 'init',
           userDataPath: app.getPath('userData'),
         });
-        logger.info('WhatsApp service initialization requested');
-      } else {
-        throw new Error('Failed to start WhatsApp service process');
+        logger.info('WhatsApp service initialization requested (fallback)');
       }
     } catch (error) {
       logger.error('Failed to initialize WhatsApp service:', error);
@@ -253,6 +378,10 @@ export class WhatsAppService {
       case 'already-initialized':
         logger.info('WhatsApp service already initialized');
         this.isInitializing = false;
+        break;
+
+      case 'process-ready':
+        logger.info('WhatsApp service process is ready and waiting for initialization');
         break;
 
       case 'message-history-fetched': {

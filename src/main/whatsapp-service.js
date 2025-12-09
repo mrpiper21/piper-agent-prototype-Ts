@@ -1,7 +1,33 @@
 // src/main/whatsapp-service.js
 // Separate Node.js process for WhatsApp Web.js to avoid bundling issues
 
-const { Client, LocalAuth } = require('whatsapp-web.js');
+// Wrap requires in try-catch to handle module loading errors
+let Client, LocalAuth;
+try {
+  const whatsappWeb = require('whatsapp-web.js');
+  Client = whatsappWeb.Client;
+  LocalAuth = whatsappWeb.LocalAuth;
+} catch (error) {
+  console.error('Failed to load whatsapp-web.js:', error);
+  console.error('Error details:', {
+    message: error.message,
+    code: error.code,
+    path: error.path,
+    stack: error.stack,
+  });
+  console.error('NODE_PATH:', process.env.NODE_PATH);
+  console.error('Module paths:', require.resolve.paths('whatsapp-web.js'));
+  
+  // Try to send error to parent process if IPC is available
+  if (process.send) {
+    process.send({
+      type: 'error',
+      error: `Failed to load whatsapp-web.js: ${error.message}. Check that node_modules is accessible.`,
+    });
+  }
+  process.exit(1);
+}
+
 const path = require('path');
 const fs = require('fs');
 
@@ -407,5 +433,20 @@ process.on('unhandledRejection', (reason) => {
   process.send({ type: 'error', error: String(reason) || 'Unhandled rejection' });
 });
 
+// Log startup information
 console.log('WhatsApp service process started');
+console.log('Process info:', {
+  pid: process.pid,
+  platform: process.platform,
+  nodeVersion: process.version,
+  electronVersion: process.versions.electron,
+  cwd: process.cwd(),
+  execPath: process.execPath,
+  nodePath: process.env.NODE_PATH,
+});
+
+// Send ready message to parent process
+if (process.send) {
+  process.send({ type: 'process-ready' });
+}
 
