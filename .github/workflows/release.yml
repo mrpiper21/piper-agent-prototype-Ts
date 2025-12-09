@@ -388,7 +388,8 @@ jobs:
             --config.publish.owner=mrpiper21 \
             --config.publish.repo=Agent-Releases \
             --config.publish.private=false \
-            --config.publish.releaseType=release 2>&1 | tee electron-builder.log || {
+            --config.publish.releaseType=release \
+            --config.publish.token=$GH_TOKEN 2>&1 | tee electron-builder.log || {
             echo "❌ electron-builder publish failed!"
             echo "📋 Last 50 lines of electron-builder output:"
             tail -50 electron-builder.log || true
@@ -416,14 +417,38 @@ jobs:
           echo "🔍 Verifying release $TAG_NAME exists in Agent-Releases..."
           echo "📋 Checking both repositories for the release..."
           
-          # Wait a bit for GitHub API to update
-          sleep 10
+          # Retry checking for the release (GitHub API may need time to update)
+          MAX_RETRIES=6
+          RETRY_DELAY=10
+          RELEASE_FOUND=0
           
-          # Check if release exists in Agent-Releases
-          RELEASE_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$TAG_NAME")
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "⏳ Attempt $i/$MAX_RETRIES: Checking for release (waiting ${RETRY_DELAY}s before check)..."
+            sleep $RETRY_DELAY
+            
+            # Check if release exists in Agent-Releases
+            RELEASE_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$TAG_NAME")
+            
+            # Check for error messages in response
+            if echo "$RELEASE_RESPONSE" | grep -q '"message"'; then
+              ERROR_MSG=$(echo "$RELEASE_RESPONSE" | grep -o '"message":"[^"]*"' | cut -d'"' -f4 || echo "")
+              echo "⚠️  API returned error: $ERROR_MSG"
+            fi
+            
+            if echo "$RELEASE_RESPONSE" | grep -q '"tag_name"'; then
+              RELEASE_FOUND=1
+              echo "✅ Release found!"
+              break
+            else
+              echo "❌ Release not found yet (attempt $i/$MAX_RETRIES)"
+              if [ $i -lt $MAX_RETRIES ]; then
+                echo "   Will retry in ${RETRY_DELAY} seconds..."
+              fi
+            fi
+          done
           
-          if echo "$RELEASE_RESPONSE" | grep -q '"tag_name"'; then
+          if [ $RELEASE_FOUND -eq 1 ]; then
             echo "✅ Release $TAG_NAME successfully published to Agent-Releases!"
             echo "🔗 View at: https://github.com/$REPO_OWNER/$REPO_NAME/releases/tag/$TAG_NAME"
             
@@ -447,6 +472,8 @@ jobs:
             echo "✅ Verification successful - release is published to Agent-Releases!"
             exit 0
           else
+            echo ""
+            echo "❌ Release verification failed after $MAX_RETRIES attempts"
             echo "❌ Release $TAG_NAME NOT found in Agent-Releases!"
             echo ""
             echo "Checking if it was published to the source repository instead..."
