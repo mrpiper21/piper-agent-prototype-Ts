@@ -1,12 +1,60 @@
 // src/main/whatsapp-service.js
 // Separate Node.js process for WhatsApp Web.js to avoid bundling issues
 
+const path = require('path');
+const fs = require('fs');
+
+let client = null;
+let userDataPath = null;
+
+// Helper function to safely send messages to parent process
+// MUST be defined before any code that uses it
+function safeSend(message) {
+  try {
+    if (process.send) {
+      process.send(message);
+      return true;
+    } else {
+      console.warn('process.send is not available, cannot send message:', message.type);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error sending message to parent process:', error);
+    console.error('Message that failed:', message.type);
+    return false;
+  }
+}
+
+// Log startup information immediately
+console.log('WhatsApp service process starting...');
+console.log('Process info:', {
+  pid: process.pid,
+  platform: process.platform,
+  nodeVersion: process.version,
+  electronVersion: process.versions.electron,
+  cwd: process.cwd(),
+  execPath: process.execPath,
+  nodePath: process.env.NODE_PATH,
+  userDataPath: process.env.USER_DATA_PATH,
+});
+
+// Send initial ready message to confirm process started
+safeSend({ type: 'process-started' });
+
 // Wrap requires in try-catch to handle module loading errors
 let Client, LocalAuth;
 try {
+  console.log('Attempting to load whatsapp-web.js...');
+  console.log('NODE_PATH:', process.env.NODE_PATH);
+  console.log('Module search paths:', require.resolve.paths('whatsapp-web.js'));
+  
   const whatsappWeb = require('whatsapp-web.js');
   Client = whatsappWeb.Client;
   LocalAuth = whatsappWeb.LocalAuth;
+  console.log('Successfully loaded whatsapp-web.js');
+  
+  // Send ready message after modules are loaded
+  safeSend({ type: 'process-ready' });
 } catch (error) {
   console.error('Failed to load whatsapp-web.js:', error);
   console.error('Error details:', {
@@ -23,30 +71,11 @@ try {
     type: 'error',
     error: `Failed to load whatsapp-web.js: ${error.message}. Check that node_modules is accessible.`,
   });
-  process.exit(1);
-}
-
-const path = require('path');
-const fs = require('fs');
-
-let client = null;
-let userDataPath = null;
-
-// Helper function to safely send messages to parent process
-function safeSend(message) {
-  try {
-    if (process.send) {
-      process.send(message);
-      return true;
-    } else {
-      console.warn('process.send is not available, cannot send message:', message.type);
-      return false;
-    }
-  } catch (error) {
-    console.error('Error sending message to parent process:', error);
-    console.error('Message that failed:', message.type);
-    return false;
-  }
+  
+  // Wait a bit to ensure error message is sent
+  setTimeout(() => {
+    process.exit(1);
+  }, 100);
 }
 
 // Get user data path for session storage
@@ -474,18 +503,4 @@ process.on('unhandledRejection', (reason) => {
   safeSend({ type: 'error', error: String(reason) || 'Unhandled rejection' });
 });
 
-// Log startup information
-console.log('WhatsApp service process started');
-console.log('Process info:', {
-  pid: process.pid,
-  platform: process.platform,
-  nodeVersion: process.version,
-  electronVersion: process.versions.electron,
-  cwd: process.cwd(),
-  execPath: process.execPath,
-  nodePath: process.env.NODE_PATH,
-});
-
-// Send ready message to parent process
-safeSend({ type: 'process-ready' });
 

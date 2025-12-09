@@ -211,12 +211,20 @@ export class WhatsAppService {
 
       this.whatsappProcess = fork(whatsappServicePath, [], forkOptions);
 
+      // Collect stderr output immediately to catch early errors
+      let stderrBuffer = '';
+      let stdoutBuffer = '';
+
       this.whatsappProcess.stdout?.on('data', (data) => {
-        logger.info('[WhatsApp Service]:', data.toString().trim());
+        const output = data.toString();
+        stdoutBuffer += output;
+        logger.info('[WhatsApp Service]:', output.trim());
       });
 
       this.whatsappProcess.stderr?.on('data', (data) => {
-        logger.error('[WhatsApp Service Error]:', data.toString().trim());
+        const output = data.toString();
+        stderrBuffer += output;
+        logger.error('[WhatsApp Service Error]:', output.trim());
       });
 
       // Wait for process to be ready before sending init
@@ -247,6 +255,9 @@ export class WhatsAppService {
       // Set up message handler
       this.whatsappProcess.on('message', (msg: unknown) => {
         const message = msg as Record<string, unknown>;
+        if (message.type === 'process-started') {
+          logger.info('WhatsApp service process confirmed started');
+        }
         if (message.type === 'process-ready' && !processReady) {
           processReady = true;
           logger.info('WhatsApp service process confirmed ready');
@@ -285,10 +296,12 @@ export class WhatsAppService {
         logger.warn(`WhatsApp process exited with code ${code} and signal ${signal}`);
         if (code !== 0 && code !== null) {
           logger.error('WhatsApp process exited with non-zero code. This usually indicates an error.');
+          logger.error('Captured stderr output:', stderrBuffer);
+          logger.error('Captured stdout output:', stdoutBuffer);
           this.updateStatus({
             isConnected: false,
             isAuthenticated: false,
-            error: `WhatsApp service process exited with code ${code}. Check logs for details.`,
+            error: `WhatsApp service process exited with code ${code}. ${stderrBuffer ? `Error: ${stderrBuffer.substring(0, 200)}` : 'Check logs for details.'}`,
           });
         } else {
           this.updateStatus({
@@ -305,7 +318,13 @@ export class WhatsAppService {
 
       // Verify process is still alive and send init if not already sent
       if (!this.whatsappProcess || this.whatsappProcess.killed) {
-        throw new Error('WhatsApp service process died before initialization');
+        const errorMsg = stderrBuffer 
+          ? `WhatsApp service process died before initialization. Error: ${stderrBuffer.substring(0, 300)}`
+          : 'WhatsApp service process died before initialization. Check logs for stderr output.';
+        logger.error(errorMsg);
+        logger.error('Full stderr:', stderrBuffer);
+        logger.error('Full stdout:', stdoutBuffer);
+        throw new Error(errorMsg);
       }
 
       // If process didn't send ready message, try sending init anyway
