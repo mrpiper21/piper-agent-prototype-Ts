@@ -442,6 +442,7 @@ jobs:
         if: always()
         shell: bash
         run: |
+          set +e  # Don't exit on error - this is just a diagnostic step
           echo "📊 Checking publish step status for this build..."
           echo "OS: ${{ matrix.os }}"
           echo "Tag: ${GITHUB_REF#refs/tags/}"
@@ -449,15 +450,15 @@ jobs:
           # Check if electron-builder.log exists (created during publish)
           if [ -f "electron-builder.log" ]; then
             echo "✅ electron-builder.log found - checking for publish confirmation..."
-            if grep -qiE "published|uploaded|release.*created|github.*release" electron-builder.log; then
+            if grep -qiE "published|uploaded|release.*created|github.*release" electron-builder.log 2>/dev/null; then
               echo "✅ Found publish confirmation in logs"
-              grep -iE "published|uploaded|release.*created|github.*release" electron-builder.log | head -3
+              grep -iE "published|uploaded|release.*created|github.*release" electron-builder.log 2>/dev/null | head -3 || true
             else
               echo "⚠️  No publish confirmation found in logs"
               echo "📋 Checking for errors in electron-builder.log..."
-              if grep -qiE "error|failed|unauthorized|403|404|422" electron-builder.log; then
+              if grep -qiE "error|failed|unauthorized|403|404|422" electron-builder.log 2>/dev/null; then
                 echo "❌ Found errors in publish logs:"
-                grep -iE "error|failed|unauthorized|403|404|422" electron-builder.log | head -5
+                grep -iE "error|failed|unauthorized|403|404|422" electron-builder.log 2>/dev/null | head -5 || true
               fi
             fi
           else
