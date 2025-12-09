@@ -126,9 +126,10 @@
       "package.json",
       "build/icon.png"
     ],
-    "asar": {
-      "unpack": "**/whatsapp-service.js"
-    },
+    "asar": true,
+    "asarUnpack": [
+      "**/whatsapp-service.js"
+    ],
     "win": {
       "target": [
         {
