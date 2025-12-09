@@ -403,6 +403,35 @@ jobs:
             echo "⚠️  No publish confirmation found in logs"
           fi
       
+      - name: Check Publish Step Status
+        if: always()
+        shell: bash
+        run: |
+          echo "📊 Checking publish step status for this build..."
+          echo "OS: ${{ matrix.os }}"
+          echo "Tag: ${GITHUB_REF#refs/tags/}"
+          echo ""
+          # Check if electron-builder.log exists (created during publish)
+          if [ -f "electron-builder.log" ]; then
+            echo "✅ electron-builder.log found - checking for publish confirmation..."
+            if grep -qiE "published|uploaded|release.*created|github.*release" electron-builder.log; then
+              echo "✅ Found publish confirmation in logs"
+              grep -iE "published|uploaded|release.*created|github.*release" electron-builder.log | head -3
+            else
+              echo "⚠️  No publish confirmation found in logs"
+              echo "📋 Checking for errors in electron-builder.log..."
+              if grep -qiE "error|failed|unauthorized|403|404|422" electron-builder.log; then
+                echo "❌ Found errors in publish logs:"
+                grep -iE "error|failed|unauthorized|403|404|422" electron-builder.log | head -5
+              fi
+            fi
+          else
+            echo "⚠️  electron-builder.log not found - publish step may not have run"
+          fi
+          echo ""
+          echo "Note: This verification runs after each platform build completes."
+          echo "If publish failed, check the 'Build and Publish' step logs above."
+      
       - name: Verify Release Published
         if: always()
         shell: bash
@@ -413,9 +442,15 @@ jobs:
           REPO_OWNER="mrpiper21"
           REPO_NAME="Agent-Releases"
           TAG_NAME=${GITHUB_REF#refs/tags/}
+          CURRENT_OS="${{ matrix.os }}"
           
           echo "🔍 Verifying release $TAG_NAME exists in Agent-Releases..."
+          echo "📋 Current build OS: $CURRENT_OS"
           echo "📋 Checking both repositories for the release..."
+          echo ""
+          echo "ℹ️  Note: This verification runs after each platform's build."
+          echo "   The release may be created by the first successful build,"
+          echo "   and subsequent builds will add assets to it."
           
           # Retry checking for the release (GitHub API may need time to update)
           MAX_RETRIES=6
@@ -427,16 +462,27 @@ jobs:
             sleep $RETRY_DELAY
             
             # Check if release exists in Agent-Releases
-            RELEASE_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            RELEASE_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: token $GH_TOKEN" \
               "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$TAG_NAME")
             
+            # Extract HTTP status code
+            HTTP_STATUS=$(echo "$RELEASE_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2 || echo "unknown")
+            RELEASE_BODY=$(echo "$RELEASE_RESPONSE" | sed '/HTTP_STATUS:/d')
+            
+            echo "📡 API Response Status: $HTTP_STATUS"
+            
             # Check for error messages in response
-            if echo "$RELEASE_RESPONSE" | grep -q '"message"'; then
-              ERROR_MSG=$(echo "$RELEASE_RESPONSE" | grep -o '"message":"[^"]*"' | cut -d'"' -f4 || echo "")
+            if echo "$RELEASE_BODY" | grep -q '"message"'; then
+              ERROR_MSG=$(echo "$RELEASE_BODY" | grep -o '"message":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
               echo "⚠️  API returned error: $ERROR_MSG"
+              # Show full response for debugging if it's an error
+              if [ "$HTTP_STATUS" != "200" ]; then
+                echo "📋 Full API response:"
+                echo "$RELEASE_BODY" | head -20
+              fi
             fi
             
-            if echo "$RELEASE_RESPONSE" | grep -q '"tag_name"'; then
+            if echo "$RELEASE_BODY" | grep -q '"tag_name"'; then
               RELEASE_FOUND=1
               echo "✅ Release found!"
               break
@@ -453,15 +499,15 @@ jobs:
             echo "🔗 View at: https://github.com/$REPO_OWNER/$REPO_NAME/releases/tag/$TAG_NAME"
             
             # Get release details (don't fail if this doesn't work)
-            RELEASE_URL=$(echo "$RELEASE_RESPONSE" | grep -o '"html_url":"[^"]*"' | cut -d'"' -f4 || echo "")
+            RELEASE_URL=$(echo "$RELEASE_BODY" | grep -o '"html_url":"[^"]*"' | cut -d'"' -f4 || echo "")
             if [ -n "$RELEASE_URL" ]; then
               echo "📦 Release URL: $RELEASE_URL"
             fi
             
             # Check if release has assets
-            ASSET_COUNT=$(echo "$RELEASE_RESPONSE" | grep -o '"assets":\[' | wc -l || echo "0")
-            if echo "$RELEASE_RESPONSE" | grep -q '"assets"'; then
-              ASSET_NAMES=$(echo "$RELEASE_RESPONSE" | grep -o '"name":"[^"]*"' | cut -d'"' -f4 || echo "")
+            ASSET_COUNT=$(echo "$RELEASE_BODY" | grep -o '"assets":\[' | wc -l || echo "0")
+            if echo "$RELEASE_BODY" | grep -q '"assets"'; then
+              ASSET_NAMES=$(echo "$RELEASE_BODY" | grep -o '"name":"[^"]*"' | cut -d'"' -f4 || echo "")
               if [ -n "$ASSET_NAMES" ]; then
                 echo "📦 Release assets:"
                 echo "$ASSET_NAMES" | head -5
@@ -476,25 +522,48 @@ jobs:
             echo "❌ Release verification failed after $MAX_RETRIES attempts"
             echo "❌ Release $TAG_NAME NOT found in Agent-Releases!"
             echo ""
+            echo "📋 Diagnostic Information:"
+            echo "   - Build OS: $CURRENT_OS"
+            echo "   - Tag: $TAG_NAME"
+            echo "   - Target Repo: $REPO_OWNER/$REPO_NAME"
+            echo ""
             echo "Checking if it was published to the source repository instead..."
             SOURCE_REPO=${{ github.repository }}
-            SOURCE_RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            SOURCE_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: token $GH_TOKEN" \
               "https://api.github.com/repos/$SOURCE_REPO/releases/tags/$TAG_NAME")
+            SOURCE_HTTP_STATUS=$(echo "$SOURCE_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2 || echo "unknown")
+            SOURCE_BODY=$(echo "$SOURCE_RESPONSE" | sed '/HTTP_STATUS:/d')
             
-            if echo "$SOURCE_RESPONSE" | grep -q '"tag_name"'; then
+            if echo "$SOURCE_BODY" | grep -q '"tag_name"'; then
               echo "⚠️  WARNING: Release was published to source repository ($SOURCE_REPO) instead of Agent-Releases!"
               echo "This indicates electron-builder is not using the correct publish configuration."
+              echo ""
               echo "Please check:"
-              echo "  1. GH_TOKEN is set correctly"
-              echo "  2. --config.publish.repo=Agent-Releases is being used"
+              echo "  1. GH_TOKEN is set correctly (should be PERSONAL_ACCESS_TOKEN secret)"
+              echo "  2. --config.publish.repo=Agent-Releases is being used in the publish command"
               echo "  3. package.json build.publish.repo is set to Agent-Releases"
+              echo "  4. The Personal Access Token has 'repo' scope and access to Agent-Releases"
             else
               echo "⚠️  Release $TAG_NAME not found in either repository."
-              echo "The publish step may have failed. Check the build logs above."
+              echo ""
+              echo "Possible causes:"
+              echo "  1. The publish step failed (check 'Build and Publish ($CURRENT_OS)' step logs above)"
+              echo "  2. electron-builder encountered an error during publish"
+              echo "  3. The Personal Access Token doesn't have write access to Agent-Releases"
+              echo "  4. The tag doesn't exist in Agent-Releases repository"
+              echo ""
+              echo "💡 Action items:"
+              echo "  - Review the 'Build and Publish ($CURRENT_OS)' step logs for errors"
+              echo "  - Verify PERSONAL_ACCESS_TOKEN secret is configured correctly"
+              echo "  - Check that the token has 'repo' scope"
+              echo "  - Ensure the Agent-Releases repository exists and is accessible"
             fi
             echo ""
             echo "🔗 Check Agent-Releases releases: https://github.com/$REPO_OWNER/$REPO_NAME/releases"
             echo "🔗 Check source repository releases: https://github.com/$SOURCE_REPO/releases"
+            echo ""
+            echo "⚠️  This verification step failed, but the workflow will continue."
+            echo "   Check the publish step logs to determine the root cause."
             exit 1
           fi
 
