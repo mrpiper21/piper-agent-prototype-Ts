@@ -226,7 +226,7 @@ export function WhatsAppConversationList({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {filteredJobs.map((job) => {
+      {filteredJobs.map((job, index) => {
         const isSelected = isJobSelected(job);
         const { name } = getContactInfo(job);
         const statusTag = getStatusTag(job.status);
@@ -240,7 +240,9 @@ export function WhatsAppConversationList({
               const messages = (job.metadata as { messages?: Array<{ timestamp?: number }> })?.messages || [];
               return messages.length > 0 ? Math.max(...messages.map(m => m.timestamp || 0)) : 0;
             })();
-        const stableKey = `${job.id || job._id || job.printJobId}-${latestTimestamp}`;
+        const messageCount = ((job.metadata as { messages?: Array<unknown> })?.messages || []).length;
+        // Include index in key to help React track position changes during reordering
+        const stableKey = `${job.id || job._id || job.printJobId}-${latestTimestamp}-${messageCount}-${index}`;
 
         return (
           <div
@@ -248,7 +250,7 @@ export function WhatsAppConversationList({
             onClick={() => onJobSelect(job)}
             style={{
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
               position: 'relative',
               borderLeft: isSelected ? `3px solid ${themeStyles.accent}` : '3px solid transparent',
               borderTop: 'none',
@@ -262,6 +264,8 @@ export function WhatsAppConversationList({
               padding: '8px 6px',
               borderRadius: 0,
               boxShadow: 'none',
+              transform: 'translateZ(0)', // Force hardware acceleration for smooth animations
+              willChange: 'transform', // Hint browser about upcoming changes
             }}
             onMouseEnter={(e) => {
               if (!isSelected) {

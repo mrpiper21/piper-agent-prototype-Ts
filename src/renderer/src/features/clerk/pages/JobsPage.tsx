@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { queryClient } from '../../../lib';
 import { useTheme } from '../../../context/ThemeContext';
 import { lightStyles, darkStyles, sharedStyles } from '../shared/clerkStyles';
@@ -7,6 +7,7 @@ import { electronAPI } from '../../../lib';
 import { JobListItem, JobPreview } from '../shared';
 import { ConnectivityIssue } from '../../../shared/components/ConnectivityIssue';
 import { useConnectivity } from '../../../shared/hooks';
+import { useSoundNotifications } from '../../../hooks/useSoundNotifications';
 import {
   AiOutlineReload,
   AiOutlineSearch,
@@ -38,6 +39,57 @@ export default function JobsPage() {
   });
 
   const { hasConnectivityIssue } = useConnectivity();
+  const { playSound, clearJobSounds } = useSoundNotifications();
+  
+  // Track previous jobs state to detect new jobs or status changes
+  const previousJobsRef = useRef<Map<string, { isQuotation?: boolean; status?: string; paymentStatus?: string }>>(new Map());
+  
+  // Monitor jobs for sound notifications
+  useEffect(() => {
+    if (!jobs || jobs.length === 0) {
+      previousJobsRef.current.clear();
+      return;
+    }
+
+    const currentJobsMap = new Map<string, { isQuotation?: boolean; status?: string; paymentStatus?: string }>();
+    
+    jobs.forEach((job: any) => {
+      const jobId = job.id || job._id || job.printJobId;
+      if (!jobId) return;
+      
+      const isQuotation = job.isQuotation === true;
+      const status = (job.status || '').toLowerCase();
+      const paymentStatus = (job.paymentStatus || '').toLowerCase();
+      
+      currentJobsMap.set(jobId, { isQuotation, status, paymentStatus });
+      
+      const previousJob = previousJobsRef.current.get(jobId);
+      
+      // Check for payment success (quotation job that just became paid)
+      if (isQuotation && paymentStatus === 'paid') {
+        const wasPaid = previousJob?.paymentStatus === 'paid';
+        if (!wasPaid) {
+          // Payment status changed to paid - clear any previous sounds and play payment sound
+          clearJobSounds(jobId);
+          console.log('[JobsPage] 🔊 Playing payment success sound for job:', jobId);
+          playSound('payment-success', jobId);
+        }
+      }
+      
+      // Check for new pending public jobs (non-quotation jobs with pending status)
+      if (!isQuotation && status === 'pending') {
+        const wasPending = previousJob?.status === 'pending';
+        if (!wasPending) {
+          // Status changed to pending (new job or status change)
+          console.log('[JobsPage] 🔊 Playing public job sound for pending job:', jobId);
+          playSound('public-job', jobId);
+        }
+      }
+    });
+    
+    // Update previous jobs map
+    previousJobsRef.current = currentJobsMap;
+  }, [jobs, playSound, clearJobSounds]);
 
   // Filter and sort jobs
   const filteredAndSortedJobs = useMemo(() => {

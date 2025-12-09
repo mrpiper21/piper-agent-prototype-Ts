@@ -8,9 +8,10 @@ files:
   - node_modules/**
   - package.json
 
-# Force unpack preload script (required for preload scripts with native dependencies)
 asar:
-  unpack: "**/preload/**"
+  unpack: 
+    - "**/preload/**"
+    - "**/whatsapp-service.js"
 
 directories:
   output: release
