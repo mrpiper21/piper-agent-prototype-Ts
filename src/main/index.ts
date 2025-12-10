@@ -231,7 +231,7 @@ try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const updateElectronApp = require('update-electron-app');
     updateElectronApp.updateElectronApp({
-      logger: logger?.log || logger?.info, // Use log method if available, fallback to info
+      logger: logger.info.bind(logger),
       updateInterval: '1 hour',
     });
     logger.info('update-electron-app initialized');
@@ -239,7 +239,10 @@ try {
     logger.warn('Skipping update-electron-app: repository not configured in package.json');
   }
 } catch (error) {
-  // Don't crash if update-electron-app fails - it's not critical  logger.warn('Failed to initialize update-electron-app (non-critical):', error instanceof Error ? error.message : String(error));
+  logger.warn(
+    'Failed to initialize update-electron-app (non-critical):',
+    error instanceof Error ? error.message : String(error)
+  );
 }
 // Load environment variables from .env file if available
 try {
