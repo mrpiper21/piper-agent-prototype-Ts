@@ -7,7 +7,6 @@ import { setupIpcHandlers } from './ipc/handlers';
 import { logger } from './utils/logger';
 import { dbService } from './services/DatabaseService';
 import { updateService } from './services/UpdateService';
-import { whatsappService } from './services/WhatsAppService';
 import fs from 'fs';
 
 // WhatsApp service state
@@ -492,9 +491,6 @@ app.on('before-quit', () => {
     whatsappProcess.kill();
     whatsappProcess = null;
   }
-  whatsappService.disconnect().catch((error) => {
-    logger.warn('Error disconnecting WhatsApp service during shutdown:', error);
-  });
 
   dbService.close();
 });
