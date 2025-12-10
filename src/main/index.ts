@@ -323,6 +323,113 @@ ipcMain.handle('whatsapp:logout', async () => {
   return { success: true };
 });
 
+ipcMain.handle('whatsapp:getLocalMessages', async () => {
+  try {
+    // Convert conversations Map to array format
+    const messagesArray: any[] = [];
+    conversations.forEach((conv, chatId) => {
+      conv.messages.forEach((msg: any) => {
+        messagesArray.push({
+          contact: chatId,
+          contactName: conv.contactName,
+          contactNumber: conv.contactPhone,
+          messageId: msg.id || Date.now(),
+          body: msg.text,
+          timestamp: msg.timestamp || Date.now(),
+          hasMedia: msg.hasMedia || false,
+          media: msg.mediaData,
+          isPrintCommand: false, // Can be determined from body if needed
+          from: msg.from || 'client',
+        });
+      });
+    });
+    logger.info('[IPC] getLocalMessages returning', {
+      totalMessages: messagesArray.length,
+      contacts: conversations.size,
+    });
+    return messagesArray;
+  } catch (error: any) {
+    logger.error('WhatsApp getLocalMessages error', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('whatsapp:sendMessage', async (_event, chatId: string, text: string) => {
+  try {
+    if (!whatsappProcess) {
+      throw new Error('WhatsApp service not initialized');
+    }
+    whatsappProcess.send({ type: 'send-message', chatId, text });
+    logger.info('WhatsApp message sent via IPC', { chatId, textLength: text.length });
+    return { success: true };
+  } catch (error: any) {
+    logger.error('WhatsApp sendMessage error', error);
+    throw error;
+  }
+});
+
+ipcMain.handle(
+  'whatsapp:sendFile',
+  async (_event, chatId: string, filePath: string, caption?: string) => {
+    try {
+      if (!whatsappProcess) {
+        throw new Error('WhatsApp service not initialized');
+      }
+      whatsappProcess.send({ type: 'send-file', chatId, filePath, caption });
+      logger.info('WhatsApp file sent via IPC', { chatId, filePath, hasCaption: !!caption });
+      return { success: true };
+    } catch (error: any) {
+      logger.error('WhatsApp sendFile error', error);
+      throw error;
+    }
+  }
+);
+
+ipcMain.handle('whatsapp:createQuote', async (_event, jobId: string, quoteData: any) => {
+  try {
+    // This would need to be implemented based on your quote creation logic
+    // For now, return a stub response
+    logger.info('Quote creation requested via IPC', { jobId, price: quoteData.price });
+    return { success: true, paymentLink: undefined };
+  } catch (error: any) {
+    logger.error('WhatsApp createQuote error', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('whatsapp:downloadMedia', async (_event, contact: string, messageId: string) => {
+  try {
+    // This would need to be implemented based on your media download logic
+    logger.info('Media download requested via IPC', { contact, messageId });
+    return { success: false, filePath: undefined };
+  } catch (error: any) {
+    logger.error('WhatsApp downloadMedia error', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('whatsapp:markJobCompleted', async (_event, jobId: string, _options: any) => {
+  try {
+    // This would need to be implemented based on your job completion logic
+    logger.info('Job completion requested via IPC', { jobId });
+    return { success: true };
+  } catch (error: any) {
+    logger.error('WhatsApp markJobCompleted error', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('whatsapp:handlePaymentWebhook', async (_event, paymentData: any) => {
+  try {
+    // This would need to be implemented based on your payment webhook logic
+    logger.info('Payment webhook requested via IPC', { reference: paymentData.reference });
+    return { success: true, jobId: undefined };
+  } catch (error: any) {
+    logger.error('WhatsApp handlePaymentWebhook error', error);
+    throw error;
+  }
+});
+
 // Create application window
 
 app
