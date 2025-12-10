@@ -6,6 +6,7 @@ const fs = require('fs');
 
 let client = null;
 let userDataPath = null;
+let agentPhoneNumber = null; // Store agent's phone number to filter out own messages
 
 // Helper function to safely send messages to parent process
 // MUST be defined before any code that uses it
@@ -192,6 +193,10 @@ async function initializeWhatsApp(providedUserDataPath) {
           phoneNumber: info?.wid?.user || undefined,
         };
         
+        // Store agent's phone number to filter out own messages
+        agentPhoneNumber = info?.wid?.user || null;
+        console.log('Stored agent phone number:', agentPhoneNumber);
+        
         console.log('Sending ready message with clientInfo:', clientInfo);
         const sent = safeSend({ 
           type: 'ready',
@@ -335,6 +340,28 @@ async function processMessage(message, isHistorical = false) {
     }
     
     if (message.from.includes('@g.us')) {
+      return;
+    }
+
+    // Filter out messages sent by the agent (own messages)
+    // WhatsApp echoes back messages we send, so we need to filter them out
+    if (agentPhoneNumber) {
+      const messageFromNumber = message.from.split('@')[0];
+      if (messageFromNumber === agentPhoneNumber) {
+        console.log('[whatsapp-service] Skipping own message (echo):', {
+          from: message.from,
+          body: message.body?.substring(0, 50),
+        });
+        return;
+      }
+    }
+
+    // Also check if message is fromMe (another way WhatsApp indicates own messages)
+    if (message.fromMe === true) {
+      console.log('[whatsapp-service] Skipping own message (fromMe=true):', {
+        from: message.from,
+        body: message.body?.substring(0, 50),
+      });
       return;
     }
 

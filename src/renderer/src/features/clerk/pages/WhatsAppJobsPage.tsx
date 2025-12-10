@@ -23,6 +23,7 @@ interface LocalMessage {
   timestamp: number;
   hasMedia: boolean;
   isPrintCommand: boolean;
+  from?: 'client' | 'agent'; // Track message sender
 }
 
 export default function WhatsAppJobsPage() {
@@ -375,27 +376,61 @@ export default function WhatsAppJobsPage() {
         }
 
         // Immediately update local messages state for real-time UI update
+        // Handle both agent and client messages
         if (contact && messageId) {
           setLocalMessages((prev) => {
-            // Check if message already exists (prevent duplicates)
-            const exists = prev.some((msg) => msg.messageId === messageId);
-            if (exists) {
-              console.log('[WhatsAppJobsPage] Message already exists, skipping duplicate', messageId);
+            // Improved duplicate detection: check by messageId first, then by body+timestamp
+            const body = (message.body || messageData.body || '').trim();
+            const timestamp = message.timestamp || messageData.timestamp || Date.now();
+            
+            // Check for duplicate by messageId
+            const existsById = prev.some((msg) => msg.messageId === messageId);
+            if (existsById) {
+              console.log('[WhatsAppJobsPage] Message already exists (by ID), skipping duplicate', messageId);
               return prev;
             }
             
-            // Add new message
+            // Check for duplicate by content (body + timestamp within 5 seconds)
+            // This handles cases where WhatsApp echoes back sent messages with different IDs
+            if (body) {
+              const existsByContent = prev.some((msg) => {
+                if (msg.contact !== contact) return false;
+                const msgBody = (msg.body || '').trim();
+                const msgTimestamp = msg.timestamp || 0;
+                const timeDiff = Math.abs(timestamp - msgTimestamp);
+                const sameBody = msgBody === body;
+                // If same body and timestamp within 5 seconds, consider it a duplicate
+                return sameBody && timeDiff < 5000;
+              });
+              if (existsByContent) {
+                console.log('[WhatsAppJobsPage] Message already exists (by content), skipping duplicate', {
+                  messageId,
+                  body: body.substring(0, 50),
+                });
+                return prev;
+              }
+            }
+            
+            // Add new message (both agent and client messages)
+            // Preserve the 'from' field to distinguish agent vs client messages
+            const messageFrom = (message as any)?.from || messageData.from || 'client';
             const newMessage: LocalMessage = {
               contact,
-              contactName: messageData.contactName || contact.split('@')[0],
+              contactName: messageData.contactName || (message as any)?.contactName || contact.split('@')[0],
               messageId,
               body: message.body || messageData.body || '',
               timestamp: message.timestamp || messageData.timestamp || Date.now(),
               hasMedia: message.hasMedia || messageData.hasMedia || false,
               isPrintCommand,
+              from: messageFrom, // Preserve sender information
             };
             
-            console.log('[WhatsAppJobsPage] Adding new message to state', newMessage.messageId);
+            console.log('[WhatsAppJobsPage] Adding new message to state', {
+              messageId: newMessage.messageId,
+              contact: newMessage.contact,
+              from: (message as any)?.from || 'unknown',
+              body: newMessage.body.substring(0, 30),
+            });
             return [...prev, newMessage];
           });
         }

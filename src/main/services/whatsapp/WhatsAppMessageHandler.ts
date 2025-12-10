@@ -46,18 +46,45 @@ export class WhatsAppMessageHandler {
       const contactName = messageData.contactName || contact.split('@')[0];
       const isHistorical = messageData.isHistorical || false;
 
-      // Check for duplicates
+      // Check for duplicates - check by messageId first (fastest), then by body+timestamp (for WhatsApp echo)
       if (this.localMessages.has(contact)) {
         const existingMessages = this.localMessages.get(contact)!;
-        const alreadyExists = existingMessages.some(
+        
+        // First check: exact messageId match
+        const existsById = existingMessages.some(
           msg => msg.messageId === messageData.messageId
         );
-        if (alreadyExists) {
-          logger.info('Message already stored, skipping duplicate', {
+        if (existsById) {
+          logger.info('Message already stored (by ID), skipping duplicate', {
             contact,
             messageId: messageData.messageId,
           });
           return;
+        }
+        
+        // Second check: same body and timestamp within 5 seconds (handles WhatsApp echo)
+        // Normalize timestamp for comparison
+        let timestamp = messageData.timestamp || Date.now();
+        if (timestamp && timestamp < 1000000000000) {
+          timestamp = timestamp * 1000;
+        }
+        const body = (messageData.body || '').trim();
+        if (body) {
+          const existsByContent = existingMessages.some(msg => {
+            const msgTimestamp = msg.timestamp || 0;
+            const timeDiff = Math.abs(timestamp - msgTimestamp);
+            const sameBody = (msg.body || '').trim() === body;
+            // If same body and timestamp within 5 seconds, consider it a duplicate
+            return sameBody && timeDiff < 5000;
+          });
+          if (existsByContent) {
+            logger.info('Message already stored (by content), skipping duplicate', {
+              contact,
+              messageId: messageData.messageId,
+              body: body.substring(0, 50),
+            });
+            return;
+          }
         }
       }
       

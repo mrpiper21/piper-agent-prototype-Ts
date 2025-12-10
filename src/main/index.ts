@@ -139,7 +139,9 @@ function initializeWhatsAppService() {
 
         case 'message':
           logger.info('📨 NEW MESSAGE:', msg.data.from, msg.data.body?.substring(0, 50));
-          mainWindow.webContents.send('whatsapp-message', msg.data);
+          // Don't send directly from here - let WhatsAppService.handleIncomingMessage handle it
+          // This avoids duplicate events and ensures consistent formatting
+          // mainWindow.webContents.send('whatsapp-message', msg.data);
           updateConversationWithMessage(msg.data, mainWindow);
           break;
 
@@ -336,30 +338,10 @@ ipcMain.handle('whatsapp:logout', async () => {
 
 ipcMain.handle('whatsapp:getLocalMessages', async () => {
   try {
-    // Get messages from both sources: conversations Map (client messages) and WhatsAppMessageHandler (agent + client messages)
-    const messagesArray: any[] = [];
-    const messageMap = new Map<string, any>(); // Use Map to deduplicate by messageId
+    // Get messages from WhatsAppMessageHandler (includes both agent and client messages)
+    // We strictly use this source now to avoid duplication from the legacy conversations Map
+    const messageMap = new Map<string, any>();
     
-    // First, add messages from conversations Map (client messages)
-    conversations.forEach((conv, chatId) => {
-      conv.messages.forEach((msg: any) => {
-        const messageId = msg.id || `conv-${chatId}-${Date.now()}`;
-        messageMap.set(messageId, {
-          contact: chatId,
-          contactName: conv.contactName,
-          contactNumber: conv.contactPhone,
-          messageId: messageId,
-          body: msg.text,
-          timestamp: msg.timestamp || Date.now(),
-          hasMedia: msg.hasMedia || false,
-          media: msg.mediaData,
-          isPrintCommand: false, // Can be determined from body if needed
-          from: msg.from || 'client',
-        });
-      });
-    });
-    
-    // Then, add messages from WhatsAppMessageHandler (includes both agent and client messages)
     let handlerMessageCount = 0;
     try {
       const allLocalMessages = whatsappService.getAllLocalMessages();
@@ -367,7 +349,6 @@ ipcMain.handle('whatsapp:getLocalMessages', async () => {
       allLocalMessages.forEach((messages, contact) => {
         messages.forEach((msg) => {
           // Use messageId as key to avoid duplicates
-          // Agent messages will override client messages if they have the same ID (unlikely but possible)
           messageMap.set(msg.messageId, {
             contact: msg.contact,
             contactName: msg.contactName,
@@ -384,16 +365,42 @@ ipcMain.handle('whatsapp:getLocalMessages', async () => {
       });
     } catch (handlerError) {
       logger.warn('Error getting messages from WhatsAppMessageHandler:', handlerError);
-      // Continue with messages from conversations Map
+    }
+
+    // Fallback: If no messages in Handler (e.g. app just started and hasn't fetched yet),
+    // check conversations Map - but only if Handler is empty to avoid duplicates
+    if (messageMap.size === 0 && conversations.size > 0) {
+      conversations.forEach((conv, chatId) => {
+        conv.messages.forEach((msg: any) => {
+          const messageId = msg.id || `conv-${chatId}-${Date.now()}`;
+          messageMap.set(messageId, {
+            contact: chatId,
+            contactName: conv.contactName,
+            contactNumber: conv.contactPhone,
+            messageId: messageId,
+            body: msg.text,
+            timestamp: msg.timestamp || Date.now(),
+            hasMedia: msg.hasMedia || false,
+            media: msg.mediaData,
+            isPrintCommand: false,
+            from: msg.from || 'client',
+          });
+        });
+      });
     }
     
-    // Convert Map to array
-    const finalMessages = Array.from(messageMap.values());
+    // Convert Map to array and sort by timestamp (ascending - oldest first)
+    const finalMessages = Array.from(messageMap.values()).sort((a, b) => {
+      const timeA = a.timestamp || 0;
+      const timeB = b.timestamp || 0;
+      return timeA - timeB;
+    });
     
     logger.info('[IPC] getLocalMessages returning', {
       totalMessages: finalMessages.length,
-      fromConversations: conversations.size,
       fromHandler: handlerMessageCount,
+      agentMessages: finalMessages.filter(m => m.from === 'agent').length,
+      clientMessages: finalMessages.filter(m => m.from === 'client').length,
     });
     return finalMessages;
   } catch (error: any) {
