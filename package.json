@@ -25,7 +25,9 @@
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration",
     "clean": "rimraf dist",
-    "prebuild": "npm run clean"
+    "prebuild": "npm run clean",
+    "prepackage": "node scripts/clean-release.js",
+    "clean-release": "node scripts/clean-release.js"
   },
   "keywords": [
     "printing",
@@ -178,7 +180,11 @@
       "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "perMachine": false
+      "perMachine": false,
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false,
+      "warningsAsErrors": false,
+      "include": "build/installer.nsh"
     }
   }
 }
