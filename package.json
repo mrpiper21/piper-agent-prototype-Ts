@@ -1,11 +1,11 @@
 {
   "name": "printmyfile-agent",
-  "version": "1.1.41",
+  "version": "1.1.42",
   "description": "PrintMyFile SaaS Local Print Agent",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build && npm run copy-whatsapp",
+    "build": "npm run copy-whatsapp && electron-vite build",
     "postbuild": "npm run copy-whatsapp",
     "preview": "electron-vite preview",
     "start": "electron out/main/index.js",

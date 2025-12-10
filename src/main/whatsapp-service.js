@@ -175,7 +175,7 @@ async function initializeWhatsApp(providedUserDataPath) {
       
       try {
         // Wait a bit for client.info to be fully available
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new global.Promise((resolve) => setTimeout(resolve, 500));
         
         const info = client.info;
         console.log('Client info retrieved:', {
