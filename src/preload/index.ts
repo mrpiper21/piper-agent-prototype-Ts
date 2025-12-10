@@ -129,6 +129,10 @@ const electronAPI: IpcApi = {
       ipcRenderer.on('whatsapp-message-history-loaded', (_event, data: { count: number }) => callback(data));
       return () => ipcRenderer.removeAllListeners('whatsapp-message-history-loaded');
     },
+    onMessageSent: (callback: (data: { chatId: string; text: string; timestamp: number }) => void) => {
+      ipcRenderer.on('whatsapp-message-sent', (_event, data: { chatId: string; text: string; timestamp: number }) => callback(data));
+      return () => ipcRenderer.removeAllListeners('whatsapp-message-sent');
+    },
   },
   shell: {
     openPath: (filePath: string) => ipcRenderer.invoke('shell:openPath', filePath),

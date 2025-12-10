@@ -7,6 +7,7 @@ import { setupIpcHandlers } from './ipc/handlers';
 import { logger } from './utils/logger';
 import { dbService } from './services/DatabaseService';
 import { updateService } from './services/UpdateService';
+import { whatsappService } from './services/WhatsAppService';
 import fs from 'fs';
 
 // WhatsApp service state
@@ -143,7 +144,14 @@ function initializeWhatsAppService() {
           break;
 
         case 'message-sent':
-          logger.info('✅ Message sent');
+          logger.info('✅ Message sent', { chatId: msg.chatId, textLength: msg.text?.length });
+          // Immediately notify renderer that message was sent
+          // The message should already be stored via storeAgentMessage, but trigger UI update
+          mainWindow.webContents.send('whatsapp-message-sent', {
+            chatId: msg.chatId,
+            text: msg.text,
+            timestamp: Date.now(),
+          });
           break;
 
         case 'disconnected':
@@ -328,15 +336,19 @@ ipcMain.handle('whatsapp:logout', async () => {
 
 ipcMain.handle('whatsapp:getLocalMessages', async () => {
   try {
-    // Convert conversations Map to array format
+    // Get messages from both sources: conversations Map (client messages) and WhatsAppMessageHandler (agent + client messages)
     const messagesArray: any[] = [];
+    const messageMap = new Map<string, any>(); // Use Map to deduplicate by messageId
+    
+    // First, add messages from conversations Map (client messages)
     conversations.forEach((conv, chatId) => {
       conv.messages.forEach((msg: any) => {
-        messagesArray.push({
+        const messageId = msg.id || `conv-${chatId}-${Date.now()}`;
+        messageMap.set(messageId, {
           contact: chatId,
           contactName: conv.contactName,
           contactNumber: conv.contactPhone,
-          messageId: msg.id || Date.now(),
+          messageId: messageId,
           body: msg.text,
           timestamp: msg.timestamp || Date.now(),
           hasMedia: msg.hasMedia || false,
@@ -346,11 +358,44 @@ ipcMain.handle('whatsapp:getLocalMessages', async () => {
         });
       });
     });
+    
+    // Then, add messages from WhatsAppMessageHandler (includes both agent and client messages)
+    let handlerMessageCount = 0;
+    try {
+      const allLocalMessages = whatsappService.getAllLocalMessages();
+      handlerMessageCount = allLocalMessages.size;
+      allLocalMessages.forEach((messages, contact) => {
+        messages.forEach((msg) => {
+          // Use messageId as key to avoid duplicates
+          // Agent messages will override client messages if they have the same ID (unlikely but possible)
+          messageMap.set(msg.messageId, {
+            contact: msg.contact,
+            contactName: msg.contactName,
+            contactNumber: msg.contact.split('@')[0],
+            messageId: msg.messageId,
+            body: msg.body,
+            timestamp: msg.timestamp,
+            hasMedia: msg.hasMedia,
+            media: msg.media,
+            isPrintCommand: msg.isPrintCommand,
+            from: msg.from || 'client',
+          });
+        });
+      });
+    } catch (handlerError) {
+      logger.warn('Error getting messages from WhatsAppMessageHandler:', handlerError);
+      // Continue with messages from conversations Map
+    }
+    
+    // Convert Map to array
+    const finalMessages = Array.from(messageMap.values());
+    
     logger.info('[IPC] getLocalMessages returning', {
-      totalMessages: messagesArray.length,
-      contacts: conversations.size,
+      totalMessages: finalMessages.length,
+      fromConversations: conversations.size,
+      fromHandler: handlerMessageCount,
     });
-    return messagesArray;
+    return finalMessages;
   } catch (error: any) {
     logger.error('WhatsApp getLocalMessages error', error);
     throw error;
@@ -359,11 +404,34 @@ ipcMain.handle('whatsapp:getLocalMessages', async () => {
 
 ipcMain.handle('whatsapp:sendMessage', async (_event, chatId: string, text: string) => {
   try {
+    // Always store the message first (even if sending fails)
+    // This ensures messages persist even if WhatsAppService isn't fully initialized
+    try {
+      const messageHandler = (whatsappService as any).messageHandler;
+      if (messageHandler) {
+        messageHandler.storeAgentMessage(chatId, text);
+      }
+    } catch (storeError) {
+      logger.warn('Could not store agent message via WhatsAppService, trying direct access:', storeError);
+    }
+    
+    // Try to send via WhatsAppService first
+    try {
+      const result = await whatsappService.sendMessage(chatId, text);
+      if (result.success) {
+        logger.info('WhatsApp message sent via WhatsAppService', { chatId, textLength: text.length });
+        return result;
+      }
+    } catch (serviceError) {
+      logger.warn('WhatsAppService.sendMessage failed, trying fallback:', serviceError);
+    }
+    
+    // Fallback: send directly via the forked process if WhatsAppService doesn't have a process
     if (!whatsappProcess) {
       throw new Error('WhatsApp service not initialized');
     }
     whatsappProcess.send({ type: 'send-message', chatId, text });
-    logger.info('WhatsApp message sent via IPC', { chatId, textLength: text.length });
+    logger.info('WhatsApp message sent via fallback process', { chatId, textLength: text.length });
     return { success: true };
   } catch (error: any) {
     logger.error('WhatsApp sendMessage error', error);
@@ -375,11 +443,37 @@ ipcMain.handle(
   'whatsapp:sendFile',
   async (_event, chatId: string, filePath: string, caption?: string) => {
     try {
+      // Always store the file message first (even if sending fails)
+      try {
+        const messageHandler = (whatsappService as any).messageHandler;
+        const mediaHandler = (whatsappService as any).mediaHandler;
+        if (messageHandler && mediaHandler) {
+          const fileName = path.basename(filePath);
+          const fileExtension = path.extname(filePath).toLowerCase();
+          const mimetype = mediaHandler.getMimeTypeFromExtension(fileExtension);
+          messageHandler.storeAgentFileMessage(chatId, fileName, filePath, mimetype, caption);
+        }
+      } catch (storeError) {
+        logger.warn('Could not store agent file message via WhatsAppService:', storeError);
+      }
+      
+      // Try to send via WhatsAppService first
+      try {
+        const result = await whatsappService.sendFile(chatId, filePath, caption);
+        if (result.success) {
+          logger.info('WhatsApp file sent via WhatsAppService', { chatId, filePath, hasCaption: !!caption });
+          return result;
+        }
+      } catch (serviceError) {
+        logger.warn('WhatsAppService.sendFile failed, trying fallback:', serviceError);
+      }
+      
+      // Fallback: send directly via the forked process if WhatsAppService doesn't have a process
       if (!whatsappProcess) {
         throw new Error('WhatsApp service not initialized');
       }
-      whatsappProcess.send({ type: 'send-file', chatId, filePath, caption });
-      logger.info('WhatsApp file sent via IPC', { chatId, filePath, hasCaption: !!caption });
+      whatsappProcess.send({ type: 'send-file', chatId, filePath, caption: caption || '' });
+      logger.info('WhatsApp file sent via fallback process', { chatId, filePath, hasCaption: !!caption });
       return { success: true };
     } catch (error: any) {
       logger.error('WhatsApp sendFile error', error);
