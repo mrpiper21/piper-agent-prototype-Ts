@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTheme } from '../../../../../context/ThemeContext';
 import type { lightStyles } from '../../../shared/clerkStyles';
 
@@ -73,9 +74,9 @@ const getStatusTag = (status: string | undefined) => {
 };
 
 // Format timestamp
-const formatTime = (dateString: string | undefined): string => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
+const formatTime = (value?: string | number): string => {
+  if (!value) return '';
+  const date = typeof value === 'number' ? new Date(value) : new Date(value);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
@@ -93,6 +94,23 @@ const formatTime = (dateString: string | undefined): string => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
+const getLatestTimestamp = (job: Job): number => {
+  const metadataTimestamp =
+    (job.metadata as { latestMessageTimestamp?: number })?.latestMessageTimestamp;
+  if (typeof metadataTimestamp === 'number') {
+    return metadataTimestamp;
+  }
+
+  const messages = (job.metadata as { messages?: Array<{ timestamp?: number }> })?.messages || [];
+  if (messages.length > 0) {
+    return Math.max(...messages.map((msg) => msg.timestamp || 0));
+  }
+
+  const createdAt = job.createdAt ? new Date(job.createdAt).getTime() : 0;
+  const submittedAt = job.submittedAt ? new Date(job.submittedAt).getTime() : 0;
+  return Math.max(createdAt, submittedAt, 0);
 };
 
 export function WhatsAppConversationList({
@@ -177,9 +195,13 @@ export function WhatsAppConversationList({
     return 'No message';
   };
 
+  const sortedJobs = useMemo(() => {
+    return [...jobs].sort((a, b) => getLatestTimestamp(b) - getLatestTimestamp(a));
+  }, [jobs]);
+
   // Filter out any conversations that don't have /print commands
   // This is a safeguard - conversations should already be filtered in WhatsAppJobsPage
-  const filteredJobs = jobs.filter((job) => {
+  const filteredJobs = sortedJobs.filter((job) => {
     // Check if conversation has /print command in metadata or messages
     const metadata = job.metadata as { 
       hasPrintCommand?: boolean;
@@ -231,15 +253,11 @@ export function WhatsAppConversationList({
         const { name } = getContactInfo(job);
         const statusTag = getStatusTag(job.status);
         const messagePreview = getMessagePreview(job);
-        const time = formatTime(job.createdAt || job.submittedAt);
+        const time = formatTime(getLatestTimestamp(job));
         const initial = getInitial(name);
 
         // Use a stable key that includes the contact and latest message timestamp to force re-render on new messages
-        const latestTimestamp = (job.metadata as { latestMessageTimestamp?: number; messages?: Array<{ timestamp?: number }> })?.latestMessageTimestamp
-          || (() => {
-              const messages = (job.metadata as { messages?: Array<{ timestamp?: number }> })?.messages || [];
-              return messages.length > 0 ? Math.max(...messages.map(m => m.timestamp || 0)) : 0;
-            })();
+        const latestTimestamp = getLatestTimestamp(job);
         const messageCount = ((job.metadata as { messages?: Array<unknown> })?.messages || []).length;
         // Include index in key to help React track position changes during reordering
         const stableKey = `${job.id || job._id || job.printJobId}-${latestTimestamp}-${messageCount}-${index}`;

@@ -265,6 +265,28 @@ export function ConversationMessages({ themeStyles, messages }: ConversationMess
                 >
                   {formatTime(messageDate.getTime())}
                 </span>
+                {/* Message acknowledgment status for agent messages */}
+                {isFromAgent && (msg as any).ack !== undefined && (
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      color:
+                        (msg as any).ack === 3
+                          ? '#34B7F1' // Read - blue
+                          : (msg as any).ack === 2
+                          ? '#34B7F1' // Delivered - blue
+                          : (msg as any).ack === 1
+                          ? themeStyles.textSecondary // Sent - gray
+                          : themeStyles.textSecondary, // Pending - gray
+                      opacity: (msg as any).ack === 0 ? 0.5 : 1,
+                    }}
+                  >
+                    {(msg as any).ack === 0 && '🕐'}
+                    {(msg as any).ack === 1 && '✓'}
+                    {(msg as any).ack === 2 && '✓✓'}
+                    {(msg as any).ack === 3 && '✓✓'}
+                  </span>
+                )}
               </div>
             </div>
           </div>

@@ -7,6 +7,10 @@ import { setupIpcHandlers } from './ipc/handlers';
 import { logger } from './utils/logger';
 import { dbService } from './services/DatabaseService';
 import { updateService } from './services/UpdateService';
+import { whatsappService } from './services/WhatsAppService';
+import { storageService } from './services/StorageService';
+import { trayService } from './services/TrayService';
+import { notificationService } from './services/NotificationService';
 import fs from 'fs';
 
 // WhatsApp service state
@@ -134,17 +138,59 @@ function initializeWhatsAppService() {
             currentWhatsAppStatus.clientInfo = msg.clientInfo;
           }
           mainWindow.webContents.send('whatsapp-status', currentWhatsAppStatus);
+          mainWindow.webContents.send('whatsapp-ready');
           break;
 
-        case 'message':
+        case 'message': {
           logger.info('📨 NEW MESSAGE:', msg.data.from, msg.data.body?.substring(0, 50));
-          mainWindow.webContents.send('whatsapp-message', msg.data);
+          
+          // Send enhanced message data to renderer immediately for real-time updates
+          mainWindow.webContents.send('whatsapp-message', {
+            id: msg.data.id || msg.data.messageId,
+            chatId: msg.data.chatId || msg.data.from,
+            body: msg.data.body,
+            timestamp: msg.data.timestamp,
+            fromMe: msg.data.fromMe || false,
+            hasMedia: msg.data.hasMedia,
+            contact: msg.data.contact,
+            ack: msg.data.ack || 0,
+          });
+          
+          // Also update conversation (for backward compatibility)
           updateConversationWithMessage(msg.data, mainWindow);
+          
+          // Show native notification
+          const contactName = msg.data.contact?.name || msg.data.contactName || msg.data.from;
+          const messagePreview = msg.data.body?.substring(0, 100) || 'New message';
+          notificationService.showWhatsAppMessage(contactName, messagePreview, () => {
+            if (mainWindow) {
+              mainWindow.show();
+              mainWindow.focus();
+            }
+          });
           break;
+        }
 
         case 'message-sent':
-          logger.info('✅ Message sent');
+          logger.info('✅ Message sent', { chatId: msg.chatId, textLength: msg.text?.length });
+          // Immediately notify renderer that message was sent
+          // The message should already be stored via storeAgentMessage, but trigger UI update
+          mainWindow.webContents.send('whatsapp-message-sent', {
+            chatId: msg.chatId,
+            text: msg.text,
+            timestamp: Date.now(),
+          });
           break;
+
+        case 'message_ack': {
+          logger.info('📬 Message acknowledgment', { messageId: msg.messageId, ack: msg.ack });
+          mainWindow.webContents.send('whatsapp-message-ack', {
+            messageId: msg.messageId,
+            chatId: msg.chatId,
+            ack: msg.ack, // 1: sent, 2: delivered, 3: read
+          });
+          break;
+        }
 
         case 'disconnected':
           logger.warn('❌ WhatsApp disconnected:', msg.reason);
@@ -328,29 +374,71 @@ ipcMain.handle('whatsapp:logout', async () => {
 
 ipcMain.handle('whatsapp:getLocalMessages', async () => {
   try {
-    // Convert conversations Map to array format
-    const messagesArray: any[] = [];
-    conversations.forEach((conv, chatId) => {
-      conv.messages.forEach((msg: any) => {
-        messagesArray.push({
-          contact: chatId,
-          contactName: conv.contactName,
-          contactNumber: conv.contactPhone,
-          messageId: msg.id || Date.now(),
-          body: msg.text,
-          timestamp: msg.timestamp || Date.now(),
-          hasMedia: msg.hasMedia || false,
-          media: msg.mediaData,
-          isPrintCommand: false, // Can be determined from body if needed
-          from: msg.from || 'client',
+    // Get messages from WhatsAppMessageHandler (includes both agent and client messages)
+    // We strictly use this source now to avoid duplication from the legacy conversations Map
+    const messageMap = new Map<string, any>();
+    
+    let handlerMessageCount = 0;
+    try {
+      const allLocalMessages = whatsappService.getAllLocalMessages();
+      handlerMessageCount = allLocalMessages.size;
+      allLocalMessages.forEach((messages, _contact) => {
+        messages.forEach((msg) => {
+          // Use messageId as key to avoid duplicates
+          messageMap.set(msg.messageId, {
+            contact: msg.contact,
+            contactName: msg.contactName,
+            contactNumber: msg.contact.split('@')[0],
+            messageId: msg.messageId,
+            body: msg.body,
+            timestamp: msg.timestamp,
+            hasMedia: msg.hasMedia,
+            media: msg.media,
+            isPrintCommand: msg.isPrintCommand,
+            from: msg.from || 'client',
+          });
         });
       });
+    } catch (handlerError) {
+      logger.warn('Error getting messages from WhatsAppMessageHandler:', handlerError);
+    }
+
+    // Fallback: If no messages in Handler (e.g. app just started and hasn't fetched yet),
+    // check conversations Map - but only if Handler is empty to avoid duplicates
+    if (messageMap.size === 0 && conversations.size > 0) {
+      conversations.forEach((conv, chatId) => {
+        conv.messages.forEach((msg: any) => {
+          const messageId = msg.id || `conv-${chatId}-${Date.now()}`;
+          messageMap.set(messageId, {
+            contact: chatId,
+            contactName: conv.contactName,
+            contactNumber: conv.contactPhone,
+            messageId: messageId,
+            body: msg.text,
+            timestamp: msg.timestamp || Date.now(),
+            hasMedia: msg.hasMedia || false,
+            media: msg.mediaData,
+            isPrintCommand: false,
+            from: msg.from || 'client',
+          });
+        });
+      });
+    }
+    
+    // Convert Map to array and sort by timestamp (ascending - oldest first)
+    const finalMessages = Array.from(messageMap.values()).sort((a, b) => {
+      const timeA = a.timestamp || 0;
+      const timeB = b.timestamp || 0;
+      return timeA - timeB;
     });
+    
     logger.info('[IPC] getLocalMessages returning', {
-      totalMessages: messagesArray.length,
-      contacts: conversations.size,
+      totalMessages: finalMessages.length,
+      fromHandler: handlerMessageCount,
+      agentMessages: finalMessages.filter(m => m.from === 'agent').length,
+      clientMessages: finalMessages.filter(m => m.from === 'client').length,
     });
-    return messagesArray;
+    return finalMessages;
   } catch (error: any) {
     logger.error('WhatsApp getLocalMessages error', error);
     throw error;
@@ -359,11 +447,34 @@ ipcMain.handle('whatsapp:getLocalMessages', async () => {
 
 ipcMain.handle('whatsapp:sendMessage', async (_event, chatId: string, text: string) => {
   try {
+    // Always store the message first (even if sending fails)
+    // This ensures messages persist even if WhatsAppService isn't fully initialized
+    try {
+      const messageHandler = (whatsappService as any).messageHandler;
+      if (messageHandler) {
+        messageHandler.storeAgentMessage(chatId, text);
+      }
+    } catch (storeError) {
+      logger.warn('Could not store agent message via WhatsAppService, trying direct access:', storeError);
+    }
+    
+    // Try to send via WhatsAppService first
+    try {
+      const result = await whatsappService.sendMessage(chatId, text);
+      if (result.success) {
+        logger.info('WhatsApp message sent via WhatsAppService', { chatId, textLength: text.length });
+        return result;
+      }
+    } catch (serviceError) {
+      logger.warn('WhatsAppService.sendMessage failed, trying fallback:', serviceError);
+    }
+    
+    // Fallback: send directly via the forked process if WhatsAppService doesn't have a process
     if (!whatsappProcess) {
       throw new Error('WhatsApp service not initialized');
     }
     whatsappProcess.send({ type: 'send-message', chatId, text });
-    logger.info('WhatsApp message sent via IPC', { chatId, textLength: text.length });
+    logger.info('WhatsApp message sent via fallback process', { chatId, textLength: text.length });
     return { success: true };
   } catch (error: any) {
     logger.error('WhatsApp sendMessage error', error);
@@ -375,11 +486,37 @@ ipcMain.handle(
   'whatsapp:sendFile',
   async (_event, chatId: string, filePath: string, caption?: string) => {
     try {
+      // Always store the file message first (even if sending fails)
+      try {
+        const messageHandler = (whatsappService as any).messageHandler;
+        const mediaHandler = (whatsappService as any).mediaHandler;
+        if (messageHandler && mediaHandler) {
+          const fileName = path.basename(filePath);
+          const fileExtension = path.extname(filePath).toLowerCase();
+          const mimetype = mediaHandler.getMimeTypeFromExtension(fileExtension);
+          messageHandler.storeAgentFileMessage(chatId, fileName, filePath, mimetype, caption);
+        }
+      } catch (storeError) {
+        logger.warn('Could not store agent file message via WhatsAppService:', storeError);
+      }
+      
+      // Try to send via WhatsAppService first
+      try {
+        const result = await whatsappService.sendFile(chatId, filePath, caption);
+        if (result.success) {
+          logger.info('WhatsApp file sent via WhatsAppService', { chatId, filePath, hasCaption: !!caption });
+          return result;
+        }
+      } catch (serviceError) {
+        logger.warn('WhatsAppService.sendFile failed, trying fallback:', serviceError);
+      }
+      
+      // Fallback: send directly via the forked process if WhatsAppService doesn't have a process
       if (!whatsappProcess) {
         throw new Error('WhatsApp service not initialized');
       }
-      whatsappProcess.send({ type: 'send-file', chatId, filePath, caption });
-      logger.info('WhatsApp file sent via IPC', { chatId, filePath, hasCaption: !!caption });
+      whatsappProcess.send({ type: 'send-file', chatId, filePath, caption: caption || '' });
+      logger.info('WhatsApp file sent via fallback process', { chatId, filePath, hasCaption: !!caption });
       return { success: true };
     } catch (error: any) {
       logger.error('WhatsApp sendFile error', error);
@@ -400,10 +537,10 @@ ipcMain.handle('whatsapp:createQuote', async (_event, jobId: string, quoteData: 
   }
 });
 
-ipcMain.handle('whatsapp:downloadMedia', async (_event, contact: string, messageId: string) => {
+ipcMain.handle('whatsapp:downloadMedia', async (_event, _contact: string, messageId: string) => {
   try {
     // This would need to be implemented based on your media download logic
-    logger.info('Media download requested via IPC', { contact, messageId });
+    logger.info('Media download requested via IPC', { contact: _contact, messageId });
     return { success: false, filePath: undefined };
   } catch (error: any) {
     logger.error('WhatsApp downloadMedia error', error);
@@ -497,7 +634,11 @@ app
 
       // Create main window - this is critical
       try {
-        setupWindows();
+        const mainWindow = setupWindows();
+        // Initialize system tray after window is created
+        if (mainWindow) {
+          trayService.initialize(mainWindow);
+        }
       } catch (windowError) {
         logger.error('Failed to create main window:', windowError);
         dialog.showErrorBox(
@@ -568,10 +709,25 @@ app
   });
 
 app.on('window-all-closed', () => {
+  const settings = storageService.getSettings();
+  const minimizeToTray = settings?.minimizeToTray ?? true;
+
   // On macOS, keep app running even when all windows are closed
-  if (process.platform !== 'darwin') {
-    app.quit();
+  if (process.platform === 'darwin') {
+    return;
   }
+
+  // If minimize to tray is enabled, don't quit
+  if (minimizeToTray) {
+    const mainWindow = BrowserWindow.getAllWindows()[0];
+    if (mainWindow) {
+      mainWindow.hide();
+    }
+    return;
+  }
+
+  // Otherwise quit
+  app.quit();
 });
 
 // Handle uncaught exceptions
@@ -601,6 +757,9 @@ app.on('before-quit', () => {
     whatsappProcess.kill();
     whatsappProcess = null;
   }
+
+  // Clean up tray
+  trayService.destroy();
 
   dbService.close();
 });

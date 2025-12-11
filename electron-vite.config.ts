@@ -78,8 +78,29 @@ export default defineConfig({
     optimizeDeps: {
       include: ['jspdf', 'jspdf-autotable'],
       exclude: [],
+      // Force re-optimization if cache is stale
+      force: false,
+    },
+    server: {
+      // Increase timeout for dependency optimization
+      hmr: {
+        overlay: true,
+      },
     },
     build: {
+      base: './', // Important for Electron - relative paths
+      rollupOptions: {
+        external: ['electron'], // Electron is provided by the runtime
+      },
+      // Performance optimizations
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: true, // Remove console.log in production
+        },
+      },
+      // Code splitting for better performance
+      chunkSizeWarningLimit: 1000,
       commonjsOptions: {
         include: [/jspdf-autotable/, /node_modules/],
       },

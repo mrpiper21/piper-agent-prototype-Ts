@@ -73,16 +73,27 @@ export function setupWindows(): BrowserWindow {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 800,
+    minHeight: 600,
     icon: iconPath, // Set window icon
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      // Set CSP programmatically for better control
       webSecurity: true,
+      // Performance optimizations
+      enableWebSQL: false,
+      spellcheck: false,
+      // Disable dev tools in production
+      devTools: isDev,
+      // Hardware acceleration
+      backgroundThrottling: false,
+      offscreen: false,
     },
     show: false, // Don't show until ready
-    autoHideMenuBar: false,
+    autoHideMenuBar: !isDev, // Hide menu bar in production
+    frame: true,
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
   });
 
   // Set CSP headers programmatically for HTTP/HTTPS requests (dev server)
@@ -165,10 +176,50 @@ export function setupWindows(): BrowserWindow {
     mainWindow.webContents.openDevTools();
   }
 
+  // Disable browser-like refresh shortcuts (Ctrl+R, F5)
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // Disable refresh shortcuts in production
+    if (!isDev) {
+      if ((input.control || input.meta) && input.key.toLowerCase() === 'r') {
+        event.preventDefault();
+        logger.info('Refresh shortcut disabled');
+      }
+      if (input.key === 'F5') {
+        event.preventDefault();
+        logger.info('F5 refresh disabled');
+      }
+      // Disable Ctrl+Shift+R (hard refresh)
+      if ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'r') {
+        event.preventDefault();
+        logger.info('Hard refresh shortcut disabled');
+      }
+    }
+  });
+
+  // Prevent navigation to external URLs
+  mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    const parsedUrl = new URL(navigationUrl);
+    
+    if (parsedUrl.origin !== 'http://localhost:5173' && !isDev) {
+      event.preventDefault();
+      logger.warn('Navigation to external URL prevented:', navigationUrl);
+    }
+  });
+
+  // Prevent new window creation
+  mainWindow.webContents.setWindowOpenHandler(() => {
+    return { action: 'deny' };
+  });
+
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
     logger.info('Window ready to show');
     mainWindow?.show();
+    
+    // Focus window
+    if (mainWindow) {
+      mainWindow.focus();
+    }
   });
 
   // Note: Update handlers are managed by UpdateService

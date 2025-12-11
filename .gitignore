@@ -54,6 +54,10 @@ jspm_packages/
 # Optional eslint cache
 .eslintcache
 
+# Vite cache (can cause issues with OneDrive)
+node_modules/.vite/
+.vite/
+
 # Microbundle cache
 .rpt2_cache/
 .rts2_cache_cjs/

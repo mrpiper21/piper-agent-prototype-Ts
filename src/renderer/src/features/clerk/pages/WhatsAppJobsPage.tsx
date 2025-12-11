@@ -23,6 +23,7 @@ interface LocalMessage {
   timestamp: number;
   hasMedia: boolean;
   isPrintCommand: boolean;
+  from?: 'client' | 'agent'; // Track message sender
 }
 
 export default function WhatsAppJobsPage() {
@@ -30,23 +31,22 @@ export default function WhatsAppJobsPage() {
   const themeStyles = useMemo(() => {
     return theme === 'dark' ? darkStyles : lightStyles;
   }, [theme]);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const [messageUpdateTrigger, setMessageUpdateTrigger] = useState(0);
 
   const { hasConnectivityIssue } = useConnectivity();
   const { playSound } = useSoundNotifications();
 
-  // Track which conversations have already played the sound
-  const playedSoundsRef = useRef<Set<string>>(new Set());
+  const printSoundRef = useRef<Set<string>>(new Set());
 
   // Fetch WhatsApp conversations (NOT API jobs - these are separate)
-  const {
-    data: localMessages = [],
-    isLoading: isLoadingMessages,
-    error: messagesError,
-    refetch: refetchMessages,
-  } = useQuery<LocalMessage[]>({
+  // Use local state that gets updated via IPC events for real-time updates
+  const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+
+  // Initial load and periodic refresh (much less frequent - only as backup)
+  const { refetch: refetchMessages, error: messagesError } = useQuery<LocalMessage[]>({
     queryKey: ['whatsapp-local-messages', messageUpdateTrigger],
     queryFn: async () => {
       try {
@@ -55,17 +55,21 @@ export default function WhatsAppJobsPage() {
         }
         const messages = await electronAPI.whatsapp.getLocalMessages();
         console.log('[WhatsAppJobsPage] Fetched local messages:', messages?.length || 0);
-        return (messages || []) as LocalMessage[];
+        const messagesArray = (messages || []) as LocalMessage[];
+        setLocalMessages(messagesArray);
+        setIsLoadingMessages(false);
+        return messagesArray;
       } catch (error) {
         console.error('[WhatsAppJobsPage] Error fetching local messages:', error);
+        setIsLoadingMessages(false);
         return [];
       }
     },
-    staleTime: 0,
-    refetchInterval: 5000,
+    staleTime: 30000, // 30 seconds - messages update via IPC events primarily
+    refetchInterval: 60000, // Only refetch every 60 seconds as backup (real-time via IPC)
     refetchOnWindowFocus: true,
     refetchOnMount: true,
-    refetchIntervalInBackground: true,
+    refetchIntervalInBackground: false, // Don't poll in background
   });
 
   const whatsappJobs = useMemo(() => {
@@ -229,49 +233,25 @@ export default function WhatsAppJobsPage() {
     return conversations;
   }, [localMessages]);
 
-  // Update selected job when whatsappJobs updates (to get latest messages and maintain selection)
-  useEffect(() => {
-    if (selectedJob && whatsappJobs.length > 0) {
-      const selectedContact = (selectedJob.metadata as { whatsappContact?: string })
-        ?.whatsappContact;
-      if (selectedContact) {
-        const updatedJob = whatsappJobs.find(
-          (job) =>
-            (job.metadata as { whatsappContact?: string })?.whatsappContact === selectedContact
-        );
-        if (updatedJob) {
-          // Always update to get latest messages and maintain selection even if list reorders
-          // This ensures the selected conversation shows the latest message
-          const currentMessages =
-            (selectedJob.metadata as { messages?: Array<{ messageId?: string }> })?.messages || [];
-          const updatedMessages =
-            (updatedJob.metadata as { messages?: Array<{ messageId?: string }> })?.messages || [];
-          // Update if messages changed (by count or IDs) or if timestamp changed
-          const currentMessageIds = new Set(currentMessages.map((m) => m.messageId));
-          const updatedMessageIds = new Set(updatedMessages.map((m) => m.messageId));
-          const currentTimestamp =
-            (selectedJob.metadata as { latestMessageTimestamp?: number })?.latestMessageTimestamp ||
-            0;
-          const updatedTimestamp =
-            (updatedJob.metadata as { latestMessageTimestamp?: number })?.latestMessageTimestamp ||
-            0;
+  const selectedJob = useMemo(() => {
+    if (!selectedJobId) return null;
+    return whatsappJobs.find((job) => job._id === selectedJobId) || null;
+  }, [whatsappJobs, selectedJobId]);
 
-          const messagesChanged =
-            currentMessages.length !== updatedMessages.length ||
-            currentMessageIds.size !== updatedMessageIds.size ||
-            [...currentMessageIds].some((id) => !updatedMessageIds.has(id)) ||
-            currentTimestamp !== updatedTimestamp;
-
-          if (messagesChanged) {
-            console.log('[WhatsAppJobsPage] 🔄 Updating selected job with new messages/timestamp');
-            setSelectedJob(updatedJob);
-          }
-        }
-      }
+  const selectedMessages = useMemo(() => {
+    if (!selectedJobId) {
+      return [];
     }
-  }, [whatsappJobs, selectedJob]);
 
-  // Debug: Log when whatsappJobs changes (with sorting info)
+    const job = whatsappJobs.find((job) => job._id === selectedJobId);
+    const contact = (job?.metadata as { whatsappContact?: string })?.whatsappContact;
+    if (!contact) return [];
+
+    return localMessages
+      .filter((m) => m.contact === contact)
+      .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  }, [localMessages, selectedJobId, whatsappJobs]);
+
   useEffect(() => {
     console.log('[WhatsAppJobsPage] 📊 WhatsApp jobs updated:', {
       count: whatsappJobs.length,
@@ -329,6 +309,7 @@ export default function WhatsAppJobsPage() {
     }
   }, [queryClient, refetchMessages]);
 
+  // Real-time message updates via IPC events
   useEffect(() => {
     if (!electronAPI.whatsapp) {
       console.warn('[WhatsAppJobsPage] electronAPI.whatsapp not available');
@@ -340,19 +321,33 @@ export default function WhatsAppJobsPage() {
     const unsubscribeMessage = electronAPI.whatsapp.onMessage(
       (messageData: {
         contact?: string;
-        message?: { messageId?: string; body?: string; from?: string; isPrintCommand?: boolean };
+        message?: { 
+          messageId?: string; 
+          body?: string; 
+          from?: string; 
+          isPrintCommand?: boolean;
+          timestamp?: number;
+          hasMedia?: boolean;
+          media?: any;
+        };
         messageId?: string;
         body?: string;
         from?: string;
         contactName?: string;
         isPrintCommand?: boolean;
+        timestamp?: number;
+        hasMedia?: boolean;
+        media?: any;
       }) => {
-        const contact = messageData.contact;
-        const messageId = messageData.message?.messageId || messageData.messageId;
-        const body = (messageData.message?.body || messageData.body || '').substring(0, 50);
-        const from = messageData.message?.from || messageData.from;
+        // Handle format from sendToRenderer: { contact, contactName, message: LocalMessage }
+        // or direct format: { contact, messageId, body, ... }
+        const message = messageData.message || messageData;
+        const contact = messageData.contact || (messageData.message as any)?.contact;
+        const messageId = (message as any).messageId || messageData.messageId;
+        const body = (message.body || messageData.body || '').substring(0, 50);
+        const from = message.from || messageData.from;
         const isPrintCommand =
-          messageData.message?.isPrintCommand ||
+          message.isPrintCommand ||
           messageData.isPrintCommand ||
           body.trim().toLowerCase().startsWith('/print');
 
@@ -365,48 +360,88 @@ export default function WhatsAppJobsPage() {
           timestamp: Date.now(),
         });
 
+        // Play print command sound immediately
+        const soundKey = messageId
+          ? `whatsapp-print-${contact}-${messageId}`
+          : `whatsapp-print-${contact}-${Date.now()}`;
         if (isPrintCommand && contact) {
-          const soundKey = `whatsapp-${contact}-${messageId}`;
-          if (!playedSoundsRef.current.has(soundKey)) {
-            playedSoundsRef.current.add(soundKey);
-            console.log('[WhatsAppJobsPage] 🔊 Playing WhatsApp job notification sound', {
-              soundKey,
-              contact,
-              messageId,
-              timestamp: Date.now(),
-            });
+          if (!printSoundRef.current.has(soundKey)) {
+            printSoundRef.current.add(soundKey);
             try {
               playSound('whatsapp-job', soundKey);
             } catch (error) {
-              console.error('[WhatsAppJobsPage] ❌ Error calling playSound:', error);
+              console.error('[WhatsAppJobsPage] Error playing print command sound:', error);
             }
-          } else {
-            console.log('[WhatsAppJobsPage] ⏭️ Sound already played for this message:', soundKey);
           }
         }
 
+        // Immediately update local messages state for real-time UI update
+        // Handle both agent and client messages
+        if (contact && messageId) {
+          setLocalMessages((prev) => {
+            // Improved duplicate detection: check by messageId first, then by body+timestamp
+            const body = (message.body || messageData.body || '').trim();
+            const timestamp = message.timestamp || messageData.timestamp || Date.now();
+            
+            // Check for duplicate by messageId
+            const existsById = prev.some((msg) => msg.messageId === messageId);
+            if (existsById) {
+              console.log('[WhatsAppJobsPage] Message already exists (by ID), skipping duplicate', messageId);
+              return prev;
+            }
+            
+            // Check for duplicate by content (body + timestamp within 5 seconds)
+            // This handles cases where WhatsApp echoes back sent messages with different IDs
+            if (body) {
+              const existsByContent = prev.some((msg) => {
+                if (msg.contact !== contact) return false;
+                const msgBody = (msg.body || '').trim();
+                const msgTimestamp = msg.timestamp || 0;
+                const timeDiff = Math.abs(timestamp - msgTimestamp);
+                const sameBody = msgBody === body;
+                // If same body and timestamp within 5 seconds, consider it a duplicate
+                return sameBody && timeDiff < 5000;
+              });
+              if (existsByContent) {
+                console.log('[WhatsAppJobsPage] Message already exists (by content), skipping duplicate', {
+                  messageId,
+                  body: body.substring(0, 50),
+                });
+                return prev;
+              }
+            }
+            
+            // Add new message (both agent and client messages)
+            // Preserve the 'from' field to distinguish agent vs client messages
+            const messageFrom = (message as any)?.from || messageData.from || 'client';
+            const newMessage: LocalMessage = {
+              contact,
+              contactName: messageData.contactName || (message as any)?.contactName || contact.split('@')[0],
+              messageId,
+              body: message.body || messageData.body || '',
+              timestamp: message.timestamp || messageData.timestamp || Date.now(),
+              hasMedia: message.hasMedia || messageData.hasMedia || false,
+              isPrintCommand,
+              from: messageFrom, // Preserve sender information
+            };
+            
+            console.log('[WhatsAppJobsPage] Adding new message to state', {
+              messageId: newMessage.messageId,
+              contact: newMessage.contact,
+              from: (message as any)?.from || 'unknown',
+              body: newMessage.body.substring(0, 30),
+            });
+            return [...prev, newMessage];
+          });
+        }
+
+        // Only refetch for print commands (to check if job was created)
+        // Regular messages are updated via IPC events, no need to refetch
         if (isPrintCommand) {
-          handleMessageUpdate();
-
+          // Refetch after a delay to ensure job is created
           setTimeout(() => {
-            console.log('[WhatsAppJobsPage] ⏰ First backup refetch for /print command');
             handleMessageUpdate();
-          }, 200);
-
-          setTimeout(() => {
-            console.log('[WhatsAppJobsPage] ⏰ Second backup refetch for /print command');
-            handleMessageUpdate();
-          }, 600);
-
-          setTimeout(() => {
-            console.log('[WhatsAppJobsPage] ⏰ Final backup refetch for /print command');
-            handleMessageUpdate();
-          }, 1200);
-        } else {
-          setTimeout(() => {
-            console.log('[WhatsAppJobsPage] ⏰ Triggering message update for regular message');
-            handleMessageUpdate();
-          }, 100);
+          }, 1000);
         }
       }
     );
@@ -423,7 +458,7 @@ export default function WhatsAppJobsPage() {
       unsubscribeMessage();
       unsubscribeHistory();
     };
-  }, [handleMessageUpdate]);
+  }, [handleMessageUpdate, playSound]);
 
   if (hasConnectivityIssue) {
     return <ConnectivityIssue />;
@@ -514,7 +549,7 @@ export default function WhatsAppJobsPage() {
               themeStyles={themeStyles}
               jobs={whatsappJobs}
               selectedJob={selectedJob}
-              onJobSelect={setSelectedJob}
+              onJobSelect={(job) => setSelectedJobId(job._id || null)}
             />
           )}
         </div>
@@ -530,7 +565,11 @@ export default function WhatsAppJobsPage() {
             minWidth: 0,
           }}
         >
-          <WhatsAppJobDetails themeStyles={themeStyles} job={selectedJob} />
+          <WhatsAppJobDetails 
+            themeStyles={themeStyles} 
+            job={selectedJob} 
+            messages={selectedMessages}
+          />
         </div>
       ) : (
         <div

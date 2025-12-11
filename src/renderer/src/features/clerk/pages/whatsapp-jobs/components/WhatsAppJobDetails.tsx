@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { electronAPI } from '../../../../../lib';
 import { QuoteForm, type QuoteData } from './QuoteForm';
 import { StatusBanner } from './StatusBanner';
@@ -17,15 +16,15 @@ import type { ThemeStyles, Job } from './types';
 interface WhatsAppJobDetailsProps {
   themeStyles: ThemeStyles;
   job: Job;
+  messages?: any[]; // Allow passing messages directly
   onJobUpdate?: () => void;
 }
 
-export function WhatsAppJobDetails({ themeStyles, job, onJobUpdate }: WhatsAppJobDetailsProps) {
+export function WhatsAppJobDetails({ themeStyles, job, messages, onJobUpdate }: WhatsAppJobDetailsProps) {
   const [message, setMessage] = useState('');
   const [showQuoteForm, setShowQuoteForm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
   
   const statusInfo = getStatusInfo(job.status);
   const { phone, email } = getContactInfo(job);
@@ -35,84 +34,16 @@ export function WhatsAppJobDetails({ themeStyles, job, onJobUpdate }: WhatsAppJo
   const isQuoteSent = job.status?.toLowerCase() === 'quote_sent' || job.status?.toLowerCase() === 'awaiting_payment';
   const isPaymentReceived = job.status?.toLowerCase() === 'payment_received' || job.status?.toLowerCase() === 'processing';
 
-  const { data: latestMessages = [] } = useQuery({
-    queryKey: ['whatsapp-local-messages'],
-    queryFn: async () => {
-      if (!electronAPI.whatsapp?.getLocalMessages) return [];
-      const messages = await electronAPI.whatsapp.getLocalMessages();
-      return (messages || []) as Array<{
-        contact: string;
-        contactName: string;
-        messageId: string;
-        body: string;
-        timestamp: number;
-        hasMedia: boolean;
-        isPrintCommand: boolean;
-        from?: 'client' | 'agent';
-        media?: { mimetype: string; filename: string; filePath?: string; };
-      }>;
-    },
-    staleTime: 0,
-    refetchInterval: false,
-    refetchOnWindowFocus: false,
-  });
-
-  // Get messages for this specific contact
-  const contactMessages = latestMessages.filter(
-    (msg) => msg.contact === job.metadata?.whatsappContact
-  );
-
+  // Use messages from prop (preferred) or fall back to job metadata
+  // This ensures real-time updates from parent flow through immediately
   const allConversationMessages = useMemo(() => {
-    const jobMessages = job.metadata?.messages || [];
-    const messageMap = new Map();
+    const msgs = messages || job.metadata?.messages || [];
     
-    // Add job messages first
-    jobMessages.forEach((msg: any) => {
-      messageMap.set(msg.messageId, msg);
-    });
-    
-    // Override/add latest messages
-    contactMessages.forEach((msg) => {
-      messageMap.set(msg.messageId, msg);
-    });
-    
-    // Convert to array and sort by timestamp
-    return Array.from(messageMap.values()).sort((a: any, b: any) => 
+    // Sort by timestamp (ascending - oldest first)
+    return [...msgs].sort((a: any, b: any) => 
       (a.timestamp || 0) - (b.timestamp || 0)
     );
-  }, [job.metadata?.messages, contactMessages]);
-
-  // Listen for real-time message updates (both client and agent messages)
-  useEffect(() => {
-    if (!electronAPI.whatsapp) return;
-
-    const unsubscribe = electronAPI.whatsapp.onMessage((messageData: any) => {
-      // Check if this message is for the current conversation
-      const messageContact = messageData.contact || messageData.message?.contact;
-      const currentContact = job.metadata?.whatsappContact;
-      
-      if (messageContact === currentContact) {
-        console.log('[WhatsAppJobDetails] Message received for current conversation', {
-          contact: messageContact,
-          messageId: messageData.message?.messageId || messageData.messageId,
-          from: messageData.message?.from || messageData.from,
-        });
-        
-        // Invalidate and refetch messages for this conversation
-        queryClient.invalidateQueries({ queryKey: ['whatsapp-local-messages'] });
-        queryClient.refetchQueries({ queryKey: ['whatsapp-local-messages'] });
-        
-        // Also trigger parent update to refresh conversation list and re-sort
-        if (onJobUpdate) {
-          onJobUpdate();
-        }
-      }
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [job.metadata?.whatsappContact, queryClient, onJobUpdate]);
+  }, [messages, job.metadata?.messages]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -122,21 +53,19 @@ export function WhatsAppJobDetails({ themeStyles, job, onJobUpdate }: WhatsAppJo
   const handleSendMessage = async () => {
     if (!message.trim() || !electronAPI.whatsapp) return;
 
+    const messageText = message.trim();
+    const contact = job.metadata?.whatsappContact || phone;
+    
+    if (!contact) return;
+
     try {
-      const contact = job.metadata?.whatsappContact || phone;
-      if (contact) {
-        await electronAPI.whatsapp.sendMessage(contact, message);
-        setMessage('');
-        
-        // Immediately refetch messages to show the sent message
-        queryClient.invalidateQueries({ queryKey: ['whatsapp-local-messages'] });
-        queryClient.refetchQueries({ queryKey: ['whatsapp-local-messages'] });
-        
-        // Trigger parent update to refresh conversation list
-        if (onJobUpdate) {
-          onJobUpdate();
-        }
-      }
+      // Clear input immediately for better UX
+      setMessage('');
+      
+      // Send message - the IPC event from storeAgentMessage will update the parent component
+      // which will then update our props
+      await electronAPI.whatsapp.sendMessage(contact, messageText);
+      
     } catch (error) {
       console.error('Error sending message:', error);
       alert(`Failed to send message: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -153,14 +82,7 @@ export function WhatsAppJobDetails({ themeStyles, job, onJobUpdate }: WhatsAppJo
         await electronAPI.whatsapp.sendFile(contact, filePath, message.trim() || undefined);
         setMessage('');
         
-        // Immediately refetch messages to show the sent file
-        queryClient.invalidateQueries({ queryKey: ['whatsapp-local-messages'] });
-        queryClient.refetchQueries({ queryKey: ['whatsapp-local-messages'] });
-        
-        // Trigger parent update to refresh conversation list
-        if (onJobUpdate) {
-          onJobUpdate();
-        }
+        // IPC event will handle the update
       }
     } catch (error) {
       console.error('Error sending file:', error);
@@ -287,6 +209,7 @@ export function WhatsAppJobDetails({ themeStyles, job, onJobUpdate }: WhatsAppJo
               fontSize: '12px',
               fontWeight: '500',
               color: statusInfo.color,
+              
             }}
           >
             {statusInfo.text}
