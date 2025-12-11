@@ -146,7 +146,7 @@ jobs:
                 echo "$CREATE_BODY" | head -10
                 echo "Continuing anyway - electron-builder may still be able to publish."
               fi
-            else
+          else
               echo "⚠️  Failed to create release (HTTP $CREATE_HTTP_STATUS). Response:"
               echo "$CREATE_BODY" | head -10
               echo "Continuing anyway - electron-builder may create the release automatically."
@@ -530,11 +530,11 @@ jobs:
           for i in $(seq 1 $MAX_RETRIES); do
             echo "⏳ Attempt $i/$MAX_RETRIES: Checking for release (waiting ${RETRY_DELAY}s before check)..."
             sleep $RETRY_DELAY
-            
-            # Check if release exists in Agent-Releases
+          
+          # Check if release exists in Agent-Releases
             RELEASE_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: token $GH_TOKEN" \
-              "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$TAG_NAME")
-            
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$TAG_NAME")
+          
             # Extract HTTP status code
             HTTP_STATUS=$(echo "$RELEASE_RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2 || echo "unknown")
             RELEASE_BODY=$(echo "$RELEASE_RESPONSE" | sed '/HTTP_STATUS:/d')

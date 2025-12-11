@@ -143,6 +143,12 @@ export interface WhatsAppStatus {
 
 // IPC API interface
 export interface IpcApi {
+  storage: {
+    get: (key: string) => Promise<any>;
+    set: (key: string, value: any) => Promise<{ success: boolean }>;
+    delete: (key: string) => Promise<{ success: boolean }>;
+    clear: () => Promise<{ success: boolean }>;
+  };
   auth: {
     login: (credentials: LoginCredentials) => Promise<AuthResponse>;
     logout: () => Promise<void>;
@@ -292,6 +298,8 @@ export interface IpcApi {
     onMessage: (callback: (message: any) => void) => () => void;
     onError: (callback: (error: string) => void) => () => void;
     onHistoryLoaded: (callback: (data: { count: number }) => void) => () => void;
+    onMessageAck?: (callback: (data: { messageId: string; chatId: string; ack: number }) => void) => () => void;
+    onReady?: (callback: () => void) => () => void;
   };
   shell: {
     openPath: (filePath: string) => Promise<{ success: boolean }>;

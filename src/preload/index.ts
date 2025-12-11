@@ -2,6 +2,13 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { IpcApi, WhatsAppStatus } from '../shared/types/ipc.types';
 
 const electronAPI: IpcApi = {
+  // Storage API (replaces localStorage)
+  storage: {
+    get: (key: string) => ipcRenderer.invoke('storage:get', key),
+    set: (key: string, value: any) => ipcRenderer.invoke('storage:set', key, value),
+    delete: (key: string) => ipcRenderer.invoke('storage:delete', key),
+    clear: () => ipcRenderer.invoke('storage:clear'),
+  },
   auth: {
     login: (credentials) => ipcRenderer.invoke('auth:login', credentials),
     logout: () => ipcRenderer.invoke('auth:logout'),
@@ -132,6 +139,14 @@ const electronAPI: IpcApi = {
     onMessageSent: (callback: (data: { chatId: string; text: string; timestamp: number }) => void) => {
       ipcRenderer.on('whatsapp-message-sent', (_event, data: { chatId: string; text: string; timestamp: number }) => callback(data));
       return () => ipcRenderer.removeAllListeners('whatsapp-message-sent');
+    },
+    onMessageAck: (callback: (data: { messageId: string; chatId: string; ack: number }) => void) => {
+      ipcRenderer.on('whatsapp-message-ack', (_event, data: { messageId: string; chatId: string; ack: number }) => callback(data));
+      return () => ipcRenderer.removeAllListeners('whatsapp-message-ack');
+    },
+    onReady: (callback: () => void) => {
+      ipcRenderer.on('whatsapp-ready', () => callback());
+      return () => ipcRenderer.removeAllListeners('whatsapp-ready');
     },
   },
   shell: {

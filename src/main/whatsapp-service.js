@@ -143,6 +143,8 @@ async function initializeWhatsApp(providedUserDataPath) {
       fs.mkdirSync(sessionPath, { recursive: true });
     }
 
+    // Configure Puppeteer
+    // Chromium should now be downloaded and Puppeteer will auto-detect it
     client = new Client({
       authStrategy: new LocalAuth({
         dataPath: sessionPath,
@@ -157,7 +159,13 @@ async function initializeWhatsApp(providedUserDataPath) {
           '--no-first-run',
           '--no-zygote',
           '--disable-gpu',
+          // Disable debug logging to prevent file locks
+          '--disable-logging',
+          '--log-level=3',
+          '--silent',
         ],
+        // Don't create debug log file
+        ignoreDefaultArgs: ['--enable-logging'],
       },
     });
 
@@ -233,8 +241,35 @@ async function initializeWhatsApp(providedUserDataPath) {
           isGroup: message.from?.includes('@g.us'),
         });
 
+        // Get chat and contact info for better message data
+        let chat, contact;
+        try {
+          chat = await message.getChat();
+          contact = await message.getContact();
+        } catch (err) {
+          console.warn('Could not get chat/contact info:', err.message);
+        }
+
         // Process new messages (not historical)
         await processMessage(message, false);
+        
+        // Send enhanced message data to renderer immediately
+        safeSend({
+          type: 'message',
+          data: {
+            id: message.id._serialized,
+            chatId: chat?.id._serialized || message.from,
+            body: message.body,
+            timestamp: message.timestamp,
+            fromMe: message.fromMe,
+            hasMedia: message.hasMedia,
+            contact: {
+              name: contact?.pushname || contact?.name || message.from.split('@')[0],
+              number: contact?.number || message.from.split('@')[0],
+            },
+            ack: message.ack || 0, // 0: pending, 1: sent, 2: delivered, 3: read
+          },
+        });
         
         // Handle /print command - send auto-reply (only for new messages, not historical)
         // Client can send /print with details and files in one message
@@ -251,6 +286,25 @@ async function initializeWhatsApp(providedUserDataPath) {
       } catch (error) {
         console.error('Error processing message:', error);
         console.error('Error stack:', error.stack);
+      }
+    });
+
+    // Listen for message acknowledgments (sent, delivered, read)
+    client.on('message_ack', (message, ack) => {
+      try {
+        console.log('Message acknowledgment received', {
+          messageId: message.id._serialized,
+          ack: ack, // 1: sent, 2: delivered, 3: read
+        });
+
+        safeSend({
+          type: 'message_ack',
+          messageId: message.id._serialized,
+          chatId: message.from,
+          ack: ack,
+        });
+      } catch (error) {
+        console.error('Error handling message ack:', error);
       }
     });
 
@@ -489,12 +543,40 @@ async function sendFile(chatId, filePath, caption) {
 async function disconnect() {
   if (client) {
     try {
+      // Get the browser instance before destroying client
+      const browser = client.pupBrowser;
+      
+      // Close all pages first
+      if (browser) {
+        const pages = await browser.pages();
+        for (const page of pages) {
+          try {
+            await page.close();
+          } catch (error) {
+            console.warn('Error closing page:', error.message);
+          }
+        }
+        
+        // Close the browser
+        try {
+          await browser.close();
+        } catch (error) {
+          console.warn('Error closing browser:', error.message);
+        }
+      }
+      
+      // Now destroy the client
       await client.destroy();
       client = null;
       safeSend({ type: 'disconnected', reason: 'User requested' });
+      
+      // Give browser process time to fully close
+      await new Promise(resolve => setTimeout(resolve, 500));
     } catch (error) {
       console.error('Error disconnecting:', error);
       safeSend({ type: 'error', error: error.message });
+      // Force cleanup
+      client = null;
     }
   }
 }
@@ -512,11 +594,27 @@ async function logout() {
   }
 }
 
-// Handle process termination
-process.on('SIGTERM', async () => {
+// Handle process termination - cleanup browser processes
+process.on('exit', () => {
   if (client) {
-    await client.destroy();
+    try {
+      // Try to cleanup, but don't wait (process is exiting)
+      client.destroy().catch(() => {});
+    } catch (error) {
+      // Ignore errors during exit
+    }
   }
+});
+
+process.on('SIGINT', async () => {
+  console.log('Received SIGINT, cleaning up...');
+  await disconnect();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('Received SIGTERM, cleaning up...');
+  await disconnect();
   process.exit(0);
 });
 

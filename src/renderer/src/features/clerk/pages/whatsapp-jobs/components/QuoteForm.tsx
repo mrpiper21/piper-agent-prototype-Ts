@@ -7,6 +7,8 @@ import {
 } from 'react-icons/ai';
 import type { lightStyles } from '../../../shared/clerkStyles';
 // import { PAYMENT_LINK_BASE_URL } from '../../../../../../main/services/api';
+// import { useSelector } from 'react-redux';
+import { useAuthStore } from '../../../../auth/store/authStore';
 
 type ThemeStyles = typeof lightStyles;
 
@@ -38,6 +40,7 @@ export interface QuoteData {
   specifications: string;
   price: number;
   internalNotes?: string;
+  adminId: string;
 }
 
 export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFormProps) {
@@ -48,6 +51,8 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
   const [internalNotes, setInternalNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  // const adminId = useSelector((state: RootState) => state.auth.user?.id);
+  const { user } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +81,7 @@ export function QuoteForm({ themeStyles, job: _job, onClose, onSubmit }: QuoteFo
     setIsSubmitting(true);
     try {
       await onSubmit({
+        adminId: user?.id || '',
         orderDescription: orderDescription.trim(),
         quantity: quantity.trim() || undefined,
         specifications: specifications.trim(),

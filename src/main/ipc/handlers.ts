@@ -3,6 +3,7 @@ import { dbService } from '../services/DatabaseService';
 import { agentService } from '../services/AgentService';
 import { apiService } from '../services/api';
 import { updateService } from '../services/UpdateService';
+import { storageService } from '../services/StorageService';
 // WhatsApp service removed - now handled directly in index.ts
 import { logger } from '../utils/logger';
 import { getMainWindow } from '../windows/MainWindow';
@@ -964,6 +965,71 @@ export function setupIpcHandlers() {
       }
     }
   );
+
+  // Storage handlers (replaces localStorage)
+  ipcMain.handle('storage:get', async (_, key: string) => {
+    try {
+      // Handle nested keys like 'settings.theme'
+      const keys = key.split('.');
+      const store = storageService.getStore();
+      let value: any = (store as any).store;
+
+      for (const k of keys) {
+        if (value && typeof value === 'object' && k in value) {
+          value = value[k];
+        } else {
+          return null;
+        }
+      }
+
+      return value;
+    } catch (error) {
+      logger.error('Storage get error', error);
+      return null;
+    }
+  });
+
+  ipcMain.handle('storage:set', async (_, key: string, value: any) => {
+    try {
+      // Handle nested keys
+      const keys = key.split('.');
+      const store = storageService.getStore();
+
+      if (keys.length === 1) {
+        (store as any).set(key, value);
+      } else {
+        const lastKey = keys.pop()!;
+        const path = keys.join('.');
+        const current = (store as any).get(path) || {};
+        (store as any).set(path, { ...current, [lastKey]: value });
+      }
+
+      return { success: true };
+    } catch (error) {
+      logger.error('Storage set error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('storage:delete', async (_, key: string) => {
+    try {
+      storageService.delete(key);
+      return { success: true };
+    } catch (error) {
+      logger.error('Storage delete error', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('storage:clear', async () => {
+    try {
+      storageService.clearAll();
+      return { success: true };
+    } catch (error) {
+      logger.error('Storage clear error', error);
+      throw error;
+    }
+  });
 
   logger.info('IPC handlers registered');
 }
